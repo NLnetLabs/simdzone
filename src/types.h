@@ -22,6 +22,7 @@
 #define TYPE_AAAA (28)
 #define TYPE_SOA (6)
 #define TYPE_TXT (16)
+#define TYPE_SVCB (64)
 
 struct map {
   const uint16_t type;
@@ -85,6 +86,7 @@ static const struct map types[] = {
   TYPE(99, SPF),
   TYPE(33, SRV),
   TYPE(44, SSHFP),
+  TYPE(64, SVCB),
   TYPE(52, TLSA),
   TYPE(16, TXT),
   TYPE(256, URI),

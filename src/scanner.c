@@ -50,15 +50,13 @@ static int32_t peek(const zone_parser_t *par, size_t idx)
 }
 
 static inline int32_t
-scan_comment(const zone_parser_t *par, zone_token_t *tok, size_t *len)
+lex_comment(const zone_parser_t *par, zone_token_t *tok, size_t cnt, size_t *len)
 {
   int32_t chr;
-  size_t cnt = 0;
 
   chr = peek(par, cnt);
   assert(chr == ';');
 
-  tok->location.end = tok->location.begin = par->file->position;
   for (cnt++; (chr = peek(par, cnt)) > '\0'; cnt++) {
     if (chr == '\n' || chr == '\r')
       break;
@@ -68,21 +66,20 @@ scan_comment(const zone_parser_t *par, zone_token_t *tok, size_t *len)
   if (chr < 0)
     return chr;
   *len = cnt;
-  tok->comment.data = par->file->buffer.data.read + par->file->buffer.cursor;
-  tok->comment.length = cnt;
+  tok->string.data = par->file->buffer.data.read + par->file->buffer.cursor;
+  tok->string.length = cnt;
   return (tok->code = ';');
 }
 
 static inline int32_t
-scan_quoted_string(const zone_parser_t *par, zone_token_t *tok, size_t *len)
+lex_quoted_string(const zone_parser_t *par, zone_token_t *tok, size_t off, size_t *len)
 {
+  size_t cnt = off;
   int32_t chr, esc = 0;
-  size_t cnt = 0;
 
   chr = peek(par, cnt);
   assert(chr == '"');
 
-  tok->location.end = tok->location.begin = par->file->position;
   for (cnt++; (chr = peek(par, cnt)) >= '\0'; cnt++) {
     switch (chr) {
       case '\0':
@@ -101,14 +98,15 @@ scan_quoted_string(const zone_parser_t *par, zone_token_t *tok, size_t *len)
         break;
       case '\\':
         tok->location.end.column++;
-        esc = tok->escaped = 1;
+        esc = tok->string.escaped = 1;
         break;
       case '\"':
         if (!esc) {
           tok->location.end.column++;
-          tok->string.data = par->file->buffer.data.read + par->file->buffer.cursor + 1;
-          tok->string.length = cnt - 2;
           *len = cnt;
+          assert(cnt >= off);
+          tok->string.data = par->file->buffer.data.read + par->file->buffer.cursor + off + 1;
+          tok->string.length = (cnt - off) - 2;
           return (tok->code = ZONE_STRING);
         }
         // fall through
@@ -124,19 +122,18 @@ scan_quoted_string(const zone_parser_t *par, zone_token_t *tok, size_t *len)
 }
 
 static inline int32_t
-scan_string(const zone_parser_t *par, zone_token_t *tok, size_t *len)
+lex_string(const zone_parser_t *par, zone_token_t *tok, size_t off, size_t *len)
 {
+  size_t cnt = off;
   int32_t chr, esc = 0;
-  size_t cnt = 0;
   static const char delim[] = ";()\n\r \t\"";
 
   chr = peek(par, cnt);
   assert(chr && !strchr(delim, chr));
 
-  tok->location.end = tok->location.begin = par->file->position;
   for (cnt++; (chr = peek(par, cnt)) > '\0'; cnt++) {
     if (chr == '\\')
-      esc = tok->escaped = 1;
+      esc = tok->string.escaped = 1;
     else if (esc)
       esc = 0;
     else if (strchr(delim, chr))
@@ -147,43 +144,169 @@ scan_string(const zone_parser_t *par, zone_token_t *tok, size_t *len)
   if (chr < 0)
     return chr;
   *len = cnt;
-  tok->string.data = par->file->buffer.data.read + par->file->buffer.cursor;
-  tok->string.length = cnt;
+  assert(cnt >= off);
+  tok->string.data = par->file->buffer.data.read + par->file->buffer.cursor + off;
+  tok->string.length = cnt - off;
   return (tok->code = ZONE_STRING);
+}
+
+static inline bool is_svcparamkey(char c)
+{
+  return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
+}
+
+static inline int32_t
+lex_svcparam(const zone_parser_t *par, zone_token_t *tok, size_t off, size_t *len)
+{
+  size_t cnt = off;
+  int32_t chr;
+  static const char delim[] = ";\n\r \t";
+
+  chr = peek(par, cnt);
+  assert(chr && !strchr(delim, chr));
+
+  if (!is_svcparamkey(chr))
+    SYNTAX_ERROR(par, "Invalid SvcParam at {l}");
+
+  for (cnt++; (chr = peek(par, cnt)) > '\0'; cnt++) {
+    if (!is_svcparamkey(chr))
+      break;
+    tok->location.end.column++;
+  }
+
+  if (chr < 0)
+    return chr;
+  *len = cnt;
+  tok->svc_param.key.data = par->file->buffer.data.read + par->file->buffer.cursor;
+  tok->svc_param.key.length = cnt;
+
+  if (chr != '=')
+    return (tok->code = ZONE_SVC_PARAM);
+  if ((chr = peek(par, ++cnt)) < 0)
+    return chr;
+  if (chr == '\0' || strchr(delim, chr))
+    return (tok->code = ZONE_SVC_PARAM);
+
+  // dummy token for scanning SvcParamValue
+  zone_token_t dummy = { tok->location, 0, .string = { NULL, 0 } };
+  if (chr == '"')
+    chr = lex_quoted_string(par, &dummy, cnt, len);
+  else
+    chr = lex_string(par, &dummy, cnt, len);
+  if (chr < 0)
+    return chr;
+  tok->location = dummy.location;
+  tok->svc_param.value = dummy.string;
+  return (tok->code = ZONE_SVC_PARAM);
+}
+
+#include "types.h"
+
+static inline void reset_token(const zone_parser_t *par, zone_token_t *tok)
+{
+  tok->location.end = tok->location.begin = par->file->position;
+}
+
+static inline int32_t scan_svcb(zone_parser_t *par, zone_token_t *tok)
+{
+  int32_t code = ' ';
+  enum { PRIORITY = 0, TARGET_NAME, PARAMS } state;
+
+  assert(par->state & ZONE_RDATA);
+  // 8 least significant bits are reserved for specialized the RDATA scanners
+  state = par->state & 0xf;
+
+  do {
+    size_t cnt = 1;
+    int32_t chr = peek(par, 0);
+    if (chr == ';') {
+      tok->location.end = tok->location.begin = par->file->position;
+      code = lex_comment(par, tok, 0, &cnt);
+      goto eval;
+    } else if (chr == '(' || chr == ')' || chr == '\0') {
+      code = chr;
+    } else if (chr == '\r') { // CR+LF (Windows) or CR (Macintosh)
+      if ((chr = peek(par, cnt + 1)) < 0)
+        return (code = chr);
+      cnt += (chr == '\n');
+      code = '\n'; // handle end-of-line consistently
+    } else if (chr == '\n') { // LF (UNIX)
+      code = '\n';
+    } else if (chr == ' ' || chr == '\t') {
+      code = ' '; // handle tabs and spaces consistently
+    } else if (state == PARAMS) {
+      reset_token(par, tok);
+      code = lex_svcparam(par, tok, 0, &cnt);
+      goto eval;
+    } else {
+      assert(state == PRIORITY || state == TARGET_NAME);
+      reset_token(par, tok);
+      if (chr == '"')
+        code = lex_quoted_string(par, tok, 0, &cnt);
+      else
+        code = lex_string(par, tok, 0, &cnt);
+      par->state = (par->state & ~0xf) | (state ? PARAMS : TARGET_NAME);
+      goto eval;
+    }
+
+    tok->code = code;
+    tok->location.end = tok->location.begin = par->file->position;
+    if (code == '\n') {
+      tok->location.end = tok->location.begin = par->file->position;
+      tok->location.end.line++;
+      tok->location.end.column = 1;
+    } else if (code > 0) {
+      tok->location.end.column++;
+    }
+
+eval:
+    if (code < 0)
+      return code;
+    if (code > 0)
+      par->file->buffer.cursor += cnt;
+    par->file->position = tok->location.end;
+  } while (code == ' ');
+
+  return code;
 }
 
 // zone file scanner is implemented as a 2 stage process. 1st stage scans for
 // tokens without grouping context or recognizing ttl, class, type or rdata.
 // comments and (quoted) character strings are converted to a single token,
-// special characters are returned as individual tokens. delimiters are
-// discarded unless they serve to signal an implicit owner.
+// as are svc parameters. special characters are returned as individual
+// tokens. delimiters are discarded unless they serve to signal an implicit
+// owner.
 static inline int32_t
-scan_raw(zone_parser_t *par, zone_token_t * tok)
+scan(zone_parser_t *par, zone_token_t * tok)
 {
   size_t cnt = 0;
   int32_t code = ' ';
 
+  if ((par->state & ZONE_RDATA) && par->scanner)
+    return par->scanner(par, tok);
+
   do {
     int32_t chr = peek(par, 0);
     if (chr == ';') {
-      code = scan_comment(par, tok, &cnt);
+      tok->location.end = tok->location.begin = par->file->position;
+      code = lex_comment(par, tok, 0, &cnt);
     } else if (chr == '"') {
-      code = scan_quoted_string(par, tok, &cnt);
+      tok->location.end = tok->location.begin = par->file->position;
+      code = lex_quoted_string(par, tok, 0, &cnt);
     } else {
       cnt = 1;
       if (chr == '(' || chr == ')' || chr == '\0') {
         code = chr;
       } else if (chr == '\r') { // CR+LF (Windows) or CR (Macintosh)
-        chr = peek(par, cnt + 1);
+        if ((chr = peek(par, cnt + 1)) < 0)
+          return (code = chr);
         cnt += (chr == '\n');
-        if (chr < 0)
-          code = chr;
-        else
-          code = '\n'; // handle end-of-line consistently
+        code = '\n'; // handle end-of-line consistently
       } else if (chr == '\n') { // LF (UNIX)
         code = '\n';
       } else if (chr != ' ' && chr != '\t') {
-        code = scan_string(par, tok, &cnt);
+        tok->location.end = tok->location.begin = par->file->position;
+        code = lex_string(par, tok, 0, &cnt);
         goto eval;
       } else {
         code = ' '; // handle tabs and spaces consistently
@@ -196,7 +319,7 @@ scan_raw(zone_parser_t *par, zone_token_t * tok)
         tok->location.end.line++;
         tok->location.end.column = 1;
       } else if (code > 0) {
-        tok->location.end.column++;
+        tok->location.end.column++; // yeah, this wont work. cnt is to be used instead!!!!
       }
     }
 eval:
@@ -214,53 +337,6 @@ eval:
 
   return code;
 }
-
-// remove \DDD constructs from input. see RFC 1035, section 5.1
-static inline int32_t
-unescape(zone_parser_t *par, zone_token_t *tok)
-{
-  char *buf = par->buffer.data;
-  const char *s = tok->string.data;
-  size_t len = 0;
-
-  assert(tok->code == ZONE_STRING);
-  assert(tok->escaped);
-
-  // increase local buffer if required
-  if (par->buffer.size < tok->string.length) {
-    if (!(buf = realloc(par->buffer.data, tok->string.length)))
-      return ZONE_NO_MEMORY;
-    par->buffer.data = buf;
-    par->buffer.size = tok->string.length;
-  }
-
-  for (size_t i = 0, n = tok->string.length; i < n; ) {
-    if (s[i] != '\\') {
-      buf[len++] = s[i];
-      i += 1;
-    } else if (n - i >= 4 && !(s[i+1] < '0' || s[i+1] > '2') &&
-                             !(s[i+2] < '0' || s[i+2] > '5') &&
-                             !(s[i+3] < '0' || s[i+3] > '5'))
-    {
-      buf[len++] = (s[i+1] - '0') * 100 +
-                   (s[i+2] - '0') *  10 +
-                   (s[i+3] - '0') *   1;
-      i += 4;
-    } else if (n - i >= 1) {
-      buf[len++] = s[i+1];
-      i += 2;
-    } else {
-      // trailing backslash, ignore
-      assert(n - i == 0);
-    }
-  }
-
-  tok->string.data = buf;
-  tok->string.length = len;
-  return ZONE_STRING;
-}
-
-#include "types.h"
 
 static inline int mapcmp(const void *p1, const void *p2)
 {
@@ -369,7 +445,7 @@ static inline int32_t scan_type(zone_parser_t *par, zone_token_t *tok)
   int32_t type = -1;
 
   assert(tok->code == ZONE_STRING);
-  assert(!tok->escaped);
+  assert(!tok->string.escaped);
 
   type = istype(tok->string.data, tok->string.length);
   if (type >= 0)
@@ -393,9 +469,10 @@ static inline int32_t scan_type(zone_parser_t *par, zone_token_t *tok)
 
   if (type > 65535)
     SYNTAX_ERROR(par, "Invalid type at {l}, type number exceeds maximum");
+
 found:
-  tok->type = (uint16_t)type;
-  return tok->code = ZONE_TYPE;
+  tok->int16 = (uint16_t)type;
+  return tok->code = ZONE_TYPE | ZONE_INT16;
 }
 
 static inline int32_t isclass(const char *str, size_t len)
@@ -429,7 +506,7 @@ scan_class(zone_parser_t *par, zone_token_t *tok)
   int32_t class = -1;
 
   assert(tok->code == ZONE_STRING);
-  assert(!tok->escaped);
+  assert(!tok->string.escaped);
 
   class = isclass(tok->string.data, tok->string.length);
   if (class >= 0)
@@ -453,8 +530,8 @@ scan_class(zone_parser_t *par, zone_token_t *tok)
   if (class > 65535)
     SEMANTIC_ERROR(par, "Invalid class at {l}, class number exceeds maximum");
 found:
-  tok->class = (uint16_t)class;
-  return tok->code = ZONE_CLASS;
+  tok->int16 = (uint16_t)class;
+  return tok->code = ZONE_CLASS | ZONE_INT16;
 }
 
 static inline uint32_t isunit(char chr)
@@ -549,8 +626,8 @@ scan_ttl(zone_parser_t *par, zone_token_t *tok)
   // FIXME: comment RFC2308 msb
   if (secs > (uint32_t)INT32_MAX)
     SEMANTIC_ERROR(par, "Invalid ttl at {l}, value exceeds maximum");
-  tok->ttl = secs;
-  return tok->code = ZONE_TTL;
+  tok->int32 = secs;
+  return tok->code = ZONE_TTL | ZONE_INT32;
 }
 
 static inline int32_t
@@ -561,18 +638,20 @@ scan_rr(zone_parser_t *par, zone_token_t *tok)
   // TYPE bit must always be set as state would be RDATA if TYPE had been
   // previously encountered
   assert(par->state & ZONE_TYPE);
-  assert(!tok->escaped);
+  assert(!tok->string.escaped);
 
   if ((code = scan_type(par, tok)) > 0) {
     par->state &= ~ZONE_RR;
     par->state |= ZONE_RDATA;
-    assert(tok->code == ZONE_TYPE);
+    assert(tok->code == (ZONE_TYPE|ZONE_INT16));
+    if (tok->int16 == 64 || tok->int16 == 65)
+      par->scanner = &scan_svcb;
   } else if ((par->state & ZONE_CLASS) && (code = scan_class(par, tok)) > 0) {
     par->state &= ~ZONE_CLASS;
-    assert(tok->code == ZONE_CLASS);
+    assert(tok->code == (ZONE_CLASS|ZONE_INT16));
   } else if ((par->state & ZONE_TTL) && (code = scan_ttl(par, tok)) > 0) {
     par->state &= ~ZONE_TTL;
-    assert(tok->code == ZONE_TTL);
+    assert(tok->code == (ZONE_TTL|ZONE_INT32));
   }
 
   if (!code) {
@@ -590,13 +669,58 @@ scan_rr(zone_parser_t *par, zone_token_t *tok)
   return code;
 }
 
-static int32_t
-scan(zone_parser_t *par, zone_token_t *tok)
+// remove \DDD constructs from input. see RFC 1035, section 5.1
+static inline int32_t
+unescape(zone_parser_t *par, zone_string_t *str)
 {
-  int32_t code;
+  char *buf = par->buffer.data;
+  const char *s = str->data;
+  size_t len = 0;
 
-  while ((code = scan_raw(par, tok)) >= 0) {
-    if (code == '(') {
+  // increase local buffer if required
+  if (par->buffer.size < str->length) {
+    if (!(buf = realloc(par->buffer.data, str->length)))
+      return ZONE_NO_MEMORY;
+    par->buffer.data = buf;
+    par->buffer.size = str->length;
+  }
+
+  for (size_t i = 0, n = str->length; i < n; ) {
+    if (s[i] != '\\') {
+      buf[len++] = s[i];
+      i += 1;
+    } else if (n - i >= 4 && !(s[i+1] < '0' || s[i+1] > '2') &&
+                             !(s[i+2] < '0' || s[i+2] > '5') &&
+                             !(s[i+3] < '0' || s[i+3] > '5'))
+    {
+      buf[len++] = (s[i+1] - '0') * 100 +
+                   (s[i+2] - '0') *  10 +
+                   (s[i+3] - '0') *   1;
+      i += 4;
+    } else if (n - i >= 1) {
+      buf[len++] = s[i+1];
+      i += 2;
+    } else {
+      // trailing backslash, ignore
+      assert(n - i == 0);
+    }
+  }
+
+  str->data = buf;
+  str->length = len;
+  return 0;//ZONE_STRING;
+}
+
+int32_t
+zone_scan(zone_parser_t *par, zone_token_t *tok)
+{
+  zone_code_t code;
+
+  do {
+    code = scan(par, tok);
+    if (code == ZONE_NEED_REFILL) {
+      code = refill(par);
+    } else if (code == '(') {
       if (par->state & ZONE_GROUPED)
         SYNTAX_ERROR(par, "Nested braces");
       // parentheses are not allowed within control entries, require blank or
@@ -613,7 +737,6 @@ scan(zone_parser_t *par, zone_token_t *tok)
       const uint32_t state = par->state & ~ZONE_GROUPED;
       assert(state == ZONE_INITIAL || state == ZONE_OWNER);
       par->state = ZONE_RR | (par->state & ZONE_GROUPED);
-      return code;
     } else if (code == '\0') {
       if (par->state & ZONE_GROUPED)
         SYNTAX_ERROR(par, "Unexpected end-of-file, expected closing brace");
@@ -624,64 +747,33 @@ scan(zone_parser_t *par, zone_token_t *tok)
         continue;
       par->state = ZONE_INITIAL;
       return code;
-    } else {
-      uint32_t state = par->state & ~ZONE_GROUPED;
+    } else if (code > 0) {
+      int32_t err;
+      zone_code_t state = par->state & ~(ZONE_GROUPED | 0xff);
+      zone_string_t *str = NULL;
 
-      assert(code == ZONE_STRING);
+      if (code == ZONE_SVC_PARAM)
+        str = &tok->svc_param.value;
+      else if (code == ZONE_STRING)
+        str = &tok->string;
+      assert(str);
 
-      if (state == ZONE_INITIAL) {
-        assert(!(par->state & ZONE_GROUPED));
-#if 0
-//        if (have(parser, token, "$ORIGIN")) {
-//          parser->state = ORIGIN_CONTROL;
-//        } else if (have(parser, token, "$INCLUDE")) {
-//          parser->state = INCLUDE_CONTROL;
-//        } else if (have(parser, token, "$TTL")) {
-//          // FIXME: mention RFC
-//          parser->state = TTL_CONTROL;
-//        } else if (token.value.string.length > 0 && token.value.string.data[0] == '$') {
-//          // FIXME: warn about unsupported directive
-//          parser->state = UNKNOWN_CONTROL;
-//        } else {
-//          par->state = ZONE_OWNER;
-//        }
-//
-#endif
-        state = par->state = ZONE_OWNER;
-      }
+      // unescape token, i.e. resolve \DDD and \X
+      if (str->escaped && (err = unescape(par, str)))
+        return err;
 
-      if (!(state & ZONE_CONTROL)) {
-        int32_t err;
-
-        // unescape token, i.e. resolve \DDD and \X
-        if (tok->escaped && (err = unescape(par, tok)))
-          return err;
-
-        if (state == ZONE_OWNER) {
-          tok->code = code = ZONE_OWNER;
-          par->state = ZONE_RR;
-          return code;
-        } else if (state & ZONE_RR) {
-          return scan_rr(par, tok);
-        } else {
-          assert(state == ZONE_RDATA);
-          tok->code = code = ZONE_RDATA;
-          return code;
-        }
+      if (state == ZONE_INITIAL || (state & ZONE_OWNER)) {
+        tok->code = (code |= ZONE_OWNER);
+        par->state = ZONE_RR;
+        return code;
+      } else if (state & ZONE_RR) {
+        return scan_rr(par, tok);
+      } else {
+        assert(state == ZONE_RDATA);
+        tok->code = (code |= ZONE_RDATA);
+        return code;
       }
     }
-  }
-
-  return code;
-}
-
-int32_t zone_scan(zone_parser_t *parser, zone_token_t *token)
-{
-  int32_t code;
-
-  do {
-    if ((code = scan(parser, token)) == ZONE_NEED_REFILL)
-      code = refill(parser);
   } while (code == ZONE_NEED_REFILL);
 
   return code;

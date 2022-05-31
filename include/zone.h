@@ -9,12 +9,16 @@
 #ifndef ZONE_H
 #define ZONE_H
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
 
+// FIXME: properly implement support for RFC 3597
+
 typedef struct zone_position zone_position_t;
 struct zone_position {
+  const char *file;
   off_t line, column;
 };
 
@@ -23,64 +27,91 @@ struct zone_location {
   zone_position_t begin, end;
 };
 
+// parser states
+#define ZONE_INITIAL (1 << 19)
+#define ZONE_GROUPED (1 << 20)
+#define ZONE_RR (ZONE_TTL|ZONE_CLASS|ZONE_TYPE)
+
+// zone code is a concatenation of the item and value types. the 8 least
+// significant bits are reserved to embed ascii codes. e.g. end-of-file and
+// line feed delimiters are simply encoded as '\0' and '\n' respectively. the
+// 8 least significant bits must only be considered valid ascii if no other
+// bits are set as they are reserved for private state if there are.
+// bits 8 - 12 encode the the value type, the remaining bits encode the item
+// type. negative values indicate an error condition
+typedef int32_t zone_code_t;
+
+typedef enum {
+  ZONE_DELIMITER = 0, // single character embedded in 8 least significant bits
+  // record items
+  ZONE_COMMENT = (1 << 13),
+  ZONE_OWNER = (1 << 14),
+  ZONE_TTL = (1 << 15),
+  ZONE_CLASS = (1 << 16),
+  ZONE_TYPE = (1 << 17),
+  ZONE_RDATA = (1 << 18)
+  // pending implementation of control types
+} zone_item_t;
+
+inline zone_item_t zone_item(zone_code_t code)
+{
+  int32_t x = code & 0x000ff000;
+  assert((!x && !(code & 0xf00)) || (x >= ZONE_COMMENT && x <= ZONE_RDATA));
+  return (zone_item_t)x;
+}
+
+typedef enum {
+  ZONE_CHAR = 0, // single character embedded in 8 least significant bits
+  ZONE_INT8 = (1 << 8),
+  ZONE_INT16 = (2 << 8),
+  ZONE_INT32 = (3 << 8),
+  ZONE_STRING = (4 << 8),
+  // httpsvc requires an additional token type to allow for clear seperation
+  // between scan and parse states to remain intact. while a string can be
+  // used, doing so requires unescaping to be moved up into the parser, the
+  // parser to split the parameter and value again and possibly require more
+  // memory as the value cannot be referenced in unquoted fashion
+  ZONE_SVC_PARAM = (5 << 8)
+} zone_type_t;
+
+inline zone_type_t zone_type(zone_code_t code)
+{
+  int32_t x = code & 0x00000f00;
+  assert((!x && (code & 0xff)) || (x >= ZONE_INT8 && x <= ZONE_SVC_PARAM));
+  return (zone_type_t)x;
+}
+
+typedef struct zone_string zone_string_t;
+struct zone_string {
+  const char *data;
+  size_t length;
+  int32_t escaped;
+};
+
 typedef struct zone_token zone_token_t;
 struct zone_token {
   zone_location_t location;
-  int32_t code;
-  int32_t escaped;
+  zone_code_t code;
   union {
-    struct { const char *data; size_t length; } string, comment;
-    uint16_t type, class;
-    uint32_t ttl;
+    uint8_t int8;
+    uint16_t int16;
+    uint32_t int32;
+    zone_string_t string;
+    struct { zone_string_t key; zone_string_t value; } svc_param;
   }; // c11 anonymous struct
-};
-
-// 8 least significant bits are reserved for delimiting characters so that
-// some state is retained on transitions. bits 9 - 16 are reserved to
-// specialized primary state. bits 17 and up are reserved to
-// maintain stacked states. stacked states can be combined with primary
-// and other stacked in some cases. e.g. GROUPED can be set while scanning
-// RR information when a comment is started. i.e. SOA record examples
-// scattered across the internet often contain comments explaining what
-// each RDATA item represents
-
-// tokens
-#define ZONE_COMMENT (1u << 8)
-#define ZONE_STRING (2u << 8)
-
-// state
-#define ZONE_INITIAL (1u << 15)
-#define ZONE_CONTROL (1u << 16)
-#define ZONE_GROUPED (1u << 17)
-// record states
-#define ZONE_OWNER (1u << 18) // doubles as token code
-#define ZONE_TTL (1u << 19) // doubles as token (valid icw ZONE_CONTROL too)
-#define ZONE_CLASS (1u << 20) // doubles as token code
-#define ZONE_TYPE (1u << 21) // doubles as token code
-#define ZONE_RR (ZONE_TTL|ZONE_CLASS|ZONE_TYPE)
-#define ZONE_RDATA (1u << 22) // doubles as token code
-// control states
-#define ZONE_ORIGIN (1u << 23)
-#define ZONE_INCLUDE (1u << 24)
-
-// FIXME: implement copy of dname struct as found in NSD for parse interface
-typedef struct zone_domain zone_domain_t;
-struct zone_domain {
-  uint8_t size;
-  uint8_t count;
 };
 
 typedef struct zone_file zone_file_t;
 struct zone_file {
   zone_file_t *includer;
-  zone_domain_t origin;
+  //zone_domain_t origin;
   zone_position_t position;
   const char *name; // file name in include directive
   const char *path; // fully-qualified path to include file
   FILE *handle;
   struct {
     // moved after each record is parsed, controlled by parser
-    size_t offset;
+    //size_t offset;
     // moved after each token is parsed, controlled by scanner
     size_t cursor;
     size_t used;
@@ -97,11 +128,15 @@ struct zone_file {
 //  uint32_t default_ttl;
 //};
 
-// FIXME: add support for dnsextlang in the parser(?)
 typedef struct zone_parser zone_parser_t;
+struct zone_parser;
+
+typedef zone_code_t(*zone_rdata_scanner_t)(zone_parser_t *, zone_token_t *);
+
 struct zone_parser {
   zone_file_t *file;
-  uint32_t state;
+  zone_code_t state;
+  zone_rdata_scanner_t scanner;
   //uint32_t default_ttl;
   //uint16_t default_class;
   // buffer used if token was escaped. created as required.
@@ -131,7 +166,7 @@ void zone_close(zone_parser_t *parser);
 // calling zone_parse repetitively. called zone_parse as that fits nicely
 // with zone_scan
 // FIXME: maybe offer a callback interface too?
-int32_t zone_parse(zone_parser_t *parser, zone_rr_t *record);
+//int32_t zone_parse(zone_parser_t *parser, zone_rr_t *record);
 
 // raw scanner interface that simply returns tokens initially required for
 // testing purposes, but may be useful for users too. merely handles splitting
