@@ -14,30 +14,14 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "zone.h"
+#include "parser.h"
 
-static void error(const zone_parser_t *par, const char *fmt, ...)
-{
-  assert(par);
-  assert(fmt);
-  // pending a proper implementation
-  va_list ap;
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  va_end(ap);
-}
-
-#define SYNTAX_ERROR(parser, ...) \
-  do { error(parser, __VA_ARGS__); return ZONE_SYNTAX_ERROR; } while (0);
-#define SEMANTIC_ERROR(parser, ...) \
-  do { error(parser, __VA_ARGS__); return ZONE_SEMANTIC_ERROR; } while (0);
-
-static int32_t refill(const zone_parser_t *par)
+static zone_return_t refill(const zone_parser_t *par)
 {
   // FIXME: implement
   // x. take into account the offset and cursor
   (void)par;
-  return ZONE_NO_MEMORY;
+  return ZONE_OUT_OF_MEMORY;
 }
 
 static int32_t peek(const zone_parser_t *par, size_t idx)
@@ -49,7 +33,7 @@ static int32_t peek(const zone_parser_t *par, size_t idx)
   return !par->file->handle || feof(par->file->handle) ? 0 : ZONE_NEED_REFILL;
 }
 
-static inline int32_t
+static inline zone_return_t
 lex_comment(const zone_parser_t *par, zone_token_t *tok, size_t cnt, size_t *len)
 {
   int32_t chr;
@@ -71,7 +55,7 @@ lex_comment(const zone_parser_t *par, zone_token_t *tok, size_t cnt, size_t *len
   return (tok->code = ';');
 }
 
-static inline int32_t
+static inline zone_return_t
 lex_quoted_string(const zone_parser_t *par, zone_token_t *tok, size_t off, size_t *len)
 {
   size_t cnt = off;
@@ -121,7 +105,7 @@ lex_quoted_string(const zone_parser_t *par, zone_token_t *tok, size_t off, size_
   return chr;
 }
 
-static inline int32_t
+static inline zone_return_t
 lex_string(const zone_parser_t *par, zone_token_t *tok, size_t off, size_t *len)
 {
   size_t cnt = off;
@@ -155,7 +139,7 @@ static inline bool is_svcparamkey(char c)
   return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
 }
 
-static inline int32_t
+static inline zone_return_t
 lex_svcparam(const zone_parser_t *par, zone_token_t *tok, size_t off, size_t *len)
 {
   size_t cnt = off;
@@ -200,19 +184,17 @@ lex_svcparam(const zone_parser_t *par, zone_token_t *tok, size_t off, size_t *le
   return (tok->code = ZONE_SVC_PARAM);
 }
 
-#include "types.h"
-
 static inline void reset_token(const zone_parser_t *par, zone_token_t *tok)
 {
   tok->location.end = tok->location.begin = par->file->position;
 }
 
-static inline int32_t scan_svcb(zone_parser_t *par, zone_token_t *tok)
+static inline zone_return_t scan_svcb(zone_parser_t *par, zone_token_t *tok)
 {
   int32_t code = ' ';
   enum { PRIORITY = 0, TARGET_NAME, PARAMS } state;
 
-  assert(par->state & ZONE_RDATA);
+  assert(par->state & ZONE_SVCB_RDATA);
   // 8 least significant bits are reserved for specialized the RDATA scanners
   state = par->state & 0xf;
 
@@ -276,14 +258,14 @@ eval:
 // as are svc parameters. special characters are returned as individual
 // tokens. delimiters are discarded unless they serve to signal an implicit
 // owner.
-static inline int32_t
+static inline zone_return_t
 scan(zone_parser_t *par, zone_token_t * tok)
 {
   size_t cnt = 0;
   int32_t code = ' ';
 
-  if ((par->state & ZONE_RDATA) && par->scanner)
-    return par->scanner(par, tok);
+  if ((par->state & ZONE_SVCB_RDATA))
+    return scan_svcb(par, tok);
 
   do {
     int32_t chr = peek(par, 0);
@@ -338,6 +320,57 @@ eval:
   return code;
 }
 
+// remove \DDD constructs from input. see RFC 1035, section 5.1
+ssize_t zone_unescape(const char *str, size_t len, char *buf, size_t size, int strict)
+{
+  size_t cnt = 0;
+
+  assert(str);
+  assert(buf);
+
+  for (size_t i=0; i < len; ) {
+    if (str[i] != '\\') {
+      if (cnt < size)
+        buf[cnt++] = str[i];
+      i += 1;
+    } else if ((i < len - 1) && (str[i+1] >= '0' && str[i+1] <= '2') &&
+               (i < len - 2) && (str[i+2] >= '0' && str[i+2] <= '5') &&
+               (i < len - 3) && (str[i+3] >= '0' && str[i+3] <= '5'))
+    {
+      if (cnt < size)
+        buf[cnt++] = (str[i+1] - '0') * 100 +
+                     (str[i+2] - '0') *  10 +
+                     (str[i+3] - '0') *   1;
+      i += 4;
+    } else if (len - i >= 1) {
+      if (cnt < size)
+        buf[cnt++] = str[i+1];
+      i += 2;
+    } else {
+      assert(len - i == 0);
+      i += 1;
+      // trailing backslash, ignore?
+      if (strict)
+        return -1;
+    }
+  }
+
+  assert(cnt <= len);
+  return cnt;
+}
+
+static inline uint32_t multiply(uint32_t lhs, uint32_t rhs, uint32_t max)
+{
+  return (max < lhs || (lhs && max / lhs < rhs)) ? max + 1 : lhs * rhs;
+}
+
+static inline uint32_t add(uint32_t lhs, uint32_t rhs, uint32_t max)
+{
+  return (max < lhs || max - lhs < rhs) ? max + 1 : lhs + rhs;
+}
+
+#include "scanner-types.h"
+
 static inline int mapcmp(const void *p1, const void *p2)
 {
   int eq;
@@ -351,7 +384,7 @@ static inline int mapcmp(const void *p1, const void *p2)
   return m1->namelen < m2->namelen ? -1 : +1;
 }
 
-static inline int32_t istype(const char *str, size_t len)
+uint16_t zone_is_type(const char *str, size_t len)
 {
   struct map *map, key = { 0, str, len };
 
@@ -414,11 +447,11 @@ static inline int32_t istype(const char *str, size_t len)
     case '7':
     case '8':
     case '9':
-      return -1;
+      return 0;
     case 'i':
     case 'I':
       if (len == 2 && strncasecmp(str, "IN", 2) == 0)
-        return -1;
+        return 0;
       break;
   }
 
@@ -426,30 +459,19 @@ static inline int32_t istype(const char *str, size_t len)
     &key, types, sizeof(types)/sizeof(types[0]), sizeof(types[0]), &mapcmp);
   if (map)
     return (int32_t)(map->type);
-  return -1;
-}
-
-
-static inline int32_t multype(int32_t a, int32_t b)
-{
-  return (INT32_MAX / b > a) ? INT32_MAX : a * b;
-}
-
-static inline int32_t addtype(int32_t a, int32_t b)
-{
-  return (INT32_MAX - b) > a ? INT32_MAX : a + b;
+  return 0;
 }
 
 static inline int32_t scan_type(zone_parser_t *par, zone_token_t *tok)
 {
-  int32_t type = -1;
+  uint32_t type;
 
   assert(tok->code == ZONE_STRING);
   assert(!tok->string.escaped);
 
-  type = istype(tok->string.data, tok->string.length);
-  if (type >= 0)
-    goto found;
+  // FIXME: unescape here first!
+  if ((type = zone_is_type(tok->string.data, tok->string.length)) > 0)
+    goto done;
   // support unknown DNS resource record types (rfc 3597)
   if (tok->string.length < 4)
     return 0;
@@ -460,25 +482,25 @@ static inline int32_t scan_type(zone_parser_t *par, zone_token_t *tok)
     SYNTAX_ERROR(par, "Invalid type at {l}, missing type number");
 
   type = 0;
-  for (size_t i = 4; i < tok->string.length && type <= 65535; i++) {
-    uint8_t c = tok->string.data[i];
-    if (c < '0' || c > '9')
+  for (size_t i = 4; i < tok->string.length; i++) {
+    char chr = tok->string.data[i];
+    if (chr < '0' || chr > '9')
       SYNTAX_ERROR(par, "Invalid type at {l}, non-digit in type number");
-    type = addtype(multype(type, 10), (int32_t)(c - '0'));
+    type = add(multiply(type, 10, UINT16_MAX), (uint32_t)(chr - '0'), UINT16_MAX);
+    if (type > UINT16_MAX)
+      SYNTAX_ERROR(par, "Invalid type at {l}, type number exceeds maximum");
   }
 
-  if (type > 65535)
-    SYNTAX_ERROR(par, "Invalid type at {l}, type number exceeds maximum");
-
-found:
+done:
+  assert(type <= UINT16_MAX);
   tok->int16 = (uint16_t)type;
   return tok->code = ZONE_TYPE | ZONE_INT16;
 }
 
-static inline int32_t isclass(const char *str, size_t len)
+uint16_t zone_is_class(const char *str, size_t len)
 {
   if (len != 2)
-    return -1;
+    return 0;
   if (strncasecmp(str, "IN", 2) == 0)
     return 1;
   if (strncasecmp(str, "CH", 2) == 0)
@@ -487,30 +509,21 @@ static inline int32_t isclass(const char *str, size_t len)
     return 3;
   if (strncasecmp(str, "HS", 2) == 0)
     return 4;
-  return -1;
+  return 0;
 }
 
-static inline uint16_t mulclass(int32_t a, int32_t b)
-{
-  return (INT32_MAX / b > a) ? INT32_MAX : a * b;
-}
-
-static inline uint16_t addclass(int32_t a, int32_t b)
-{
-  return (INT32_MAX - b > a) ? INT32_MAX : a + b;
-}
-
-static inline int32_t
+static inline zone_return_t
 scan_class(zone_parser_t *par, zone_token_t *tok)
 {
-  int32_t class = -1;
+  uint32_t class;
 
   assert(tok->code == ZONE_STRING);
   assert(!tok->string.escaped);
 
-  class = isclass(tok->string.data, tok->string.length);
-  if (class >= 0)
-    goto found;
+  // FIXME: unescape here first!
+  if ((class = zone_is_class(tok->string.data, tok->string.length)) > 0)
+    goto done;
+  // support unknown DNS class (rfc 3597)
   if (tok->string.length < 5)
     return 0;
   if (strncasecmp(tok->string.data, "CLASS", 5) != 0)
@@ -520,117 +533,35 @@ scan_class(zone_parser_t *par, zone_token_t *tok)
     SYNTAX_ERROR(par, "Invalid class at {l}, missing class number");
 
   class = 0;
-  for (size_t i = 5; i < tok->string.length && class <= 65535; i++) {
+  for (size_t i = 5; i < tok->string.length; i++) {
     uint8_t c = tok->string.data[i];
     if (c < '0' || c > '9')
       SYNTAX_ERROR(par, "Invalid class at {l}, non-digit in class number");
-    class = addclass(mulclass(class, 10), (int32_t)c - '0');
+    class = add(multiply(class, 10, UINT16_MAX), (uint32_t)c - '0', UINT16_MAX);
+    if (class > UINT16_MAX)
+      SYNTAX_ERROR(par, "Invalid class at {l}, class number exceeds maximum");
   }
 
-  if (class > 65535)
-    SEMANTIC_ERROR(par, "Invalid class at {l}, class number exceeds maximum");
-found:
+done:
+  assert(class <= UINT16_MAX);
   tok->int16 = (uint16_t)class;
   return tok->code = ZONE_CLASS | ZONE_INT16;
 }
 
-static inline uint32_t isunit(char chr)
-{
-  static const uint32_t s = 1u, m = 60u*s, h = 60u*m, d = 24u*h, w = 7u*d;
-
-  switch (chr) {
-    case 's':
-    case 'S':
-      return s;
-    case 'm':
-    case 'M':
-      return m;
-    case 'h':
-    case 'H':
-      return h;
-    case 'd':
-    case 'D':
-      return d;
-    case 'w':
-    case 'W':
-      return w;
-  }
-
-  return 0;
-}
-
-static inline uint32_t multtl(uint32_t a, uint32_t b)
-{
-  if ((uint32_t)INT32_MAX < a || (uint32_t)INT32_MAX / a < b)
-    return (uint32_t)INT32_MAX + 1;
-  return a * b;
-}
-
-static inline uint32_t addttl(uint32_t a, uint32_t b)
-{
-  if ((uint32_t)INT32_MAX < a || (uint32_t)INT32_MAX - a < b)
-    return (uint32_t)INT32_MAX + 1;
-  return a + b;
-}
-
-
-static inline int32_t
+static inline zone_return_t
 scan_ttl(zone_parser_t *par, zone_token_t *tok)
 {
-  uint32_t num = 0, secs = 0, fact = 0;
-  enum { initial, number, unit } state = initial;
+  zone_return_t ret;
+  uint32_t ttl;
 
-  for (size_t i = 0; i < tok->string.length; i++) {
-    uint32_t u;
-    const uint8_t c = tok->string.data[i];
-    switch (state) {
-      case initial:
-        // ttls must start with a number
-        if (c < '0' || c > '9')
-          return 0;
-        state = number;
-        num = c - '0';
-        break;
-      case number:
-        if (c >= '0' && c <= '9') {
-          num = addttl(multtl(num, 10), c - '0');
-        } else if ((u = isunit(c))) {
-          // units must not be repeated e.g. 1m1m
-          if (fact == u)
-            SYNTAX_ERROR(par, "Invalid ttl at {l}, reuse of unit %c", c);
-          // greater units must precede smaller units. e.g. 1m1s, not 1s1m
-          if (fact && fact < u)
-            SYNTAX_ERROR(par, "Invalid ttl at {l}, unit %c follows smaller unit", c);
-          num = multtl(num, (fact = u));
-          state = unit;
-        } else {
-          SYNTAX_ERROR(par, "Invalid ttl at {l}, invalid unit %c", c);
-        }
-        break;
-      case unit:
-        // units must be followed by a number. e.g. 1h30m, not 1hh
-        if (c < '0' || c > '9')
-          SYNTAX_ERROR(par, "Invalid ttl at {l}, non-digit follows unit");
-        // units must not be followed by a number if smallest unit,
-        // i.e. seconds, was previously specified
-        if (fact == 1)
-          SYNTAX_ERROR(par, "Invalid ttl at {l}, seconds already specified");
-        secs = addttl(secs, num);
-        num = c - '0';
-        state = number;
-        break;
-    }
-  }
-
-  secs = addttl(secs, num);
-  // FIXME: comment RFC2308 msb
-  if (secs > (uint32_t)INT32_MAX)
-    SEMANTIC_ERROR(par, "Invalid ttl at {l}, value exceeds maximum");
-  tok->int32 = secs;
+  if ((ret = zone_parse_ttl(par, tok, &ttl)) < 0)
+    return ret;
+  assert(ttl <= INT32_MAX);
+  tok->int32 = ttl;
   return tok->code = ZONE_TTL | ZONE_INT32;
 }
 
-static inline int32_t
+static inline zone_return_t
 scan_rr(zone_parser_t *par, zone_token_t *tok)
 {
   int32_t code;
@@ -642,10 +573,11 @@ scan_rr(zone_parser_t *par, zone_token_t *tok)
 
   if ((code = scan_type(par, tok)) > 0) {
     par->state &= ~ZONE_RR;
-    par->state |= ZONE_RDATA;
     assert(tok->code == (ZONE_TYPE|ZONE_INT16));
     if (tok->int16 == 64 || tok->int16 == 65)
-      par->scanner = &scan_svcb;
+      par->state |= ZONE_SVCB_RDATA;
+    else
+      par->state |= ZONE_RDATA;
   } else if ((par->state & ZONE_CLASS) && (code = scan_class(par, tok)) > 0) {
     par->state &= ~ZONE_CLASS;
     assert(tok->code == (ZONE_CLASS|ZONE_INT16));
@@ -669,49 +601,7 @@ scan_rr(zone_parser_t *par, zone_token_t *tok)
   return code;
 }
 
-// remove \DDD constructs from input. see RFC 1035, section 5.1
-static inline int32_t
-unescape(zone_parser_t *par, zone_string_t *str)
-{
-  char *buf = par->buffer.data;
-  const char *s = str->data;
-  size_t len = 0;
-
-  // increase local buffer if required
-  if (par->buffer.size < str->length) {
-    if (!(buf = realloc(par->buffer.data, str->length)))
-      return ZONE_NO_MEMORY;
-    par->buffer.data = buf;
-    par->buffer.size = str->length;
-  }
-
-  for (size_t i = 0, n = str->length; i < n; ) {
-    if (s[i] != '\\') {
-      buf[len++] = s[i];
-      i += 1;
-    } else if (n - i >= 4 && !(s[i+1] < '0' || s[i+1] > '2') &&
-                             !(s[i+2] < '0' || s[i+2] > '5') &&
-                             !(s[i+3] < '0' || s[i+3] > '5'))
-    {
-      buf[len++] = (s[i+1] - '0') * 100 +
-                   (s[i+2] - '0') *  10 +
-                   (s[i+3] - '0') *   1;
-      i += 4;
-    } else if (n - i >= 1) {
-      buf[len++] = s[i+1];
-      i += 2;
-    } else {
-      // trailing backslash, ignore
-      assert(n - i == 0);
-    }
-  }
-
-  str->data = buf;
-  str->length = len;
-  return 0;//ZONE_STRING;
-}
-
-int32_t
+zone_return_t
 zone_scan(zone_parser_t *par, zone_token_t *tok)
 {
   zone_code_t code;
@@ -748,7 +638,6 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
       par->state = ZONE_INITIAL;
       return code;
     } else if (code > 0) {
-      int32_t err;
       zone_code_t state = par->state & ~(ZONE_GROUPED | 0xff);
       zone_string_t *str = NULL;
 
@@ -758,10 +647,6 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
         str = &tok->string;
       assert(str);
 
-      // unescape token, i.e. resolve \DDD and \X
-      if (str->escaped && (err = unescape(par, str)))
-        return err;
-
       if (state == ZONE_INITIAL || (state & ZONE_OWNER)) {
         tok->code = (code |= ZONE_OWNER);
         par->state = ZONE_RR;
@@ -769,7 +654,7 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
       } else if (state & ZONE_RR) {
         return scan_rr(par, tok);
       } else {
-        assert(state == ZONE_RDATA);
+        assert(state == ZONE_RDATA || state == ZONE_SVCB_RDATA);
         tok->code = (code |= ZONE_RDATA);
         return code;
       }

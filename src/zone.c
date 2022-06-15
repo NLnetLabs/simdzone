@@ -10,16 +10,35 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "zone.h"
+#include "scanner.h"
 
 static const char string[] = "<string>";
 
-int32_t zone_open_string(zone_parser_t *parser, const char *str, size_t len)
+zone_return_t zone_open_string(
+  zone_parser_t *par, const zone_options_t *opts, const char *str, size_t len)
 {
   zone_file_t *file;
 
+  if (!str)
+    return ZONE_BAD_PARAMETER;
+
+  // custom allocator must be fully specified or not at all
+  int alloc = (opts->allocator.malloc != 0) +
+              (opts->allocator.realloc != 0) +
+              (opts->allocator.free != 0) +
+              (opts->allocator.arena != NULL);
+  if (alloc != 0 && alloc != 4)
+    return ZONE_BAD_PARAMETER;
+  //
+  if (!opts->accept.rr)
+    return ZONE_BAD_PARAMETER;
+  if (!opts->accept.rdata)
+    return ZONE_BAD_PARAMETER;
+  if (!opts->accept.terminator)
+    return ZONE_BAD_PARAMETER;
+
   if (!(file = calloc(1, sizeof(*file))))
-    return ZONE_NO_MEMORY;
+    return ZONE_OUT_OF_MEMORY;
   file->name = string;
   file->path = string;
   file->handle = NULL; // valid for fixed buffer
@@ -28,9 +47,10 @@ int32_t zone_open_string(zone_parser_t *parser, const char *str, size_t len)
   file->buffer.data.read = str;
   file->position.line = 1;
   file->position.column = 1;
-  memset(parser, 0, sizeof(*parser));
-  parser->state = ZONE_INITIAL;
-  parser->file = file;
+  memset(par, 0, sizeof(*par));
+  par->state = ZONE_INITIAL;
+  par->file = file;
+  par->options = *opts;
   return 0;
 }
 

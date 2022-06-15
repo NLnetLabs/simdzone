@@ -13,8 +13,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <netinet/in.h>
 
 // FIXME: properly implement support for RFC 3597
+
+typedef int32_t zone_return_t;
 
 typedef struct zone_position zone_position_t;
 struct zone_position {
@@ -27,92 +30,22 @@ struct zone_location {
   zone_position_t begin, end;
 };
 
-// parser states
-#define ZONE_INITIAL (1 << 19)
-#define ZONE_GROUPED (1 << 20)
-#define ZONE_RR (ZONE_TTL|ZONE_CLASS|ZONE_TYPE)
-
-// zone code is a concatenation of the item and value types. the 8 least
-// significant bits are reserved to embed ascii codes. e.g. end-of-file and
-// line feed delimiters are simply encoded as '\0' and '\n' respectively. the
-// 8 least significant bits must only be considered valid ascii if no other
-// bits are set as they are reserved for private state if there are.
-// bits 8 - 12 encode the the value type, the remaining bits encode the item
-// type. negative values indicate an error condition
-typedef int32_t zone_code_t;
-
-typedef enum {
-  ZONE_DELIMITER = 0, // single character embedded in 8 least significant bits
-  // record items
-  ZONE_COMMENT = (1 << 13),
-  ZONE_OWNER = (1 << 14),
-  ZONE_TTL = (1 << 15),
-  ZONE_CLASS = (1 << 16),
-  ZONE_TYPE = (1 << 17),
-  ZONE_RDATA = (1 << 18)
-  // pending implementation of control types
-} zone_item_t;
-
-inline zone_item_t zone_item(zone_code_t code)
-{
-  int32_t x = code & 0x000ff000;
-  assert((!x && !(code & 0xf00)) || (x >= ZONE_COMMENT && x <= ZONE_RDATA));
-  return (zone_item_t)x;
-}
-
-typedef enum {
-  ZONE_CHAR = 0, // single character embedded in 8 least significant bits
-  ZONE_INT8 = (1 << 8),
-  ZONE_INT16 = (2 << 8),
-  ZONE_INT32 = (3 << 8),
-  ZONE_STRING = (4 << 8),
-  // httpsvc requires an additional token type to allow for clear seperation
-  // between scan and parse states to remain intact. while a string can be
-  // used, doing so requires unescaping to be moved up into the parser, the
-  // parser to split the parameter and value again and possibly require more
-  // memory as the value cannot be referenced in unquoted fashion
-  ZONE_SVC_PARAM = (5 << 8)
-} zone_type_t;
-
-inline zone_type_t zone_type(zone_code_t code)
-{
-  int32_t x = code & 0x00000f00;
-  assert((!x && (code & 0xff)) || (x >= ZONE_INT8 && x <= ZONE_SVC_PARAM));
-  return (zone_type_t)x;
-}
-
-typedef struct zone_string zone_string_t;
-struct zone_string {
-  const char *data;
-  size_t length;
-  int32_t escaped;
-};
-
-typedef struct zone_token zone_token_t;
-struct zone_token {
-  zone_location_t location;
-  zone_code_t code;
-  union {
-    uint8_t int8;
-    uint16_t int16;
-    uint32_t int32;
-    zone_string_t string;
-    struct { zone_string_t key; zone_string_t value; } svc_param;
-  }; // c11 anonymous struct
-};
-
 typedef struct zone_file zone_file_t;
 struct zone_file {
   zone_file_t *includer;
-  //zone_domain_t origin;
+  struct {
+    const void *domain; // reference received by accept_name if applicable
+    struct { size_t length; uint8_t octets[255]; } name;
+  } origin; // current origin
+  struct {
+    const void *domain; // reference received by accept_name if applicable
+    struct { size_t length; uint8_t octets[255]; } name;
+  } owner; // current owner
   zone_position_t position;
   const char *name; // file name in include directive
   const char *path; // fully-qualified path to include file
   FILE *handle;
   struct {
-    // moved after each record is parsed, controlled by parser
-    //size_t offset;
-    // moved after each token is parsed, controlled by scanner
     size_t cursor;
     size_t used;
     size_t size;
@@ -120,60 +53,139 @@ struct zone_file {
   } buffer;
 };
 
-// FIXME: add a flags member. e.g. to allow for includes icw static buffers
-//
-// perhaps simply add a struct named zone_options?
-//struct zone_options {
-//  uint16_t default_class;
-//  uint32_t default_ttl;
-//};
+typedef enum {
+  ZONE_DOMAIN = (1 << 8),
+  ZONE_INT8 = (2 << 8),
+  ZONE_INT16 = (3 << 8),
+  ZONE_INT32 = (4 << 8),
+  ZONE_IP4 = (5 << 8),
+  ZONE_IP6 = (6 << 8),
+  ZONE_NAME = (7 << 8)
+} zone_format_t;
+
+typedef struct zone_field zone_field_t;
+struct zone_field {
+  zone_location_t location;
+  zone_format_t format;
+  union {
+    const void *domain;
+    uint8_t int8;
+    uint16_t int16;
+    uint32_t int32;
+    struct { uint8_t length; uint8_t *octets; } name;
+    struct in_addr *ip4;
+    struct in6_addr *ip6;
+  };
+};
 
 typedef struct zone_parser zone_parser_t;
 struct zone_parser;
 
-typedef zone_code_t(*zone_rdata_scanner_t)(zone_parser_t *, zone_token_t *);
+// accept name is invoked whenever a domain name, e.g. OWNER, ORIGIN or
+// CNAME, is encountered. the function must return a persistent reference to
+// the internal representation. the reference is passed as an argument if a
+// function is registered, otherwise the default behaviour is to pass the name
+// in wire format
+typedef const void *(*zone_accept_name_t)(
+  const zone_parser_t *,
+  const zone_field_t *, // name
+  void *); // user data
+
+// invoked at the start of each record (host order). the four fields are
+// passed in one go for convenience. arguably, avoiding needless
+// callbacks has a positive impact on performance as well
+typedef zone_return_t(*zone_accept_rr_t)(
+  const zone_parser_t *,
+  zone_field_t *, // owner
+  zone_field_t *, // ttl
+  zone_field_t *, // class
+  zone_field_t *, // type
+  void *); // user data
+
+// invoked for each rdata item in a record (network order)
+typedef zone_return_t(*zone_accept_rdata_t)(
+  const zone_parser_t *,
+  zone_field_t *, // rdata,
+  void *); // user data
+
+// invoked to finish each record. i.e. end-of-file and newline
+typedef zone_return_t(*zone_accept_t)(
+  const zone_parser_t *,
+  zone_field_t *, // end-of-file or newline
+  void *); // user data
+
+typedef void *(*zone_malloc_t)(void *arena, size_t size);
+typedef void *(*zone_realloc_t)(void *arena, void *ptr, size_t size);
+typedef void(*zone_free_t)(void *arena, void *ptr);
+
+typedef struct zone_options zone_options_t;
+struct zone_options {
+  // FIXME: add a flags member. e.g. to allow for includes in combination
+  //        with static buffers, signal ownership of allocated memory, etc
+  uint16_t default_class;
+  uint32_t default_ttl;
+  struct {
+    zone_malloc_t malloc;
+    zone_realloc_t realloc;
+    zone_free_t free;
+    void *arena;
+  } allocator;
+  struct {
+    zone_accept_name_t name;
+    zone_accept_rr_t rr;
+    zone_accept_rdata_t rdata;
+    zone_accept_t terminator;
+  } accept;
+};
 
 struct zone_parser {
   zone_file_t *file;
-  zone_code_t state;
-  zone_rdata_scanner_t scanner;
-  //uint32_t default_ttl;
-  //uint16_t default_class;
-  // buffer used if token was escaped. created as required.
-  // FIXME: probably necessary to hold multiple buffers as more than one field
-  //        can be escaped. reset counters etc if zone_parse is invoked
+  int32_t state;
+  zone_options_t options;
   struct {
-    size_t size;
-    char *data;
-  } buffer;
+    // small backlog to track items before invoking accept_rr. memory for
+    // owner, if no accept_name was registered, is allocated just before
+    // invoking accept_rr to simplify memory management
+    zone_field_t fields[4]; // { owner, ttl, class, type }
+    struct {
+      const void *type; // pointer to type descriptor (private)
+      const void *rdata; // pointer to rdata descriptor (private)
+    } descriptor;
+    // FIXME: keep rdlength count
+    // FIXME: keep track of svcb parameters seen
+  } record;
+  // FIXME: keep error count?
 };
 
 // return codes
+#define ZONE_SUCCESS (0)
 #define ZONE_SYNTAX_ERROR (-1)
 #define ZONE_SEMANTIC_ERROR (-2)
-#define ZONE_NO_MEMORY (-3)
-#define ZONE_NEED_REFILL (-4) // internal error code used to trigger refill
+#define ZONE_OUT_OF_MEMORY (-3)
+#define ZONE_BAD_PARAMETER (-4)
+
+#define ZONE_NEED_REFILL (-5) // internal error code used to trigger refill
 
 // initializes the parser with a static fixed buffer
-int32_t zone_open_string(zone_parser_t *parser, const char *str, size_t len);
+zone_return_t zone_open_string(
+  zone_parser_t *parser, const zone_options_t *options, const char *str, size_t len);
 
 // initializes the parser and opens a zone file
-int32_t zone_open(zone_parser_t *parser, const char *file);
+zone_return_t zone_open(
+  zone_parser_t *parser, const zone_options_t *options, const char *file);
 
 void zone_close(zone_parser_t *parser);
 
 // basic mode of operation is iterative. users must iterate over records by
-// calling zone_parse repetitively. called zone_parse as that fits nicely
-// with zone_scan
-// FIXME: maybe offer a callback interface too?
-//int32_t zone_parse(zone_parser_t *parser, zone_rr_t *record);
+// calling zone_parse repetitively
+zone_return_t zone_parse(zone_parser_t *parser, void *user_data);
 
-// raw scanner interface that simply returns tokens initially required for
-// testing purposes, but may be useful for users too. merely handles splitting
-// and identification of fields. i.e. owner, ttl, class, type and rdata.
-// does not handle includes directives as that must be handled by the parse
-// step. also does not parse owner or rdata fields, again because that must be
-// taken care of by the parser
-int32_t zone_scan(zone_parser_t *parser, zone_token_t *token);
+// FIXME: implement zone_process
+
+// convenience function for reporting parser errors. supports custom flags
+// for easy printing of location. more flags may follow later
+void zone_error(const zone_parser_t *parser, const char *fmt, ...);
+
+// FIXME: probably should implement zone_warning, zone_info, zone_debug too?
 
 #endif // ZONE_H

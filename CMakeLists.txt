@@ -9,9 +9,10 @@ else()
   add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
-# FIXME: types.h can be generated eventually
-add_library(zone SHARED src/zone.c src/scanner.c src/types.h)
-target_include_directories(zone PUBLIC include)
+# FIXME: scanner-types.h can be generated eventually
+add_library(zone SHARED src/zone.c src/scanner.c src/parser.c src/log.c src/types.h)
+target_include_directories(
+  zone PUBLIC include $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 set_target_properties(zone PROPERTIES C_STANDARD_REQUIRED 11)
 
 option(BUILD_TESTING "Build the testing tree." OFF)

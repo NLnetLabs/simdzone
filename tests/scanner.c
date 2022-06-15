@@ -14,6 +14,92 @@
 #include <cmocka.h>
 
 #include "zone.h"
+#include "scanner.h"
+
+static const char *dummy_domain = "foobarbaz!";
+
+static const void *accept_name(const zone_parser_t *par, const zone_field_t *fld, void *user_data)
+{
+  (void)par;
+  (void)fld;
+  (void)user_data;
+  printf("got name!\n");
+  return dummy_domain;
+}
+
+static zone_return_t accept_rr(
+  const zone_parser_t *par,
+  zone_field_t *owner,
+  zone_field_t *ttl,
+  zone_field_t *class,
+  zone_field_t *type,
+  void *user_data)
+{
+  (void)par;
+  (void)owner;
+  (void)ttl;
+  (void)class;
+  (void)type;
+  (void)user_data;
+  printf("got rr!\n");
+  if (owner->format != ZONE_DOMAIN) {
+    printf("owner was not a domain!\n");
+    return ZONE_SYNTAX_ERROR; // switch type of code later on!
+  }
+  return 0;
+}
+
+static zone_return_t accept_rdata(
+  const zone_parser_t *par,
+  zone_field_t *rdata,
+  void *user_data)
+{
+  (void)par;
+  (void)rdata;
+  (void)user_data;
+  printf("got rdata!\n");
+  return 0;
+}
+
+static zone_return_t accept_terminator(
+  const zone_parser_t *par,
+  zone_field_t *term,
+  void *user_data)
+{
+  (void)par;
+  (void)term;
+  (void)user_data;
+  printf("got terminator!\n");
+  return 0;
+}
+
+/*!cmocka */
+void basic_parse_test(void **state) // to be moved to separate file later
+{
+  int32_t code;
+  static const char zone[] = "foo.bar. 3s IN A 1.2.3.4\n"
+                             "foo.bar.baz. 45s IN AAAA ::1";
+  zone_parser_t par = { 0 };
+  zone_options_t opts = { 0 };
+  opts.accept.name = &accept_name;
+  opts.accept.rr = &accept_rr;
+  opts.accept.rdata = &accept_rdata;
+  opts.accept.terminator = &accept_terminator;
+
+  (void)state;
+
+  code = zone_open_string(&par, &opts, zone, strlen(zone));
+  assert_int_equal(code, 0);
+  code = zone_parse(&par, NULL);
+  assert_int_equal(code, 0);
+}
+
+static const zone_options_t dummy_opts = {
+  .default_class = 0,
+  .default_ttl = 0,
+  .allocator = { 0, 0, 0, NULL },
+  .accept = { 0, &accept_rr, &accept_rdata, &accept_terminator }
+};
 
 /*!cmocka */
 void happy_go_lucky(void **state)
@@ -27,7 +113,7 @@ void happy_go_lucky(void **state)
 
   (void)state;
 
-  code = zone_open_string(&par, zone, strlen(zone));
+  code = zone_open_string(&par, &dummy_opts, zone, strlen(zone));
   assert_int_equal(code, 0);
 
   // expect owner
@@ -85,7 +171,7 @@ void service_mode_figure_1(void **state)
 
   (void)state;
 
-  code = zone_open_string(&par, zone, strlen(zone));
+  code = zone_open_string(&par, &dummy_opts, zone, strlen(zone));
   assert_int_equal(code, 0);
 
   // expect owner
@@ -130,7 +216,7 @@ void service_mode_figure_2(void **state)
 
   (void)state;
 
-  code = zone_open_string(&par, zone, strlen(zone));
+  code = zone_open_string(&par, &dummy_opts, zone, strlen(zone));
   assert_int_equal(code, 0);
 
   // expect owner
