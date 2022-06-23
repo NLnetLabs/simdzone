@@ -15,8 +15,6 @@
 #include <stddef.h>
 #include <netinet/in.h>
 
-// FIXME: properly implement support for RFC 3597
-
 typedef int32_t zone_return_t;
 
 typedef struct zone_position zone_position_t;
@@ -53,6 +51,8 @@ struct zone_file {
   } buffer;
 };
 
+#define ZONE_FORMAT (0xff00)
+
 typedef enum {
   ZONE_DOMAIN = (1 << 8),
   ZONE_INT8 = (2 << 8),
@@ -60,7 +60,8 @@ typedef enum {
   ZONE_INT32 = (4 << 8),
   ZONE_IP4 = (5 << 8),
   ZONE_IP6 = (6 << 8),
-  ZONE_NAME = (7 << 8)
+  ZONE_NAME = (7 << 8),
+  ZONE_STRING = (9 << 8)
 } zone_format_t;
 
 typedef struct zone_field zone_field_t;
@@ -122,6 +123,7 @@ typedef struct zone_options zone_options_t;
 struct zone_options {
   // FIXME: add a flags member. e.g. to allow for includes in combination
   //        with static buffers, signal ownership of allocated memory, etc
+  // FIXME: a compiler flag indicating host or network order might be useful
   uint16_t default_class;
   uint32_t default_ttl;
   struct {
@@ -133,6 +135,7 @@ struct zone_options {
   struct {
     zone_accept_name_t name;
     zone_accept_rr_t rr;
+    // FIXME: add callback to accept rdlength for generic records?
     zone_accept_rdata_t rdata;
     zone_accept_t terminator;
   } accept;
@@ -148,10 +151,15 @@ struct zone_parser {
     // invoking accept_rr to simplify memory management
     zone_field_t fields[4]; // { owner, ttl, class, type }
     struct {
+      // number of expected octets in rdata. valid if rdata is in generic
+      // presetation. i.e. if "\#" is encountered as per RFC3597
+      size_t expect;
+      size_t count;
+    } rdlength;
+    struct {
       const void *type; // pointer to type descriptor (private)
       const void *rdata; // pointer to rdata descriptor (private)
     } descriptor;
-    // FIXME: keep rdlength count
     // FIXME: keep track of svcb parameters seen
   } record;
   // FIXME: keep error count?

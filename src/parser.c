@@ -29,7 +29,8 @@ struct rdata_descriptor {
   zone_format_t format;
   const char *name;
   uint32_t qualifiers;
-  rdata_parse_t parse;
+  rdata_parse_t text;
+  rdata_parse_t wire;
 };
 
 struct type_descriptor {
@@ -58,7 +59,8 @@ struct type_descriptor {
 #define IP6(n, q, ...) RDATA__(ZONE_IP6, n, q, __VA_ARGS__)
 #define NAME(n, q, ...) RDATA__(ZONE_NAME, n, q, __VA_ARGS__)
 
-#define PARSE(f) .parse = f
+#define TEXT(f) .text = f
+#define WIRE(f) .wire = f
 
 #define ANY (1<<0)
 #define EXPERIMENTAL (1<<1)
@@ -218,6 +220,41 @@ zone_parse_ttl(zone_parser_t *par, const zone_token_t *tok, uint32_t *ttl)
 }
 
 zone_return_t
+zone_parse_int(
+  zone_parser_t *par, const zone_token_t *tok, uint64_t max, uint64_t *num)
+{
+  char buf[32];
+  ssize_t len;
+  const char *str;
+  uint64_t sum = 0u;
+
+  assert(max < UINT64_MAX);
+  if (tok->string.length == 0 || tok->string.length > sizeof(buf) * 4)
+    SYNTAX_ERROR(par, "Invalid integer at {l}", tok);
+
+  str = tok->string.data;
+  len = (ssize_t)tok->string.length;
+  if (tok->string.escaped) {
+    if ((len = zone_unescape(str, (size_t)len, buf, sizeof(buf), 1)) < 0)
+      SYNTAX_ERROR(par, "Invalid integer at {l}", tok);
+  }
+
+  if (len > (ssize_t)sizeof(buf))
+    SYNTAX_ERROR(par, "Invalid integer at {l}", tok);
+
+  for (ssize_t i = 0; i < len; i++) {
+    if (str[i] < '0' || str[i] > '9')
+      SYNTAX_ERROR(par, "Invalid integer at {l}, integer contains non-digit", tok);
+    sum = add(multiply(sum, 10, max), str[i] - '0', max);
+    if (sum > max)
+      SYNTAX_ERROR(par, "Invalid integer at {l}, value exceeds maximum", tok);
+  }
+
+  *num = sum;
+  return 0;
+}
+
+zone_return_t
 zone_parse_name(zone_parser_t *par, const zone_token_t *tok, uint8_t name[255], size_t *len)
 {
   size_t lab = 0, oct = 1;
@@ -300,41 +337,6 @@ parse_ttl(
 }
 
 static zone_return_t
-parse_int(
-  zone_parser_t *par, const zone_token_t *tok, uint64_t max, uint64_t *num)
-{
-  char buf[32];
-  ssize_t len;
-  const char *str;
-  uint64_t sum = 0u;
-
-  assert(max < UINT64_MAX);
-  if (tok->string.length == 0 || tok->string.length > sizeof(buf) * 4)
-    SYNTAX_ERROR(par, "Invalid integer at {l}", tok);
-
-  str = tok->string.data;
-  len = (ssize_t)tok->string.length;
-  if (tok->string.escaped) {
-    if ((len = zone_unescape(str, (size_t)len, buf, sizeof(buf), 1)) < 0)
-      SYNTAX_ERROR(par, "Invalid integer at {l}", tok);
-  }
-
-  if (len > (ssize_t)sizeof(buf))
-    SYNTAX_ERROR(par, "Invalid integer at {l}", tok);
-
-  for (ssize_t i = 0; i < len; i++) {
-    if (str[i] < '0' || str[i] > '9')
-      SYNTAX_ERROR(par, "Invalid integer at {l}, integer contains non-digit", tok);
-    sum = add(multiply(sum, 10, max), str[i] - '0', max);
-    if (sum > max)
-      SYNTAX_ERROR(par, "Invalid integer at {l}, value exceeds maximum", tok);
-  }
-
-  *num = sum;
-  return 0;
-}
-
-static zone_return_t
 parse_int8(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
@@ -343,7 +345,7 @@ parse_int8(
 
   (void)ptr;
   assert((tok->code & ZONE_STRING) == ZONE_STRING);
-  if ((ret = parse_int(par, tok, UINT8_MAX, &num)) < 0)
+  if ((ret = zone_parse_int(par, tok, UINT8_MAX, &num)) < 0)
     return ret;
   assert(num <= UINT8_MAX);
   fld->location = tok->location;
@@ -361,7 +363,7 @@ parse_int16(
 
   (void)ptr;
   assert((tok->code & ZONE_STRING) == ZONE_STRING);
-  if ((ret = parse_int(par, tok, UINT16_MAX, &num)) < 0)
+  if ((ret = zone_parse_int(par, tok, UINT16_MAX, &num)) < 0)
     return ret;
   assert(num <= UINT16_MAX);
   fld->location = tok->location;
@@ -378,7 +380,7 @@ static zone_return_t parse_int32(
 
   (void)ptr;
   assert((tok->code & ZONE_STRING) == ZONE_STRING);
-  if ((ret = parse_int(par, tok, UINT32_MAX, &num)) < 0)
+  if ((ret = zone_parse_int(par, tok, UINT32_MAX, &num)) < 0)
     return ret;
   assert(num <= UINT32_MAX);
   fld->location = tok->location;
@@ -419,6 +421,28 @@ bad_ip:
   SYNTAX_ERROR(par, "Invalid IPv4 address at {l}", &tok);
 }
 
+static zone_return_t parse_wire_ip4(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  struct in_addr *ip4;
+  ssize_t sz;
+
+  (void)ptr;
+  if (!(ip4 = zone_malloc(par, sizeof(*ip4))))
+    return ZONE_OUT_OF_MEMORY;
+  sz = zone_decode(tok->string.data, tok->string.length, (uint8_t*)ip4, sizeof(*ip4));
+  if (sz != (ssize_t)sizeof(*ip4))
+    goto bad_ip;
+  fld->location = tok->location;
+  fld->format = ZONE_IP4;
+  fld->ip4 = ip4;
+  return ZONE_RDATA;
+bad_ip:
+  if (ip4)
+    zone_free(par, ip4);
+  SEMANTIC_ERROR(par, "Invalid IPv4 address at {l}", &tok);
+}
+
 static zone_return_t parse_ip6(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
@@ -438,7 +462,7 @@ static zone_return_t parse_ip6(
   buf[len] = '\0';
   if (!(ip6 = zone_malloc(par, sizeof(*ip6))))
     return ZONE_OUT_OF_MEMORY;
-  if (inet_pton(AF_INET6, buf, &ip6) != 1)
+  if (inet_pton(AF_INET6, buf, ip6) != 1)
     goto bad_ip;
   fld->location = tok->location;
   fld->format = ZONE_IP6;
@@ -448,6 +472,28 @@ bad_ip:
   if (ip6)
     zone_free(par, ip6);
   SYNTAX_ERROR(par, "Invalid IPv6 address at {l}", &tok);
+}
+
+static zone_return_t parse_wire_ip6(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  struct in6_addr *ip6;
+  ssize_t sz;
+
+  (void)ptr;
+  if (!(ip6 = zone_malloc(par, sizeof(*ip6))))
+    return ZONE_OUT_OF_MEMORY;
+  sz = zone_decode(tok->string.data, tok->string.length, (uint8_t *)ip6, sizeof(*ip6));
+  if (sz != (ssize_t)sizeof(*ip6))
+    goto bad_ip;
+  fld->location = tok->location;
+  fld->format = ZONE_IP6;
+  fld->ip6 = ip6;
+  return ZONE_RDATA;
+bad_ip:
+  if (ip6)
+    zone_free(par, ip6);
+  SEMANTIC_ERROR(par, "Invalid IPv6 address at {l}", &tok);
 }
 
 static zone_return_t parse_name(
@@ -489,6 +535,23 @@ static zone_return_t parse_name(
 #define TTL (1)
 #define CLASS (2)
 #define TYPE (3)
+
+static const struct {
+  rdata_parse_t text;
+  rdata_parse_t wire;
+} functions[] = {
+  { 0, 0 }, // FIXME: should probably store the unknown rdata callback here?!?!
+  { 0, 0 }, // domain, reference returned by accept_name, never parsed
+  { parse_int8, 0 },
+  { parse_int16, 0, },
+  { parse_int32, 0, },
+  { parse_ip4, parse_wire_ip4 },
+  { parse_ip6, parse_wire_ip6 },
+  { parse_name, 0 }
+};
+
+static const size_t function_count = sizeof(functions)/sizeof(functions[0]);
+
 
 static zone_return_t
 parse_owner(zone_parser_t *par, const zone_token_t *tok, void *ptr)
@@ -573,19 +636,6 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
   zone_token_t tok;
   zone_return_t code;
 
-  // default parse function per format
-  rdata_parse_t funcs[] = {
-    0, // FIXME: should probably store the unknown rdata callback here?!?!
-    0, // domain, reference returned by accept_name, never parsed
-    parse_int8,
-    parse_int16,
-    parse_int32,
-    parse_ip4,
-    parse_ip6,
-    parse_name
-  };
-
-
   do {
     code = zone_scan(par, &tok);
     // propagate errors
@@ -616,13 +666,20 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
       par->record.fields[TYPE].location = tok.location;
       par->record.fields[TYPE].format = ZONE_INT16;
       par->record.fields[TYPE].int16 = tok.int16;
-      if (tok.int16 < (sizeof(types)/sizeof(types[0])))
-        par->record.descriptor.type = &types[tok.int16];
-      else // support unknown record types as per rfc3597
-        par->record.descriptor.type = &unknown_type;
 
+      if (tok.int16 < sizeof(types)/sizeof(types[0]))
+        par->record.descriptor.type = &types[tok.int16];
+      else
+        par->record.descriptor.type = &unknown_type;
       if ((ret = accept_rr(par, user_data)) < 0)
         code = ret;
+    } else if (code & ZONE_BACKSLASH_HASH) {
+      assert((code & ZONE_STRING) == ZONE_STRING);
+      assert(par->state & ZONE_GENERIC_RDATA);
+    } else if (code & ZONE_RDLENGTH) {
+      assert((code & ZONE_INT16) == ZONE_INT16);
+      assert(par->state & ZONE_GENERIC_RDATA);
+      par->record.rdlength.expect = tok.int16;
     } else if (code == '\0' || code == '\n') {
       zone_return_t ret;
       zone_field_t fld = {
@@ -630,7 +687,7 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
         .format = ZONE_INT8,
         .int8 = (uint8_t)code };
 
-      // FIXME: should be a no-op for blank line
+      // FIXME: should be a no-op for blank line. perhaps just use rdlength?
       if (!par->record.descriptor.type)
         SEMANTIC_ERROR(par, "Expected type at {l}", &tok);
       else if (!par->record.descriptor.rdata)
@@ -648,30 +705,34 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
       //
     } else {
       zone_field_t fld;
+      size_t fmt;
       zone_return_t ret;
       rdata_parse_t func;
 
-      assert((code & ZONE_RDATA) == ZONE_RDATA ||
-             (code & ZONE_SVCB_RDATA) == ZONE_SVCB_RDATA);
-      assert((code & ZONE_STRING) == ZONE_STRING ||
-             (code & ZONE_SVC_PARAM) == ZONE_SVC_PARAM);
-      assert(par->record.descriptor.type);
       const struct type_descriptor *type = par->record.descriptor.type;
-      assert(par->record.descriptor.rdata || type->rdata);
       const struct rdata_descriptor *rdata;
+
+      assert(type);
+      assert(par->record.descriptor.rdata || type->rdata);
 
       if (!par->record.descriptor.rdata)
         rdata = par->record.descriptor.rdata = &type->rdata[0];
-      else if (rdata->format == 0) // eventually we should check here for optional fields etc
-        SYNTAX_ERROR(par, "Invalid record got too much rdatas");
-      else
+      else if (rdata->format != 0)
         rdata = par->record.descriptor.rdata, par->record.descriptor.rdata = rdata + 1;
-
-      assert((rdata->format & 0xf00) >> 8 < sizeof(funcs)/sizeof(funcs[0]));
-      if (rdata->parse)
-        func = rdata->parse;
       else
-        func = funcs[(rdata->format & 0xf00) >> 8];
+        // eventually we should check here for optional fields etc
+        SYNTAX_ERROR(par, "Invalid record got too much rdatas");
+
+      assert(rdata);
+      fmt = (rdata->format & ZONE_FORMAT) >> 8;
+      assert(fmt < function_count);
+      if (par->state & ZONE_GENERIC_RDATA)
+        func = rdata->wire ? rdata->wire : functions[fmt].wire;
+      else if (type != &unknown_type)
+        func = rdata->text ? rdata->text : functions[fmt].text;
+      else
+        SEMANTIC_ERROR(par, "Type-specific encoding used in unknown record "
+                            "type %u at {l}", par->record.fields[TYPE].int16, &par->record.fields[TYPE]);
 
       if ((ret = func(par, &tok, &fld, user_data)) < 0)
         code = ret;

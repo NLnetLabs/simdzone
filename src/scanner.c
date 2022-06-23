@@ -192,11 +192,8 @@ static inline void reset_token(const zone_parser_t *par, zone_token_t *tok)
 static inline zone_return_t scan_svcb(zone_parser_t *par, zone_token_t *tok)
 {
   int32_t code = ' ';
-  enum { PRIORITY = 0, TARGET_NAME, PARAMS } state;
 
-  assert(par->state & ZONE_SVCB_RDATA);
-  // 8 least significant bits are reserved for specialized the RDATA scanners
-  state = par->state & 0xf;
+  assert((par->state & ZONE_ITEM) == ZONE_SVC_PARAM);
 
   do {
     size_t cnt = 1;
@@ -216,18 +213,9 @@ static inline zone_return_t scan_svcb(zone_parser_t *par, zone_token_t *tok)
       code = '\n';
     } else if (chr == ' ' || chr == '\t') {
       code = ' '; // handle tabs and spaces consistently
-    } else if (state == PARAMS) {
+    } else {
       reset_token(par, tok);
       code = lex_svcparam(par, tok, 0, &cnt);
-      goto eval;
-    } else {
-      assert(state == PRIORITY || state == TARGET_NAME);
-      reset_token(par, tok);
-      if (chr == '"')
-        code = lex_quoted_string(par, tok, 0, &cnt);
-      else
-        code = lex_string(par, tok, 0, &cnt);
-      par->state = (par->state & ~0xf) | (state ? PARAMS : TARGET_NAME);
       goto eval;
     }
 
@@ -264,7 +252,7 @@ scan(zone_parser_t *par, zone_token_t * tok)
   size_t cnt = 0;
   int32_t code = ' ';
 
-  if ((par->state & ZONE_SVCB_RDATA))
+  if ((par->state & ZONE_ITEM) == ZONE_SVC_PARAM)
     return scan_svcb(par, tok);
 
   do {
@@ -357,6 +345,63 @@ ssize_t zone_unescape(const char *str, size_t len, char *buf, size_t size, int s
 
   assert(cnt <= len);
   return cnt;
+}
+
+static inline ssize_t xdigit(const char *enc, size_t len, uint8_t *dig)
+{
+  char chr = '\0';
+  size_t cnt = -1;
+
+  if (!len) {
+    return -1;
+  } else if (enc[0] != '\\') {
+    chr = enc[0];
+    cnt = 1;
+  } else if (len - 1 && (enc[1] >= '0' && enc[1] <= '2') &&
+             len - 2 && (enc[2] >= '0' && enc[2] <= '5') &&
+             len - 3 && (enc[3] >= '0' && enc[3] <= '5'))
+  {
+    chr = (enc[1] - '0') * 100 + (enc[2] - '0') * 10 + (enc[3] - '0');
+    cnt = 4;
+  } else if (len - 1) {
+    chr = enc[1];
+    cnt = 2;
+  } else {
+    return -1;
+  }
+
+  if (chr >= '0' && chr <= '9')
+    *dig = (uint8_t)chr - '0';
+  else if (chr >= 'a' && chr <= 'f')
+    *dig = (uint8_t)(chr - 'a') + 10;
+  else if (chr >= 'A' && chr <= 'F')
+    *dig = (uint8_t)(chr - 'A') + 10;
+  else
+    return -1;
+  return cnt;
+}
+
+ssize_t zone_decode(
+  const char *enc, size_t enclen, uint8_t *dec, size_t decsize)
+{
+  size_t cnt, len = 0;
+
+  for (cnt = 0; cnt < enclen; len++) {
+    uint8_t hi, lo;
+    ssize_t inc;
+    if ((inc = xdigit(enc + cnt, enclen - cnt, &hi)) <= 0)
+      return -1;
+    cnt += (size_t)inc;
+    assert(cnt <= enclen);
+    if ((inc = xdigit(enc + cnt, enclen - cnt, &lo)) <= 0)
+      return -1;
+    cnt += (size_t)inc;
+    assert(cnt <= enclen);
+    if (len < decsize)
+      dec[len] = (hi << 4) | lo;
+  }
+
+  return (ssize_t)len;
 }
 
 static inline uint32_t multiply(uint32_t lhs, uint32_t rhs, uint32_t max)
@@ -564,20 +609,19 @@ scan_ttl(zone_parser_t *par, zone_token_t *tok)
 static inline zone_return_t
 scan_rr(zone_parser_t *par, zone_token_t *tok)
 {
-  int32_t code;
+  zone_return_t code = 0;
 
-  // TYPE bit must always be set as state would be RDATA if TYPE had been
-  // previously encountered
+  // TYPE bit must always be set as state would be ZONE_BACKSLASH_HASH or
+  // ZONE_SVC_PRIORITY if TYPE had been previously encountered
   assert(par->state & ZONE_TYPE);
-  assert(!tok->string.escaped);
 
   if ((code = scan_type(par, tok)) > 0) {
     par->state &= ~ZONE_RR;
     assert(tok->code == (ZONE_TYPE|ZONE_INT16));
     if (tok->int16 == 64 || tok->int16 == 65)
-      par->state |= ZONE_SVCB_RDATA;
+      par->state |= ZONE_SVC_PRIORITY;
     else
-      par->state |= ZONE_RDATA;
+      par->state |= ZONE_BACKSLASH_HASH;
   } else if ((par->state & ZONE_CLASS) && (code = scan_class(par, tok)) > 0) {
     par->state &= ~ZONE_CLASS;
     assert(tok->code == (ZONE_CLASS|ZONE_INT16));
@@ -599,6 +643,54 @@ scan_rr(zone_parser_t *par, zone_token_t *tok)
   }
 
   return code;
+}
+
+static inline zone_return_t
+scan_rdata(zone_parser_t *par, zone_token_t *tok)
+{
+  zone_code_t code = 0;
+  const uint32_t state = par->state & ZONE_ITEM;
+  uint64_t num = 0;
+
+  assert(par->state & ZONE_ITEM);
+
+  switch (state) {
+    case ZONE_BACKSLASH_HASH:
+    case ZONE_SVC_PRIORITY:
+      assert((tok->code & ZONE_STRING) == ZONE_STRING);
+      // flip GENERIC_DATA flag and transition to rdlength if "\#" is found
+      if (tok->string.length == 2 || memcmp(tok->string.data, "\\#", 2) == 0) {
+        par->state = ZONE_RDLENGTH | ZONE_GENERIC_RDATA | (par->state & ~ZONE_ITEM);
+        return (tok->code |= ZONE_BACKSLASH_HASH);
+      } else if (state == ZONE_SVC_PRIORITY) {
+        par->state = ZONE_TARGET_NAME | (par->state & ~ZONE_ITEM);
+        return (tok->code |= ZONE_SVC_PRIORITY);
+      } else {
+        assert(!(par->state & ZONE_GENERIC_RDATA));
+        par->state = ZONE_RDATA | (par->state & ~ZONE_ITEM);
+        return (tok->code |= ZONE_RDATA);
+      }
+    case ZONE_RDLENGTH:
+      assert((tok->code & ZONE_STRING) == ZONE_STRING);
+      assert(par->state & ZONE_GENERIC_RDATA);
+      if ((code = zone_parse_int(par, tok, UINT16_MAX, &num)) < 0)
+        return code;
+      assert(num <= UINT16_MAX);
+      par->state = ZONE_RDATA | (par->state & ~ZONE_ITEM);
+      tok->int16 = (uint16_t)num;
+      return (tok->code = (ZONE_RDLENGTH | ZONE_INT16));
+    case ZONE_TARGET_NAME:
+      assert((tok->code & ZONE_STRING) == ZONE_STRING);
+      par->state = ZONE_SVC_PARAM | (par->state & ~ZONE_ITEM);
+      return (tok->code |= ZONE_TARGET_NAME);
+    case ZONE_SVC_PARAM:
+      assert((tok->code & ZONE_SVC_PARAM) == ZONE_SVC_PARAM);
+      return (tok->code |= ZONE_SVC_PARAM);
+    default:
+      assert(state == ZONE_RDATA);
+      assert((tok->code & ZONE_STRING) == ZONE_STRING);
+      return (tok->code |= ZONE_RDATA);
+  }
 }
 
 zone_return_t
@@ -624,9 +716,9 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
       par->state &= ~ZONE_GROUPED;
       assert(par->state != ZONE_INITIAL);
     } else if (code == ' ') {
-      const uint32_t state = par->state & ~ZONE_GROUPED;
+      const uint32_t state = par->state & ZONE_ITEM;
       assert(state == ZONE_INITIAL || state == ZONE_OWNER);
-      par->state = ZONE_RR | (par->state & ZONE_GROUPED);
+      par->state = ZONE_RR | (par->state & ~ZONE_ITEM);
     } else if (code == '\0') {
       if (par->state & ZONE_GROUPED)
         SYNTAX_ERROR(par, "Unexpected end-of-file, expected closing brace");
@@ -638,25 +730,16 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
       par->state = ZONE_INITIAL;
       return code;
     } else if (code > 0) {
-      zone_code_t state = par->state & ~(ZONE_GROUPED | 0xff);
-      zone_string_t *str = NULL;
-
-      if (code == ZONE_SVC_PARAM)
-        str = &tok->svc_param.value;
-      else if (code == ZONE_STRING)
-        str = &tok->string;
-      assert(str);
-
-      if (state == ZONE_INITIAL || (state & ZONE_OWNER)) {
+      assert((code & ZONE_STRING) == ZONE_STRING ||
+             (code & ZONE_SVC_PARAM) == ZONE_SVC_PARAM);
+      if (par->state == ZONE_INITIAL || (par->state & ZONE_OWNER)) {
         tok->code = (code |= ZONE_OWNER);
-        par->state = ZONE_RR;
+        par->state = ZONE_RR | (par->state & ~ZONE_ITEM);
         return code;
-      } else if (state & ZONE_RR) {
+      } else if (par->state & ZONE_RR) {
         return scan_rr(par, tok);
       } else {
-        assert(state == ZONE_RDATA || state == ZONE_SVCB_RDATA);
-        tok->code = (code |= ZONE_RDATA);
-        return code;
+        return scan_rdata(par, tok);
       }
     }
   } while (code == ZONE_NEED_REFILL);

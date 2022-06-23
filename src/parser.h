@@ -20,11 +20,17 @@ zone_parse_ttl(
   uint32_t *ttl);
 
 zone_return_t
+zone_parse_int(
+  zone_parser_t *parser,
+  const zone_token_t *token,
+  uint64_t max,
+  uint64_t *num);
+
+zone_return_t
 zone_parse_name(
   zone_parser_t *parser,
   const zone_token_t *token,
   uint8_t str[255],
-  size_t size,
   size_t *len);
 
 #endif // ZONE_PARSER_H

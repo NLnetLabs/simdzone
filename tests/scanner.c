@@ -12,6 +12,7 @@
 #include <string.h>
 #include <setjmp.h>
 #include <cmocka.h>
+#include <arpa/inet.h>
 
 #include "zone.h"
 #include "scanner.h"
@@ -55,9 +56,23 @@ static zone_return_t accept_rdata(
   void *user_data)
 {
   (void)par;
-  (void)rdata;
   (void)user_data;
-  printf("got rdata!\n");
+
+  assert(rdata);
+
+  if (rdata->format == ZONE_IP4) {
+    char buf[INET_ADDRSTRLEN + 1];
+    if (!inet_ntop(AF_INET, rdata->ip4, buf, sizeof(buf)))
+      return ZONE_SYNTAX_ERROR;
+    printf("ip4: %s\n", buf);
+  } else if (rdata->format == ZONE_IP6) {
+    char buf[INET6_ADDRSTRLEN + 1];
+    if (!inet_ntop(AF_INET6, rdata->ip6, buf, sizeof(buf)))
+      return ZONE_SYNTAX_ERROR;
+    printf("ip6: %s\n", buf);
+  } else {
+    printf("<rdata>\n");
+  }
   return 0;
 }
 
@@ -79,6 +94,28 @@ void basic_parse_test(void **state) // to be moved to separate file later
   int32_t code;
   static const char zone[] = "foo.bar. 3s IN A 1.2.3.4\n"
                              "foo.bar.baz. 45s IN AAAA ::1";
+  zone_parser_t par = { 0 };
+  zone_options_t opts = { 0 };
+  opts.accept.name = &accept_name;
+  opts.accept.rr = &accept_rr;
+  opts.accept.rdata = &accept_rdata;
+  opts.accept.terminator = &accept_terminator;
+
+  (void)state;
+
+  code = zone_open_string(&par, &opts, zone, strlen(zone));
+  assert_int_equal(code, 0);
+  code = zone_parse(&par, NULL);
+  assert_int_equal(code, 0);
+}
+
+/*!cmocka */
+void basic_generic_parse_test(void **state)
+{
+  zone_return_t code;
+  static const char zone[] = "foo.bar. 5s IN TYPE1 \\# 4 7F000001\n"
+                             "foo.bar.baz. 75s IN AAAA \\# 16 00000000000000000000000000000001";
+
   zone_parser_t par = { 0 };
   zone_options_t opts = { 0 };
   opts.accept.name = &accept_name;
