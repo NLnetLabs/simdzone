@@ -193,7 +193,7 @@ static inline zone_return_t scan_svcb(zone_parser_t *par, zone_token_t *tok)
 {
   int32_t code = ' ';
 
-  assert((par->state & ZONE_ITEM) == ZONE_SVC_PARAM);
+  assert((par->state & 0xff0000) == ZONE_SVC_PARAM);
 
   do {
     size_t cnt = 1;
@@ -252,7 +252,7 @@ scan(zone_parser_t *par, zone_token_t * tok)
   size_t cnt = 0;
   int32_t code = ' ';
 
-  if ((par->state & ZONE_ITEM) == ZONE_SVC_PARAM)
+  if ((par->state & 0xff0000) == ZONE_SVC_PARAM)
     return scan_svcb(par, tok);
 
   do {
@@ -649,10 +649,8 @@ static inline zone_return_t
 scan_rdata(zone_parser_t *par, zone_token_t *tok)
 {
   zone_code_t code = 0;
-  const uint32_t state = par->state & ZONE_ITEM;
+  const uint32_t state = zone_item(par->state);
   uint64_t num = 0;
-
-  assert(par->state & ZONE_ITEM);
 
   switch (state) {
     case ZONE_BACKSLASH_HASH:
@@ -660,28 +658,28 @@ scan_rdata(zone_parser_t *par, zone_token_t *tok)
       assert((tok->code & ZONE_STRING) == ZONE_STRING);
       // flip GENERIC_DATA flag and transition to rdlength if "\#" is found
       if (tok->string.length == 2 || memcmp(tok->string.data, "\\#", 2) == 0) {
-        par->state = ZONE_RDLENGTH | ZONE_GENERIC_RDATA | (par->state & ~ZONE_ITEM);
+        par->state = ZONE_RDLENGTH | ZONE_GENERIC_RDATA | (par->state & ~ZONE_ITEM_MASK);
         return (tok->code |= ZONE_BACKSLASH_HASH);
       } else if (state == ZONE_SVC_PRIORITY) {
-        par->state = ZONE_TARGET_NAME | (par->state & ~ZONE_ITEM);
+        par->state = ZONE_TARGET_NAME | (par->state & ~ZONE_ITEM_MASK);
         return (tok->code |= ZONE_SVC_PRIORITY);
       } else {
         assert(!(par->state & ZONE_GENERIC_RDATA));
-        par->state = ZONE_RDATA | (par->state & ~ZONE_ITEM);
+        par->state = ZONE_RDATA | (par->state & ~ZONE_ITEM_MASK);
         return (tok->code |= ZONE_RDATA);
       }
     case ZONE_RDLENGTH:
       assert((tok->code & ZONE_STRING) == ZONE_STRING);
       assert(par->state & ZONE_GENERIC_RDATA);
-      if ((code = zone_parse_int(par, tok, UINT16_MAX, &num)) < 0)
+      if ((code = zone_parse_int(par, NULL, tok, UINT16_MAX, &num)) < 0)
         return code;
       assert(num <= UINT16_MAX);
-      par->state = ZONE_RDATA | (par->state & ~ZONE_ITEM);
+      par->state = ZONE_RDATA | (par->state & ~ZONE_ITEM_MASK);
       tok->int16 = (uint16_t)num;
       return (tok->code = (ZONE_RDLENGTH | ZONE_INT16));
     case ZONE_TARGET_NAME:
       assert((tok->code & ZONE_STRING) == ZONE_STRING);
-      par->state = ZONE_SVC_PARAM | (par->state & ~ZONE_ITEM);
+      par->state = ZONE_SVC_PARAM | (par->state & ~ZONE_ITEM_MASK);
       return (tok->code |= ZONE_TARGET_NAME);
     case ZONE_SVC_PARAM:
       assert((tok->code & ZONE_SVC_PARAM) == ZONE_SVC_PARAM);
@@ -716,9 +714,9 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
       par->state &= ~ZONE_GROUPED;
       assert(par->state != ZONE_INITIAL);
     } else if (code == ' ') {
-      const uint32_t state = par->state & ZONE_ITEM;
+      const uint32_t state = zone_item(par->state);
       assert(state == ZONE_INITIAL || state == ZONE_OWNER);
-      par->state = ZONE_RR | (par->state & ~ZONE_ITEM);
+      par->state = ZONE_RR | (par->state & ~ZONE_ITEM_MASK);
     } else if (code == '\0') {
       if (par->state & ZONE_GROUPED)
         SYNTAX_ERROR(par, "Unexpected end-of-file, expected closing brace");
@@ -732,11 +730,11 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
     } else if (code > 0) {
       assert((code & ZONE_STRING) == ZONE_STRING ||
              (code & ZONE_SVC_PARAM) == ZONE_SVC_PARAM);
-      if (par->state == ZONE_INITIAL || (par->state & ZONE_OWNER)) {
+      if (par->state == ZONE_INITIAL || zone_item(par->state) == ZONE_OWNER) {
         tok->code = (code |= ZONE_OWNER);
-        par->state = ZONE_RR | (par->state & ~ZONE_ITEM);
+        par->state = ZONE_RR | (par->state & ~ZONE_ITEM_MASK);
         return code;
-      } else if (par->state & ZONE_RR) {
+      } else if (zone_item(par->state) & ZONE_RR) {
         return scan_rr(par, tok);
       } else {
         return scan_rdata(par, tok);

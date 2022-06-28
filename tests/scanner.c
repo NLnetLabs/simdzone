@@ -43,7 +43,7 @@ static zone_return_t accept_rr(
   (void)type;
   (void)user_data;
   printf("got rr!\n");
-  if (owner->format != ZONE_DOMAIN) {
+  if ((owner->code & ZONE_DOMAIN) != ZONE_DOMAIN) {
     printf("owner was not a domain!\n");
     return ZONE_SYNTAX_ERROR; // switch type of code later on!
   }
@@ -60,12 +60,12 @@ static zone_return_t accept_rdata(
 
   assert(rdata);
 
-  if (rdata->format == ZONE_IP4) {
+  if (zone_type(rdata->code) == ZONE_IP4) {
     char buf[INET_ADDRSTRLEN + 1];
     if (!inet_ntop(AF_INET, rdata->ip4, buf, sizeof(buf)))
       return ZONE_SYNTAX_ERROR;
     printf("ip4: %s\n", buf);
-  } else if (rdata->format == ZONE_IP6) {
+  } else if (zone_type(rdata->code) == ZONE_IP6) {
     char buf[INET6_ADDRSTRLEN + 1];
     if (!inet_ntop(AF_INET6, rdata->ip6, buf, sizeof(buf)))
       return ZONE_SYNTAX_ERROR;
@@ -76,7 +76,7 @@ static zone_return_t accept_rdata(
   return 0;
 }
 
-static zone_return_t accept_terminator(
+static zone_return_t accept_delimiter(
   const zone_parser_t *par,
   zone_field_t *term,
   void *user_data)
@@ -84,7 +84,7 @@ static zone_return_t accept_terminator(
   (void)par;
   (void)term;
   (void)user_data;
-  printf("got terminator!\n");
+  printf("got delimiter!\n");
   return 0;
 }
 
@@ -99,7 +99,7 @@ void basic_parse_test(void **state) // to be moved to separate file later
   opts.accept.name = &accept_name;
   opts.accept.rr = &accept_rr;
   opts.accept.rdata = &accept_rdata;
-  opts.accept.terminator = &accept_terminator;
+  opts.accept.delimiter = &accept_delimiter;
 
   (void)state;
 
@@ -121,7 +121,7 @@ void basic_generic_parse_test(void **state)
   opts.accept.name = &accept_name;
   opts.accept.rr = &accept_rr;
   opts.accept.rdata = &accept_rdata;
-  opts.accept.terminator = &accept_terminator;
+  opts.accept.delimiter = &accept_delimiter;
 
   (void)state;
 
@@ -135,7 +135,7 @@ static const zone_options_t dummy_opts = {
   .default_class = 0,
   .default_ttl = 0,
   .allocator = { 0, 0, 0, NULL },
-  .accept = { 0, &accept_rr, &accept_rdata, &accept_terminator }
+  .accept = { 0, &accept_rr, &accept_rdata, &accept_delimiter }
 };
 
 /*!cmocka */

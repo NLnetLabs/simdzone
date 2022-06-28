@@ -11,54 +11,31 @@
 
 #include "zone.h"
 
+// additional items used during scan stage
+#define ZONE_COMMENT (3 << 19)
+// NOTE: backslash_hash may transition to rdata if "\#" is not found
+#define ZONE_BACKSLASH_HASH (4 << 19) // string, for consistency
+// NOTE: rdlength transitions to rdata as syntax rules remain the same
+#define  ZONE_RDLENGTH (5 << 19) // int16
+// svcb-https introduces syntax changes. svc_priority and target_name
+// must not parse the value as is done for e.g. ttl and rdlength as doing
+// so would break the parser interface
+// NOTE: svc_priority may transition to rdlength if "\#" is found
+#define ZONE_SVC_PRIORITY (6 << 19)
+#define ZONE_TARGET_NAME (7 << 19)
+// svcb-https requires an additional token type to allow for clear
+// seperation between scan and parse states to remain intact. while a string
+// can be used, doing so requires the parser to split the parameter and
+// value again and possibly require more memory as the value cannot be
+// referenced in unquoted fashion
+#define ZONE_SVC_PARAM (8 << 19)
+// FIXME: pending implementation of control types
+
 // additional parser states
-#define ZONE_INITIAL (1 << 15)
-#define ZONE_GROUPED (1 << 16)
-#define ZONE_GENERIC_RDATA (1 << 17) // parsing generic rdata (RFC3597)
+#define ZONE_INITIAL (1 << 24)
+#define ZONE_GROUPED (1 << 25)
+#define ZONE_GENERIC_RDATA (1 << 26) // parsing generic rdata (RFC3597)
 #define ZONE_RR (ZONE_TTL|ZONE_CLASS|ZONE_TYPE)
-
-#define ZONE_ITEM (~0xfffff)
-
-typedef enum {
-  ZONE_DELIMITER = 0, // single character embedded in 8 least significant bits
-  // record items
-  ZONE_COMMENT = (1 << 19),
-  ZONE_OWNER = (1 << 20), // string
-  ZONE_TTL = (1 << 21), // int32
-  ZONE_CLASS = (1 << 22), // int16
-  ZONE_TYPE = (1 << 23), // int16
-  ZONE_RDATA = (1 << 24), // string
-  // NOTE: backslash_hash may transition to rdata if "\#" is not found
-  ZONE_BACKSLASH_HASH = (1<<25), // string, for consistency
-  // NOTE: rdlength transitions to rdata as syntax rules remain the same
-  ZONE_RDLENGTH = (1<<26), // int16
-  // svcb-https introduces syntax changes. svc_priority and target_name
-  // must not parse the value as is done for e.g. ttl and rdlength as doing
-  // so would break the parser interface
-  // NOTE: svc_priority may transition to rdlength if "\#" is found
-  ZONE_SVC_PRIORITY = (1<<27), // string
-  ZONE_TARGET_NAME = (1<<28), // string
-  // svcb-https requires an additional token type to allow for clear
-  // seperation between scan and parse states to remain intact. while a string
-  // can be used, doing so requires the parser to split the parameter and
-  // value again and possibly require more memory as the value cannot be
-  // referenced in unquoted fashion
-  ZONE_SVC_PARAM = (1<<29) // svc_param
-  // FIXME: pending implementation of control types
-} zone_item_t;
-
-// ZONE_xxx constants defined here are solely used during scan stage
-#define ZONE_CHAR (0) // single character embedded in 8 least significant bits
-
-// zone code is a concatenation of the item and value types. the 8 least
-// significant bits are reserved to embed ascii codes. e.g. end-of-file and
-// line feed delimiters are simply encoded as '\0' and '\n' respectively. the
-// 8 least significant bits must only be considered valid ascii if no other
-// bits are set as they are reserved for private state if there are.
-// bits 8 - 15 encode the the value type, bits 16-19 are reserved for
-// additional parser states, e.g. ZONE_GENERIC and never occur in tokens. the
-// remaining bits encode the item. negative values indicate an error condition
-typedef zone_return_t zone_code_t;
 
 typedef struct zone_string zone_string_t;
 struct zone_string {

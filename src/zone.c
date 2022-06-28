@@ -14,6 +14,9 @@
 
 static const char string[] = "<string>";
 
+extern inline zone_type_t zone_type(const zone_code_t code);
+extern inline zone_item_t zone_item(const zone_code_t code);
+
 zone_return_t zone_open_string(
   zone_parser_t *par, const zone_options_t *opts, const char *str, size_t len)
 {
@@ -34,7 +37,7 @@ zone_return_t zone_open_string(
     return ZONE_BAD_PARAMETER;
   if (!opts->accept.rdata)
     return ZONE_BAD_PARAMETER;
-  if (!opts->accept.terminator)
+  if (!opts->accept.delimiter)
     return ZONE_BAD_PARAMETER;
 
   if (!(file = calloc(1, sizeof(*file))))

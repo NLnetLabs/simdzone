@@ -51,9 +51,17 @@ struct zone_file {
   } buffer;
 };
 
-#define ZONE_FORMAT (0xff00)
+// zone code is a concatenation of the item and the format. the 8 least
+// significant bits are reserved to embed ascii codes. e.g. end-of-file and
+// line feed delimiters are simply encoded as '\0' and '\n' respectively. the
+// 8 least significant bits must only be considered valid ascii if no other
+// bits are set as they are reserved for private state if there are.
+// bits 8 - 15 encode the the value type, bits 16-23 are reserved for the
+// field type. negative values indicate an error condition
+typedef zone_return_t zone_code_t;
 
 typedef enum {
+  ZONE_CHAR = 0, // single character embedded in 8 least significant bits
   ZONE_DOMAIN = (1 << 8),
   ZONE_INT8 = (2 << 8),
   ZONE_INT16 = (3 << 8),
@@ -61,13 +69,69 @@ typedef enum {
   ZONE_IP4 = (5 << 8),
   ZONE_IP6 = (6 << 8),
   ZONE_NAME = (7 << 8),
-  ZONE_STRING = (9 << 8)
-} zone_format_t;
+  ZONE_STRING = (9 << 8),
+  ZONE_BASE32 = (10 << 8),
+  ZONE_BASE64 = (11 << 8)
+} zone_type_t;
+
+#define ZONE_TYPE_MASK (0xff00)
+
+inline zone_type_t zone_type(const zone_code_t code)
+{
+  return code & ZONE_TYPE_MASK;
+}
+
+typedef enum {
+  ZONE_DELIMITER = 0, // single character embedded in 8 least significant bits
+  ZONE_OWNER = (1 << 19),
+  ZONE_TTL = (1 << 16),
+  ZONE_CLASS = (1 << 17),
+  ZONE_TYPE = (1 << 18),
+  ZONE_RDATA = (2 << 19)
+} zone_item_t;
+
+#define ZONE_ITEM_MASK (0xff0000)
+
+inline zone_item_t zone_item(const zone_code_t code)
+{
+  return code & ZONE_ITEM_MASK;
+}
+
+// field qualifiers
+#define ZONE_COMPRESSED (x)
+#define ZONE_MAILBOX (x)
+#define ZONE_LOWER_CASE (x)
+#define ZONE_OPTIONAL (x)
+#define ZONE_MULTIPLE (x) // string fields, must be last
+
+typedef struct zone_rdata_descriptor zone_rdata_descriptor_t;
+struct zone_rdata_descriptor {
+  const char *name;
+  zone_type_t type;
+  uint32_t qualifiers;
+};
+
+// type options
+#define ZONE_IN (x)
+#define ZONE_ANY (x)
+#define ZONE_EXPERIMENTAL (x)
+#define ZONE_OBSOLETE (x)
+
+typedef struct zone_type_descriptor zone_type_descriptor_t;
+struct zone_type_descriptor {
+  const char *name;
+  uint16_t type;
+  uint32_t options;
+};
 
 typedef struct zone_field zone_field_t;
 struct zone_field {
   zone_location_t location;
-  zone_format_t format;
+  zone_code_t code; // OR'ed combination of type and item
+  union {
+    const zone_type_descriptor_t *type; // type field
+    const zone_rdata_descriptor_t *rdata; // rdata fields
+  } descriptor;
   union {
     const void *domain;
     uint8_t int8;
@@ -76,6 +140,7 @@ struct zone_field {
     struct { uint8_t length; uint8_t *octets; } name;
     struct in_addr *ip4;
     struct in6_addr *ip6;
+    struct { uint16_t length; uint8_t *octets; } b64;
   };
 };
 
@@ -137,7 +202,7 @@ struct zone_options {
     zone_accept_rr_t rr;
     // FIXME: add callback to accept rdlength for generic records?
     zone_accept_rdata_t rdata;
-    zone_accept_t terminator;
+    zone_accept_t delimiter;
   } accept;
 };
 
@@ -157,9 +222,9 @@ struct zone_parser {
       size_t count;
     } rdlength;
     struct {
-      const void *type; // pointer to type descriptor (private)
-      const void *rdata; // pointer to rdata descriptor (private)
-    } descriptor;
+      const zone_type_descriptor_t *type;
+      const zone_rdata_descriptor_t *rdata;
+    } descriptors;
     // FIXME: keep track of svcb parameters seen
   } record;
   // FIXME: keep error count?
