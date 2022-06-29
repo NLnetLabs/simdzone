@@ -9,6 +9,22 @@ else()
   add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
+if(SANITIZER)
+  string(REGEX REPLACE " " "" SANITIZER "${SANITIZER}")
+  string(REGEX REPLACE "[,;]+" ";" SANITIZER "${SANITIZER}")
+  foreach(san ${SANITIZER})
+    if(san STREQUAL "address")
+      add_compile_options("-fno-omit-frame-pointer")
+      add_link_options("-fno-omit-frame-pointer")
+    endif()
+    if(san AND NOT san STREQUAL "none")
+      message(STATUS "Enabling sanitizer: ${san}")
+      add_compile_options("-fsanitize=${san}")
+      add_link_options("-fsanitize=${san}")
+    endif()
+  endforeach()
+endif()
+
 add_subdirectory(compat)
 
 # FIXME: scanner-types.h can be generated eventually
