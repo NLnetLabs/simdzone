@@ -69,7 +69,13 @@ zone_return_t zone_scan(zone_parser_t *parser, zone_token_t *token);
 #define SYNTAX_ERROR(parser, ...) \
   do { zone_error(parser, __VA_ARGS__); return ZONE_SYNTAX_ERROR; } while (0)
 #define SEMANTIC_ERROR(parser, ...) \
-  do { zone_error(parser, __VA_ARGS__); return ZONE_SEMANTIC_ERROR; } while (0)
+  do { \
+    zone_error(parser, __VA_ARGS__); \
+    if (!(parser->options.flags & ZONE_LEANIENT)) \
+      return ZONE_SEMANTIC_ERROR; \
+  } while (0)
+
+
 
 // remove \DDD constructs from input. see RFC 1035, section 5.1
 ssize_t zone_unescape(const char *str, size_t len, char *buf, size_t size, int strict);

@@ -185,11 +185,18 @@ typedef void *(*zone_malloc_t)(void *arena, size_t size);
 typedef void *(*zone_realloc_t)(void *arena, void *ptr, size_t size);
 typedef void(*zone_free_t)(void *arena, void *ptr);
 
+// be leanient when parsing zone files. use of this flag is discouraged as
+// servers may interpret fields differently, but can be useful in sitations
+// where provisioning software or the primary name server outputs slightly
+// malformed zone files
+#define ZONE_LEANIENT (1<<0)
+
 typedef struct zone_options zone_options_t;
 struct zone_options {
   // FIXME: add a flags member. e.g. to allow for includes in combination
   //        with static buffers, signal ownership of allocated memory, etc
   // FIXME: a compiler flag indicating host or network order might be useful
+  uint32_t flags;
   uint16_t default_class;
   uint32_t default_ttl;
   struct {

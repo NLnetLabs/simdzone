@@ -392,6 +392,7 @@ bad_ip:
   if (ip4)
     zone_free(par, ip4);
   SEMANTIC_ERROR(par, "Invalid IPv4 address at {l}", &tok);
+  return ZONE_SEMANTIC_ERROR;
 }
 
 zone_return_t zone_parse_generic_ip6(
@@ -412,6 +413,7 @@ bad_ip:
   if (ip6)
     zone_free(par, ip6);
   SEMANTIC_ERROR(par, "Invalid IPv6 address at {l}", &tok);
+  return ZONE_SEMANTIC_ERROR;
 }
 
 zone_return_t zone_parse_string(
