@@ -479,6 +479,7 @@ function(cmocka_add_tests _target)
     # Resolve to absolute path
     get_filename_component(_file "${_file}" ABSOLUTE)
     list(APPEND _files "${_file}")
+    unset(_directives)
     __cmocka_parse_file(_directives "${_file}")
     # Sort by group to ease code generation and so groups can span files
     foreach(_directive ${_directives})
