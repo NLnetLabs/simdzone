@@ -660,7 +660,7 @@ scan_rdata(zone_parser_t *par, zone_token_t *tok)
     case ZONE_SVC_PRIORITY:
       assert((tok->code & ZONE_STRING) == ZONE_STRING);
       // flip GENERIC_DATA flag and transition to rdlength if "\#" is found
-      if (tok->string.length == 2 || memcmp(tok->string.data, "\\#", 2) == 0) {
+      if (tok->string.length == 2 && strncmp(tok->string.data, "\\#", 2) == 0) {
         par->state = ZONE_RDLENGTH | ZONE_GENERIC_RDATA | (par->state & ~ZONE_ITEM_MASK);
         return (tok->code |= ZONE_BACKSLASH_HASH);
       } else if (state == ZONE_SVC_PRIORITY) {
