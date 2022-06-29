@@ -515,7 +515,6 @@ static inline int32_t scan_type(zone_parser_t *par, zone_token_t *tok)
   uint32_t type;
 
   assert(tok->code == ZONE_STRING);
-  assert(!tok->string.escaped);
 
   // FIXME: unescape here first!
   if ((type = zone_is_type(tok->string.data, tok->string.length)) > 0)
@@ -566,7 +565,6 @@ scan_class(zone_parser_t *par, zone_token_t *tok)
   uint32_t class;
 
   assert(tok->code == ZONE_STRING);
-  assert(!tok->string.escaped);
 
   // FIXME: unescape here first!
   if ((class = zone_is_class(tok->string.data, tok->string.length)) > 0)
