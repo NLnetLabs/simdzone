@@ -57,9 +57,15 @@ zone_return_t zone_open_string(
   return 0;
 }
 
-void zone_close(zone_parser_t *parser)
+void zone_close(zone_parser_t *par)
 {
-  (void)parser;
+  if (par) {
+    if (par->file) {
+      if (par->file->handle)
+        fclose(par->file->handle);
+      free(par->file);
+    }
+  }
   // FIXME: implement
   // x. close the whole thing.
   // x. cleanup buffers
