@@ -69,9 +69,9 @@ typedef enum {
   ZONE_IP4 = (5 << 8),
   ZONE_IP6 = (6 << 8),
   ZONE_NAME = (7 << 8),
-  ZONE_STRING = (9 << 8),
-  ZONE_BASE32 = (10 << 8),
-  ZONE_BASE64 = (11 << 8)
+  ZONE_STRING = (8 << 8),
+  ZONE_BASE32 = (9 << 8),
+  ZONE_BASE64 = (10 << 8)
 } zone_type_t;
 
 #define ZONE_TYPE_MASK (0xff00)
@@ -138,6 +138,7 @@ struct zone_field {
     uint16_t int16;
     uint32_t int32;
     struct { uint8_t length; uint8_t *octets; } name;
+    uint8_t *string;
     struct in_addr *ip4;
     struct in6_addr *ip6;
     struct { uint16_t length; uint8_t *octets; } b64;

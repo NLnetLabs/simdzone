@@ -51,6 +51,7 @@ struct type_descriptor {
 #define IP4(n, q, ...) RDATA__(ZONE_IP4, n, q, __VA_ARGS__)
 #define IP6(n, q, ...) RDATA__(ZONE_IP6, n, q, __VA_ARGS__)
 #define NAME(n, q, ...) RDATA__(ZONE_NAME, n, q, __VA_ARGS__)
+#define STRING(n, q, ...) RDATA__(ZONE_STRING, n, q, __VA_ARGS__)
 #define BASE64(n, q, ...) RDATA__(ZONE_BASE64, n, q, __VA_ARGS__)
 
 #define TYPED(f) .typed = f
@@ -318,7 +319,8 @@ static const struct {
   { zone_parse_int32, 0, },
   { zone_parse_ip4, zone_parse_generic_ip4 },
   { zone_parse_ip6, zone_parse_generic_ip6 },
-  { zone_parse_domain_name, 0 }
+  { zone_parse_domain_name, 0 },
+  { zone_parse_string, zone_parse_generic_string }
 };
 
 static zone_return_t

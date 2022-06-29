@@ -413,3 +413,64 @@ bad_ip:
     zone_free(par, ip6);
   SEMANTIC_ERROR(par, "Invalid IPv6 address at {l}", &tok);
 }
+
+zone_return_t zone_parse_string(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  ssize_t len = 0;
+  char buf[255];
+  const char *str, *name = fld->descriptor.rdata->name;
+
+  (void)ptr;
+  if (tok->string.escaped) {
+    str = buf;
+    len = zone_unescape(tok->string.data, tok->string.length, buf, sizeof(buf), 0);
+  } else {
+    str = tok->string.data;
+    len = tok->string.length;
+  }
+
+  if (len < 0)
+    SYNTAX_ERROR(par, "Invalid escape sequence in %s", name);
+  if (len > 255)
+    SEMANTIC_ERROR(par, "Invalid %s, length exceeds maximum", name);
+  // trim input if instructed to be leanient for compatibilty with NSD
+  if (len > 255)
+    len = 255;
+  if (!(fld->string = zone_malloc(par, 1 + (size_t)len)))
+    return ZONE_OUT_OF_MEMORY;
+
+  memcpy(fld->string + 1, str, (size_t)len);
+  *fld->string = (uint8_t)len;
+  return ZONE_RDATA;
+}
+
+zone_return_t zone_parse_generic_string(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  ssize_t len;
+  uint8_t buf[1 /* length */ + 255 /* maximum length */];
+  const char *name = fld->descriptor.rdata->name;
+
+  (void)ptr;
+  len = zone_decode(tok->string.data, tok->string.length, buf, sizeof(buf));
+  if (len < 0)
+    SYNTAX_ERROR(par, "Invalid hexadecimal string or escape sequence in %s", name);
+  if (len > 1 + 255)
+    SEMANTIC_ERROR(par, "Invalid %s, length exceeds maximum", name);
+  if (len > 0 && buf[0] != len - 1)
+    SEMANTIC_ERROR(par, "Invalid %s, length does not match string length", name);
+
+  // fixup length if maximum (or minimum) is exceeded
+  if (len > 1 + 255)
+    len = 255;
+  else if (len)
+    len--;
+
+  if (!(fld->string = zone_malloc(par, 1 + (size_t)len)))
+    return ZONE_OUT_OF_MEMORY;
+
+  memcpy(fld->string + 1, buf, (size_t)len);
+  *fld->string = (uint8_t)len;
+  return ZONE_RDATA | ZONE_STRING;
+}

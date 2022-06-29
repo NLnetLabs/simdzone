@@ -56,6 +56,12 @@ zone_return_t zone_parse_base64(
 zone_return_t zone_parse_domain_name(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr);
 
+zone_return_t zone_parse_string(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr);
+
+zone_return_t zone_parse_generic_string(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr);
+
 #define NO_TYPE {NULL, 0, 0, (struct rdata_descriptor[]){{ { 0, 0, 0 }, 0, 0 }} }
 
 TYPES(
