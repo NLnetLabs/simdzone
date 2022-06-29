@@ -87,10 +87,10 @@ lex_quoted_string(const zone_parser_t *par, zone_token_t *tok, size_t off, size_
       case '\"':
         if (!esc) {
           tok->location.end.column++;
-          *len = cnt;
+          *len = cnt + 1;
           assert(cnt >= off);
           tok->string.data = par->file->buffer.data.read + par->file->buffer.cursor + off + 1;
-          tok->string.length = (cnt - off) - 2;
+          tok->string.length = (cnt - off) - 1;
           return (tok->code = ZONE_STRING);
         }
         // fall through
