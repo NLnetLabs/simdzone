@@ -319,20 +319,23 @@ ssize_t zone_unescape(const char *str, size_t len, char *buf, size_t size, int s
   for (size_t i=0; i < len; ) {
     if (str[i] != '\\') {
       if (cnt < size)
-        buf[cnt++] = str[i];
+        buf[cnt] = str[i];
+      cnt++;
       i += 1;
     } else if ((i < len - 1) && (str[i+1] >= '0' && str[i+1] <= '2') &&
                (i < len - 2) && (str[i+2] >= '0' && str[i+2] <= '5') &&
                (i < len - 3) && (str[i+3] >= '0' && str[i+3] <= '5'))
     {
       if (cnt < size)
-        buf[cnt++] = (str[i+1] - '0') * 100 +
-                     (str[i+2] - '0') *  10 +
-                     (str[i+3] - '0') *   1;
+        buf[cnt] = (str[i+1] - '0') * 100 +
+                   (str[i+2] - '0') *  10 +
+                   (str[i+3] - '0') *   1;
+      cnt++;
       i += 4;
     } else if (len - i >= 1) {
       if (cnt < size)
-        buf[cnt++] = str[i+1];
+        buf[cnt] = str[i+1];
+      cnt++;
       i += 2;
     } else {
       assert(len - i == 0);
