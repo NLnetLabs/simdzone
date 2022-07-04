@@ -90,16 +90,16 @@ void str_type_max_len(void **state)
   opts.accept.delimiter = accept_delimiter;
 
   const struct {
-    zone_return_t expect;
     size_t length;
+    zone_return_t expect;
     bool leanient;
   } tests[] = {
-    { 0, 254, false },
-    { 0, 255, false },
-    { ZONE_SEMANTIC_ERROR, 256, false },
-    { ZONE_SEMANTIC_ERROR, 257, false },
-    { 0, 256, true },
-    { 0, 257, true }
+    { 254, 0, false },
+    { 255, 0, false },
+    { 256, ZONE_SEMANTIC_ERROR, false },
+    { 257, ZONE_SEMANTIC_ERROR, false },
+    { 256, 0, true },
+    { 257, 0, true }
   };
 
   for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {

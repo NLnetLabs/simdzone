@@ -52,17 +52,16 @@ struct zone_file {
 };
 
 // zone code is a concatenation of the item and the format. the 8 least
-// significant bits are reserved to embed ascii codes. e.g. end-of-file and
-// line feed delimiters are simply encoded as '\0' and '\n' respectively. the
-// 8 least significant bits must only be considered valid ascii if no other
-// bits are set as they are reserved for private state if there are.
-// bits 8 - 15 encode the the value type, bits 16-23 are reserved for the
+// significant bits are reserved to embed ascii internally. e.g. end-of-file
+// and line feed delimiters are simply encoded as '\0' and '\n' by the
+// scanner. the 8 least significant bits must only be considered valid ascii
+// if no other bits are set as they are reserved for private state if there
+// are. bits 8 - 15 encode the the value type, bits 16-23 are reserved for the
 // field type. negative values indicate an error condition
 typedef zone_return_t zone_code_t;
 
 typedef enum {
-  ZONE_CHAR = 0, // single character embedded in 8 least significant bits
-  ZONE_DOMAIN = (1 << 8),
+  ZONE_DOMAIN = (1 << 8), // special case
   ZONE_INT8 = (2 << 8),
   ZONE_INT16 = (3 << 8),
   ZONE_INT32 = (4 << 8),
@@ -71,38 +70,44 @@ typedef enum {
   ZONE_NAME = (7 << 8),
   ZONE_STRING = (8 << 8),
   ZONE_BASE32 = (9 << 8),
-  ZONE_BASE64 = (10 << 8)
+  ZONE_BASE64 = (10 << 8),
+  // hex fields
+  // ZONE_HEX - 11
+  // ZONE_EUI48 (ZONE_HEX6?) - 12
+  // ZONE_EUI64 (ZONE_HEX8?) - 13
+  // time stamp fields
+  // ZONE_TIME - 14
+  // miscellaneous fields
+  ZONE_SVC_PARAM = (15 << 8),
+  ZONE_WKS = (16 << 8)
 } zone_type_t;
-
-#define ZONE_TYPE_MASK (0xff00)
 
 inline zone_type_t zone_type(const zone_code_t code)
 {
-  return code & ZONE_TYPE_MASK;
+  return code & 0xff00;
 }
 
 typedef enum {
-  ZONE_DELIMITER = 0, // single character embedded in 8 least significant bits
-  ZONE_OWNER = (1 << 19),
+  ZONE_DELIMITER = 0,
   ZONE_TTL = (1 << 16),
   ZONE_CLASS = (1 << 17),
   ZONE_TYPE = (1 << 18),
+  ZONE_OWNER = (1 << 19),
   ZONE_RDATA = (2 << 19)
+  // NOTE: additional (private) scanner states start from (3 << 19)
 } zone_item_t;
-
-#define ZONE_ITEM_MASK (0xff0000)
 
 inline zone_item_t zone_item(const zone_code_t code)
 {
-  return code & ZONE_ITEM_MASK;
+  return code & 0xff0000;
 }
 
-// field qualifiers
-#define ZONE_COMPRESSED (x)
-#define ZONE_MAILBOX (x)
-#define ZONE_LOWER_CASE (x)
-#define ZONE_OPTIONAL (x)
-#define ZONE_MULTIPLE (x) // string fields, must be last
+// field qualifiers (can be combined in various way, hence not an enumeration)
+#define ZONE_COMPRESSED (1<<0)
+#define ZONE_MAILBOX (1<<1)
+#define ZONE_LOWER_CASE (1<<2)
+#define ZONE_OPTIONAL (1<<3)
+#define ZONE_MULTIPLE (1<<4) // string fields, must be last
 
 typedef struct zone_rdata_descriptor zone_rdata_descriptor_t;
 struct zone_rdata_descriptor {
@@ -139,9 +144,11 @@ struct zone_field {
     uint32_t int32;
     struct { uint8_t length; uint8_t *octets; } name;
     uint8_t *string;
+    struct { size_t length; uint8_t *octets; } svc_param;
     struct in_addr *ip4;
     struct in6_addr *ip6;
     struct { uint16_t length; uint8_t *octets; } b64;
+    struct { size_t length; uint8_t *octets; } wks;
   };
 };
 
@@ -216,26 +223,45 @@ struct zone_options {
 
 struct zone_parser {
   zone_file_t *file;
-  int32_t state;
   zone_options_t options;
   struct {
+    zone_code_t state;
+  } scanner;
+  struct {
+    // scanner and parser require different state. scanner state indicates
+    // what to expect next. hence, if a newline is encountered and state is
+    // reverted to initial, the parser cannot determine if the line must be
+    // considered a blank
+    zone_code_t state;
     // small backlog to track items before invoking accept_rr. memory for
     // owner, if no accept_name was registered, is allocated just before
     // invoking accept_rr to simplify memory management
     zone_field_t fields[4]; // { owner, ttl, class, type }
     struct {
-      // number of expected octets in rdata. valid if rdata is in generic
-      // presetation. i.e. if "\#" is encountered as per RFC3597
-      size_t expect;
-      size_t count;
-    } rdlength;
-    struct {
       const zone_type_descriptor_t *type;
       const zone_rdata_descriptor_t *rdata;
     } descriptors;
-    // FIXME: keep track of svcb parameters seen
-  } record;
-  // FIXME: keep error count?
+    struct {
+      // number of expected octets in rdata. valid if rdata is in generic
+      // presentation. i.e. if "\#" is encountered as per RFC3597
+      size_t expect;
+      size_t count;
+    } rdlength;
+    // FIXME: some record types require special handling of rdata. e.g. WKS,
+    //        where all services are consolidated in a bitmap, and SVCB, where
+    //        all svc_params must be sorted before being handed off and each
+    //        parameter must only occur once.
+    //
+    // SVCB draft section 2.1 states:
+    //   SvcParams in presentation format MAY appear in any order, but keys
+    //   MUST NOT be repeated.
+    // SVCB draft section 2.2 states:
+    //   SvcParamKeys SHALL appear in increasing numeric order.
+    struct {
+      const void *protocol;
+      zone_field_t services;
+    } wks;
+  } parser;
 };
 
 // return codes
@@ -244,8 +270,6 @@ struct zone_parser {
 #define ZONE_SEMANTIC_ERROR (-2)
 #define ZONE_OUT_OF_MEMORY (-3)
 #define ZONE_BAD_PARAMETER (-4)
-
-#define ZONE_NEED_REFILL (-5) // internal error code used to trigger refill
 
 // initializes the parser with a static fixed buffer
 zone_return_t zone_open_string(

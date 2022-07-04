@@ -29,6 +29,7 @@ struct rdata_descriptor {
 struct type_descriptor {
   zone_type_descriptor_t public;
   struct rdata_descriptor *rdata;
+  // FIXME: need cleanup/finalize functions. i.e. for wks cleanup?
 };
 
 #define TYPES(...) \
@@ -53,6 +54,8 @@ struct type_descriptor {
 #define NAME(n, q, ...) RDATA__(ZONE_NAME, n, q, __VA_ARGS__)
 #define STRING(n, q, ...) RDATA__(ZONE_STRING, n, q, __VA_ARGS__)
 #define BASE64(n, q, ...) RDATA__(ZONE_BASE64, n, q, __VA_ARGS__)
+#define WKS(n, q, ...) RDATA__(ZONE_WKS, n, q, __VA_ARGS__)
+#define SVC_PARAM(n, q, ...) RDATA__(ZONE_SVC_PARAM, n, q, __VA_ARGS__)
 
 #define TYPED(f) .typed = f
 #define GENERIC(f) .generic = f
@@ -61,8 +64,9 @@ struct type_descriptor {
 #define EXPERIMENTAL (1<<1)
 #define OBSOLETE (1<<2)
 
-#define MAILBOX (1<<0)
-#define COMPRESSED (1<<1)
+#define MAILBOX (ZONE_MAILBOX)
+#define COMPRESSED (ZONE_COMPRESSED)
+#define OPTIONAL (ZONE_OPTIONAL)
 
 #include "types.h"
 
@@ -320,7 +324,15 @@ static const struct {
   { zone_parse_ip4, zone_parse_generic_ip4 },
   { zone_parse_ip6, zone_parse_generic_ip6 },
   { zone_parse_domain_name, 0 },
-  { zone_parse_string, zone_parse_generic_string }
+  { zone_parse_string, zone_parse_generic_string },
+  { 0, 0 },
+  { 0, 0 },
+  { 0, 0 },
+  { 0, 0 },
+  { 0, 0 },
+  { 0, 0 },
+  { zone_parse_svc_param, zone_parse_generic_svc_param },
+  { zone_parse_wks, zone_parse_generic_wks }
 };
 
 static zone_return_t
@@ -334,12 +346,12 @@ parse_owner(zone_parser_t *par, const zone_token_t *tok, void *ptr)
     assert(!par->options.accept.name || par->file->origin.domain);
     // reuse persistent reference if available
     if (par->options.accept.name)
-      par->record.fields[OWNER] = (zone_field_t){
+      par->parser.fields[OWNER] = (zone_field_t){
         .location = tok->location,
         .code = ZONE_OWNER | ZONE_DOMAIN,
         .domain = par->file->origin.domain };
     else
-      par->record.fields[OWNER] = (zone_field_t){
+      par->parser.fields[OWNER] = (zone_field_t){
         .location = tok->location,
         .code = ZONE_OWNER | ZONE_NAME,
         .name = {
@@ -352,7 +364,7 @@ parse_owner(zone_parser_t *par, const zone_token_t *tok, void *ptr)
           par, NULL, tok, par->file->owner.name.octets, &par->file->owner.name.length))
       return ZONE_SYNTAX_ERROR;
 
-    par->record.fields[OWNER] = (zone_field_t){
+    par->parser.fields[OWNER] = (zone_field_t){
       .location = tok->location,
       .code = ZONE_OWNER | ZONE_NAME,
       .name = {
@@ -368,7 +380,7 @@ accept_rr(zone_parser_t *par, void *ptr)
 {
   // allocate memory to hold the owner last-minute (if no persistent reference
   // is available) to simplify memory management
-  zone_field_t owner = par->record.fields[OWNER];
+  zone_field_t owner = par->parser.fields[OWNER];
   assert(zone_type(owner.code) == ZONE_DOMAIN ||
          zone_type(owner.code) == ZONE_NAME);
   if (zone_type(owner.code) != ZONE_DOMAIN) {
@@ -394,9 +406,9 @@ accept_rr(zone_parser_t *par, void *ptr)
   zone_return_t ret = par->options.accept.rr(
     par,
    &owner,
-   &par->record.fields[TTL],
-   &par->record.fields[CLASS],
-   &par->record.fields[TYPE],
+   &par->parser.fields[TTL],
+   &par->parser.fields[CLASS],
+   &par->parser.fields[TYPE],
     ptr);
 
   return ret < 0 ? ret : 0;
@@ -404,7 +416,6 @@ accept_rr(zone_parser_t *par, void *ptr)
 
 zone_return_t zone_parse(zone_parser_t *par, void *user_data)
 {
-  zone_item_t item;
   zone_token_t tok;
   zone_return_t code;
 
@@ -414,102 +425,141 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
     if (code < 0)
       break;
     assert(code == tok.code);
-    item = zone_item(code);
+    zone_code_t item = code & 0xff0000;
+
     // ignore comments
     if (item == ZONE_COMMENT)
       continue;
 
-    if (item == ZONE_OWNER) {
-      assert((code & ZONE_STRING) == ZONE_STRING);
-      code = parse_owner(par, &tok, user_data);
-    } else if (item == ZONE_TTL) {
-      assert(code == (ZONE_TTL | ZONE_INT32));
-      par->record.fields[TTL].location = tok.location;
-      par->record.fields[TTL].code = ZONE_TTL | ZONE_INT32;
-      par->record.fields[TTL].int32 = tok.int32;
-    } else if (item == ZONE_CLASS) {
-      assert(code == (ZONE_CLASS | ZONE_INT16));
-      par->record.fields[CLASS].location = tok.location;
-      par->record.fields[CLASS].code = ZONE_CLASS | ZONE_INT16;
-      par->record.fields[CLASS].int16 = tok.int16;
-    } else if (item == ZONE_TYPE) {
-      zone_return_t ret;
-      const struct type_descriptor *desc;
+    if (item == ZONE_DELIMITER) {
+      if (par->parser.state != ZONE_INITIAL) {
+        zone_return_t ret = 0;
+        zone_field_t fld = {
+          .location = tok.location,
+          .code = code | ZONE_INT8,
+          .int8 = (uint8_t)tok.code & 0xff };
 
-      if (tok.int16 < sizeof(types)/sizeof(types[0]))
-        desc = &types[tok.int16];
-      else
-        desc = &unknown_type;
+        // FIXME: should be a no-op for blank line. perhaps just use rdlength?
+        if (!par->parser.descriptors.type)
+          SEMANTIC_ERROR(par, "Expected type at {l}", &tok);
+        else if (!par->parser.descriptors.rdata)
+          SEMANTIC_ERROR(par, "Expected rdata at {l}", &tok);
 
-      assert(code == (ZONE_TYPE | ZONE_INT16));
-      par->record.fields[TYPE].location = tok.location;
-      par->record.fields[TYPE].code = ZONE_TYPE | ZONE_INT16;
-      par->record.fields[TYPE].int16 = tok.int16;
-      par->record.fields[TYPE].descriptor.type = &desc->public;
+        if (par->parser.state & ZONE_DEFERRED_RDATA)
+          ret = par->options.accept.rdata(par, &par->parser.wks.services, user_data);
 
-      par->record.descriptors.type = (const zone_type_descriptor_t *)&desc->public;
-      par->record.descriptors.rdata = &desc->rdata[0].public;
-      if ((ret = accept_rr(par, user_data)) < 0)
-        code = ret;
-    } else if (item == ZONE_BACKSLASH_HASH) {
-      assert((code & ZONE_STRING) == ZONE_STRING);
-      assert(par->state & ZONE_GENERIC_RDATA);
-    } else if (item == ZONE_RDLENGTH) {
-      assert((code & ZONE_INT16) == ZONE_INT16);
-      assert(par->state & ZONE_GENERIC_RDATA);
-      par->record.rdlength.expect = tok.int16;
-    } else if (item == ZONE_DELIMITER) {
-      zone_return_t ret;
-      zone_field_t fld = { .location = tok.location, .code = code };
+        if (ret < 0 || (ret = par->options.accept.delimiter(par, &fld, user_data)) < 0)
+          code = ret;
 
-      // FIXME: should be a no-op for blank line. perhaps just use rdlength?
-      if (!par->record.descriptors.type)
-        SEMANTIC_ERROR(par, "Expected type at {l}", &tok);
-      else if (!par->record.descriptors.rdata)
-        SEMANTIC_ERROR(par, "Expected rdata at {l}", &tok);
-
-      if ((ret = par->options.accept.delimiter(par, &fld, user_data)) < 0)
-        code = ret;
-      par->record.descriptors.type = NULL;
-      par->record.descriptors.rdata = NULL;
-      //if (tok.code == '\0' && par->file->handle)
-      //  close_file(par);
-      //
+        // FIXME: record descriptor must point to terminator or last record
+        //        that allows for multiple occurences
+        //if ((ret = par->options.accept.delimiter(par, &fld, user_data)) < 0)
+        //  code = ret;
+        par->parser.descriptors.type = NULL;
+        par->parser.descriptors.rdata = NULL;
+        //if (tok.code == '\0' && par->file->handle)
+        //  close_file(par);
+      }
       // FIXME: we must reset the location here so that the location is correct
       //        even if the owner is left blank in the next record!
-      //
+      // par->parser.state = ZONE_INITIAL;
+      par->parser.state = ZONE_INITIAL;
     } else {
-      size_t fid;
-      zone_return_t ret;
-      const struct rdata_descriptor *desc;
-      rdata_parse_t fun;
+      // update state to properly handle blank lines
+      par->parser.state = item | (par->parser.state & ZONE_DEFERRED_RDATA);
 
-      assert(par->record.descriptors.type);
-      assert(par->record.descriptors.rdata);
+      if (item == ZONE_OWNER) {
+        assert(code == (ZONE_OWNER | ZONE_STRING));
+        code = parse_owner(par, &tok, user_data);
+      } else if (item == ZONE_TTL) {
+        assert(code == (ZONE_TTL | ZONE_INT32));
+        par->parser.fields[TTL].location = tok.location;
+        par->parser.fields[TTL].code = ZONE_TTL | ZONE_INT32;
+        par->parser.fields[TTL].int32 = tok.int32;
+      } else if (item == ZONE_CLASS) {
+        assert(code == (ZONE_CLASS | ZONE_INT16));
+        par->parser.fields[CLASS].location = tok.location;
+        par->parser.fields[CLASS].code = ZONE_CLASS | ZONE_INT16;
+        par->parser.fields[CLASS].int16 = tok.int16;
+      } else if (item == ZONE_TYPE) {
+        zone_return_t ret;
+        const struct type_descriptor *desc;
 
-      desc = (const struct rdata_descriptor *)par->record.descriptors.rdata;
-      if (!desc->public.type)
-        SYNTAX_ERROR(par, "Invalid record got too much rdatas");
+        if (tok.int16 < sizeof(types)/sizeof(types[0]))
+          desc = &types[tok.int16];
+        else
+          desc = &unknown_type;
 
-      fid = zone_type(desc->public.type) >> 8;
-      assert(fid < sizeof(functions)/sizeof(functions[0]));
-      if (par->state & ZONE_GENERIC_RDATA)
-        fun = desc->generic ? desc->generic : functions[fid].generic;
-      else
-        fun = desc->typed ? desc->typed : functions[fid].typed;
+        assert(code == (ZONE_TYPE | ZONE_INT16));
+        par->parser.fields[TYPE].location = tok.location;
+        par->parser.fields[TYPE].code = ZONE_TYPE | ZONE_INT16;
+        par->parser.fields[TYPE].int16 = tok.int16;
+        par->parser.fields[TYPE].descriptor.type = &desc->public;
 
-      zone_field_t fld = {
-        .location = tok.location,
-        .code = ZONE_RDATA | desc->public.type,
-        .descriptor = { .rdata = &desc->public }, { 0 } };
+        par->parser.descriptors.type = (const void *)&desc->public;
+        par->parser.descriptors.rdata = &desc->rdata[0].public;
+        if ((ret = accept_rr(par, user_data)) < 0)
+          code = ret;
+      } else if (item == ZONE_BACKSLASH_HASH) {
+        assert(code == (ZONE_BACKSLASH_HASH | ZONE_STRING));
+        assert(par->scanner.state & ZONE_GENERIC_RDATA);
+      } else if (item == ZONE_RDLENGTH) {
+        assert(code == (ZONE_RDLENGTH | ZONE_INT16));
+        assert(par->scanner.state & ZONE_GENERIC_RDATA);
+        par->parser.rdlength.expect = tok.int16;
+      } else {
+        size_t fid;
+        zone_field_t fld;
+        zone_return_t ret;
+        const struct rdata_descriptor *desc;
+        rdata_parse_t fun;
 
-      if ((ret = fun(par, &tok, &fld, user_data)) < 0)
-        code = ret;
-      else if ((ret = par->options.accept.rdata(par, &fld, user_data)) < 0)
-        code = ret;
+        assert(item == ZONE_RDATA);
+        assert(par->parser.descriptors.type);
+        assert(par->parser.descriptors.rdata);
 
-      assert(desc->public.type);
-      par->record.descriptors.rdata = (const zone_rdata_descriptor_t *)(desc + 1);
+        desc = (const struct rdata_descriptor *)par->parser.descriptors.rdata;
+        if (!desc->public.type)
+          SYNTAX_ERROR(par, "Invalid record got too much rdatas");
+
+        fid = zone_type(desc->public.type) >> 8;
+        assert(fid < sizeof(functions)/sizeof(functions[0]));
+        if (par->scanner.state & ZONE_GENERIC_RDATA)
+          fun = desc->generic ? desc->generic : functions[fid].generic;
+        else
+          fun = desc->typed ? desc->typed : functions[fid].typed;
+
+        if (par->parser.state & ZONE_DEFERRED_RDATA) {
+          fld = par->parser.wks.services;
+          // FIXME: assume types match for now, may need to update though
+          assert(zone_type(fld.code) == desc->public.type);
+          fld.location.end = tok.location.end;
+        } else {
+          fld = (zone_field_t){
+            .location = tok.location,
+            .code = ZONE_RDATA | desc->public.type,
+            .descriptor = { .rdata = &desc->public }, { 0 } };
+        }
+
+        assert(desc->public.type);
+
+        if ((ret = fun(par,  &tok, &fld, user_data)) == ZONE_DEFER_ACCEPT) {
+          // for now, we only support wks in doing this but that may change
+          // update this check accordingly then!!!!
+          par->parser.wks.services = fld;
+          par->parser.state |= ZONE_DEFERRED_RDATA;
+        } else if (ret < 0) {
+          code = ret;
+        } else if ((ret = par->options.accept.rdata(par, &fld, user_data)) < 0) {
+          code = ret;
+        } else {
+          if (par->parser.fields[TYPE].int16 != 11)
+            memset(&par->parser.wks.services, 0, sizeof(zone_field_t));
+          par->parser.state &= ~ZONE_DEFERRED_RDATA;
+          // FIXME: only increase field if multiple occurences are not allowed
+          par->parser.descriptors.rdata = (const void *)(desc + 1);
+        }
+      }
     }
   } while (code > 0);
 

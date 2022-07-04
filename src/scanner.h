@@ -11,31 +11,40 @@
 
 #include "zone.h"
 
-// additional items used during scan stage
-#define ZONE_COMMENT (3 << 19)
+// private return codes
+#define ZONE_DEFER_ACCEPT (-50)
+#define ZONE_REFRESH_BUFFER (-51)
+
+// scanner states
+//
+// ascii codes are considered valid scanner states
+//
+#define ZONE_INITIAL (3 << 19)
+//
+// ZONE_OWNER // string
+// ZONE_TTL // int32
+// ZONE_CLASS // int16
+// ZONE_TYPE // int16
+//
+#define ZONE_RR (ZONE_TTL|ZONE_CLASS|ZONE_TYPE)
+//
+#define ZONE_COMMENT (4 << 19)
 // NOTE: backslash_hash may transition to rdata if "\#" is not found
-#define ZONE_BACKSLASH_HASH (4 << 19) // string, for consistency
+#define ZONE_BACKSLASH_HASH (5 << 19) // string, for consistency
 // NOTE: rdlength transitions to rdata as syntax rules remain the same
-#define  ZONE_RDLENGTH (5 << 19) // int16
+#define ZONE_RDLENGTH (6 << 19) // int16
 // svcb-https introduces syntax changes. svc_priority and target_name
 // must not parse the value as is done for e.g. ttl and rdlength as doing
 // so would break the parser interface
 // NOTE: svc_priority may transition to rdlength if "\#" is found
-#define ZONE_SVC_PRIORITY (6 << 19)
-#define ZONE_TARGET_NAME (7 << 19)
-// svcb-https requires an additional token type to allow for clear
-// seperation between scan and parse states to remain intact. while a string
-// can be used, doing so requires the parser to split the parameter and
-// value again and possibly require more memory as the value cannot be
-// referenced in unquoted fashion
-#define ZONE_SVC_PARAM (8 << 19)
-// FIXME: pending implementation of control types
+#define ZONE_SVC_PRIORITY (7 << 19) // string
+#define ZONE_TARGET_NAME (8 << 19) // string
+#define ZONE_SVC_PARAMS (9 << 19) // svc_param
 
-// additional parser states
-#define ZONE_INITIAL (1 << 24)
-#define ZONE_GROUPED (1 << 25)
-#define ZONE_GENERIC_RDATA (1 << 26) // parsing generic rdata (RFC3597)
-#define ZONE_RR (ZONE_TTL|ZONE_CLASS|ZONE_TYPE)
+// secondary scanner states
+#define ZONE_GROUPED (1 << 24)
+#define ZONE_GENERIC_RDATA (1 << 25) // parsing generic rdata (RFC3597)
+#define ZONE_DEFERRED_RDATA (1 << 26)
 
 typedef struct zone_string zone_string_t;
 struct zone_string {
@@ -49,10 +58,14 @@ struct zone_token {
   zone_location_t location;
   zone_code_t code;
   union {
-    uint8_t int8;
     uint16_t int16;
     uint32_t int32;
     zone_string_t string;
+    // svcb-https requires an additional token type to allow for clear
+    // seperation between scan and parse states to remain intact. while a
+    // string can be used, doing so requires the parser to split the parameter
+    // and value again and possibly require more memory as the value cannot be
+    // referenced in unquoted fashion
     struct { zone_string_t key; zone_string_t value; } svc_param;
   }; // c11 anonymous struct
 };

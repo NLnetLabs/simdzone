@@ -6,6 +6,7 @@
 #include <time.h>
 #include <stdint.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include "parser.h"
 
@@ -475,4 +476,142 @@ zone_return_t zone_parse_generic_string(
   memcpy(fld->string + 1, buf, (size_t)len);
   *fld->string = (uint8_t)len;
   return ZONE_RDATA | ZONE_STRING;
+}
+
+static ssize_t copy_string(const zone_token_t *tok, char *buf, size_t size)
+{
+  ssize_t len;
+
+  assert(tok && (tok->code & ZONE_STRING) == ZONE_STRING);
+
+  if (tok->string.escaped) {
+    len = zone_unescape(tok->string.data, tok->string.length, buf, size, 0);
+    if (len < 0)
+      return len;
+    if ((size_t)len >= size)
+      buf[size - 1] = '\0';
+    else
+      buf[(size_t)len] = '\0';
+    return len;
+  } else {
+    if (tok->string.length < size)
+      len = tok->string.length;
+    else
+      len = size - 1;
+    memcpy(buf, tok->string.data, (size_t)len);
+    buf[(size_t)len] = '\0';
+    return tok->string.length;
+  }
+}
+
+zone_return_t zone_parse_wks_protocol(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  char buf[32];
+  struct protoent *proto;
+
+  (void)ptr;
+  assert((tok->code & ZONE_STRING) == ZONE_STRING);
+
+  if (copy_string(tok, buf, sizeof(buf)) < 0)
+    SEMANTIC_ERROR(par, "{l}: Invalid escape sequence in protocol", tok);
+
+  if (!(proto = getprotobyname(buf))) {
+    uint64_t u64;
+    zone_return_t ret;
+    const zone_rdata_descriptor_t *desc = fld->descriptor.rdata;
+    if ((ret = zone_parse_int(par, desc, tok, UINT8_MAX, &u64)) < 0)
+      return ret;;
+    assert(u64 <= UINT8_MAX);
+    proto = getprotobynumber((int)u64);
+  }
+
+  if (!proto)
+    SEMANTIC_ERROR(par, "{l}: Unknown protocol", tok);
+
+  assert(proto);
+  par->parser.wks.protocol = proto;
+
+  fld->int8 = (uint8_t)proto->p_proto;
+  return ZONE_RDATA;
+}
+
+zone_return_t zone_parse_wks(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  int port = 0;
+  char buf[32];
+  const struct protoent *proto;
+  const struct servent *serv;
+
+  (void)ptr;
+  assert(par->parser.wks.protocol);
+  assert((tok->code & ZONE_STRING) == ZONE_STRING);
+  assert((fld->code & ZONE_WKS) == ZONE_WKS);
+  assert(!fld->wks.length || fld->wks.octets);
+
+  if (copy_string(tok, buf, sizeof(buf)) < 0)
+    SEMANTIC_ERROR(par, "{l}: Invalid escape sequence in service", tok);
+
+  proto = par->parser.wks.protocol;
+  if ((serv = getservbyname(buf, proto->p_name))) {
+    port = ntohs((uint16_t)serv->s_port);
+  } else {
+    uint64_t u64;
+    zone_return_t ret;
+    const zone_rdata_descriptor_t *desc = fld->descriptor.rdata;
+    if ((ret = zone_parse_int(par, desc, tok, UINT16_MAX, &u64)) < 0)
+      return ret;
+    assert(u64 <= UINT16_MAX);
+    port = (int)u64;
+  }
+
+  assert(port >= 0 && port <= 65535);
+
+  if ((size_t)port > fld->wks.length * 8) {
+    uint8_t *octets;
+    const size_t size = sizeof(uint8_t) * (port / 8 + 1);
+    if (!(octets = zone_realloc(par, fld->wks.octets, size)))
+      return ZONE_OUT_OF_MEMORY;
+    // ensure newly allocated octets are set to zero
+    memset(&octets[fld->wks.length], 0, size - fld->wks.length);
+    fld->wks.length = size;
+    fld->wks.octets = octets;
+  }
+
+  // bits are counted from left to right, so bit #0 is the left most bit
+  fld->wks.octets[port / 8] |= (1 << (7 - port % 8));
+
+  return ZONE_DEFER_ACCEPT;
+}
+
+zone_return_t zone_parse_generic_wks(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  // implement
+  (void)par;
+  (void)tok;
+  (void)fld;
+  (void)ptr;
+  return ZONE_BAD_PARAMETER;
+}
+
+zone_return_t zone_parse_svc_param(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  (void)par;
+  (void)tok;
+  (void)fld;
+  (void)ptr;
+  return ZONE_SYNTAX_ERROR;
+}
+
+zone_return_t zone_parse_generic_svc_param(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  (void)par;
+  (void)tok;
+  (void)fld;
+  (void)ptr;
+  return ZONE_SYNTAX_ERROR;
 }

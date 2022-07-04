@@ -51,7 +51,8 @@ zone_return_t zone_open_string(
   file->position.line = 1;
   file->position.column = 1;
   memset(par, 0, sizeof(*par));
-  par->state = ZONE_INITIAL;
+  par->scanner.state = ZONE_INITIAL;
+  par->parser.state = ZONE_INITIAL;
   par->file = file;
   par->options = *opts;
   return 0;
