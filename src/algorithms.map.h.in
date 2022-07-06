@@ -1,0 +1,10 @@
+#ifndef ZONE_ALGORITHMS_MAP_H
+#define ZONE_ALGORITHMS_MAP_H
+
+#define MAP(name, id) { id, name, sizeof(name) - 1 }
+static const zone_map_t algorithm_map[] = {
+@SORTED_LIST@
+};
+#undef MAP
+
+#endif // ZONE_ALGORITHMS_MAP_H

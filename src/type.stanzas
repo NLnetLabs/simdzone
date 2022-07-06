@@ -1,0 +1,78 @@
+A:1 Host address [RFC1035]
+  A:address IPv4 address
+
+NS:2
+MD:3
+MF:4
+
+CNAME:5 Canonical name
+  N[C]:cname Host name
+
+SOA:6
+MB:7
+MG:8
+MR:9
+WKS:11
+PTR:12
+HINFO:13
+MINFO:14
+
+MX:15 Mail exchanger
+  I2:priority Priority (lower values are higher priority)
+  N[A,C]:exchanger Host name
+
+TXT:16
+RP:17
+AFSDB:18
+X25:19
+ISDN:20
+RT:21
+NSAP:22
+SIG:24
+PX:26
+
+AAAA:28 IPv6
+  AAAA:address IPv6 address
+
+LOC:29
+NXT:30
+
+SRV:33 Service location
+  I2:priority Priority
+  I2:weight Weight
+  I2:port Port
+  N:target Target host name
+
+NAPTR:35
+KX:36
+CERT:37
+DNAME:39
+OPT:41
+APL:42
+DS:43
+SSHFP:44
+IPSECKEY:45
+RRSIG:46
+NSEC:47
+DNSKEY:48
+DHCID:49
+NSEC3:50
+NSEC3PARAM:51
+TLSA:52
+SMIMEA:53
+CDS:59
+CDNSKEY:60
+OPENPGPKEY:61
+CSYNC:62
+SVCB:64
+SPF:99
+NID:104
+L32:105
+L64:106
+LP:107
+EUI48:108
+EUI64:109
+URI:265
+CAA:257
+AVC:258
+DLV:32769

@@ -417,96 +417,20 @@ static inline uint32_t add(uint32_t lhs, uint32_t rhs, uint32_t max)
   return (max < lhs || max - lhs < rhs) ? max + 1 : lhs + rhs;
 }
 
-#include "scanner-types.h"
-
-static inline int mapcmp(const void *p1, const void *p2)
-{
-  int eq;
-  const struct map *m1 = p1, *m2 = p2;
-  assert(m1 && m1->name && m1->namelen);
-  assert(m2 && m2->name && m2->namelen);
-  if ((eq = strncasecmp(m1->name, m2->name, m1->namelen)) != 0)
-    return eq;
-  if (m1->namelen == m2->namelen)
-    return 0;
-  return m1->namelen < m2->namelen ? -1 : +1;
-}
+#include "map.h"
+#include "types.map.h"
 
 uint16_t zone_is_type(const char *str, size_t len)
 {
-  struct map *map, key = { 0, str, len };
-
-#ifndef NDEBUG
-  for (size_t i = 1; i < sizeof(types)/sizeof(types[0]); i++)
-    assert(mapcmp(&types[i - 1], &types[i]) < 0);
-#endif
+  const zone_map_t *map, key = { 0, str, len };
+  static const size_t nmemb = sizeof(type_map)/sizeof(type_map[0]);
+  static const size_t size = sizeof(type_map[0]);
 
   if (!len)
     return -1;
 
-  switch (str[0]) {
-    case 'r':
-    case 'R':
-      if (len == 5 && strncasecmp(str, "RRSIG", 5) == 0)
-        return TYPE_RRSIG;
-      break;
-    case 'n':
-    case 'N':
-      if (len == 2 && strncasecmp(str, "NS", 2) == 0)
-        return TYPE_NS;
-      if (len == 4 && strncasecmp(str, "NSEC", 4) == 0)
-        return TYPE_NSEC;
-      if (len == 5 && strncasecmp(str, "NSEC3", 5) == 0)
-        return TYPE_NSEC3;
-      if (len == 10 && strncasecmp(str, "NSEC3PARAM", 10) == 0)
-        return TYPE_NSEC3PARAM;
-      break;
-    case 'd':
-    case 'D':
-      if (len == 2 && strncasecmp(str, "DS", 2) == 0)
-        return TYPE_DS;
-      if (len == 6 && strncasecmp(str, "DNSKEY", 6) == 0)
-        return TYPE_DNSKEY;
-      break;
-    case 'a':
-    case 'A':
-      if (len == 1 && strncasecmp(str, "A", 1) == 0)
-        return TYPE_A;
-      if (len == 4 && strncasecmp(str, "AAAA", 4) == 0)
-        return TYPE_AAAA;
-      break;
-    case 's':
-    case 'S':
-      if (len == 3 && strncasecmp(str, "SOA", 3) == 0)
-        return TYPE_SOA;
-      break;
-    case 't':
-    case 'T':
-      if (len == 3 && strncasecmp(str, "TXT", 3) == 0)
-        return TYPE_TXT;
-      break;
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-      return 0;
-    case 'i':
-    case 'I':
-      if (len == 2 && strncasecmp(str, "IN", 2) == 0)
-        return 0;
-      break;
-  }
-
-  map = bsearch(
-    &key, types, sizeof(types)/sizeof(types[0]), sizeof(types[0]), &mapcmp);
-  if (map)
-    return (int32_t)(map->type);
+  if ((map = bsearch(&key, type_map, nmemb, size, &zone_mapcasecmp)))
+    return (int32_t)map->id;
   return 0;
 }
 

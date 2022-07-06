@@ -1,5 +1,5 @@
 /*
- * types.c -- wks record tests
+ * wks.c -- WKS record tests
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *

@@ -9,7 +9,9 @@ else()
   add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
-# Make it easy to enable MSVC, Clang's/gcc's analyzers
+include(Generate.cmake)
+
+
 set(ANALYZER "" CACHE STRING "Analyzer to enable on the build.")
 if(ANALYZER)
   # GCC and Visual Studio offer builtin analyzers. Clang supports static
@@ -42,6 +44,7 @@ if(ANALYZER)
   endif()
 endif()
 
+
 set(SANITIZER "" CACHE STRING "Sanitizers to enable on the build.")
 if(SANITIZER)
   string(REGEX REPLACE " " "" SANITIZER "${SANITIZER}")
@@ -61,12 +64,16 @@ endif()
 
 add_subdirectory(compat)
 
+generate_map(algorithm_map src/algorithms.map src/algorithms.map.h.in src/algorithms.map.h)
+generate_map(certificate_map src/certificates.map src/certificates.map.h.in src/certificates.map.h)
+generate_map(type_map src/type.stanzas src/types.map.h.in src/types.map.h)
+
 # FIXME: scanner-types.h can be generated eventually
-add_library(zone SHARED src/zone.c src/scanner.c src/parser.c src/log.c src/types.c src/types.h compat/b64_pton.c)
+add_library(zone SHARED src/zone.c src/scanner.c src/parser.c src/log.c src/types.c src/types.h compat/b64_pton.c src/svcb.c)
 target_include_directories(
   zone PUBLIC include $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 set_target_properties(zone PROPERTIES C_STANDARD_REQUIRED 11)
-target_link_libraries(zone b64_pton b64_ntop)
+target_link_libraries(zone b64_pton b64_ntop algorithm_map certificate_map type_map)
 
 option(BUILD_TESTING "Build the testing tree." OFF)
 

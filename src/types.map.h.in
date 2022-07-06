@@ -1,0 +1,10 @@
+#ifndef ZONE_TYPES_MAP_H
+#define ZONE_TYPES_MAP_H
+
+#define MAP(name, id) { id, name, sizeof(name) - 1 }
+static const zone_map_t type_map[] = {
+@SORTED_LIST@
+};
+#undef MAP
+
+#endif // ZONE_TYPES_MAP_H

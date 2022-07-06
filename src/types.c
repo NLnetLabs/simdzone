@@ -8,69 +8,14 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include "map.h"
 #include "parser.h"
 
 extern int b64_pton(char const *src, uint8_t *target, size_t targsize);
 
-/* A general purpose lookup table */
-typedef struct lookup_table lookup_table_type;
-struct lookup_table {
-  int id;
-  const char *name;
-};
-
-static lookup_table_type *
-lookup_by_name(lookup_table_type *table, const zone_string_t *str)
-{
-  while (table->name != NULL) {
-    if (strlen(table->name) == str->length && strncasecmp(str->data, table->name, str->length) == 0)
-      return table;
-    table++;
-  }
-  return NULL;
-}
-
-/* Taken from RFC 4398, section 2.1.  */
-lookup_table_type dns_certificate_types[] = {
-/*  0   Reserved */
-  { 1, "PKIX" },  /* X.509 as per PKIX */
-  { 2, "SPKI" },  /* SPKI cert */
-  { 3, "PGP" }, /* OpenPGP packet */
-  { 4, "IPKIX" }, /* The URL of an X.509 data object */
-  { 5, "ISPKI" }, /* The URL of an SPKI certificate */
-  { 6, "IPGP" },  /* The fingerprint and URL of an OpenPGP packet */
-  { 7, "ACPKIX" },  /* Attribute Certificate */
-  { 8, "IACPKIX" }, /* The URL of an Attribute Certificate */
-  { 253, "URI" }, /* URI private */
-  { 254, "OID" }, /* OID private */
-/*  255     Reserved */
-/*  256-65279 Available for IANA assignment */
-/*  65280-65534 Experimental */
-/*  65535   Reserved */
-  { 0, NULL }
-};
-
-/* Taken from RFC 2535, section 7.  */
-lookup_table_type dns_algorithms[] = {
-  { 1, "RSAMD5" },  /* RFC 2537 */
-  { 2, "DH" },    /* RFC 2539 */
-  { 3, "DSA" },   /* RFC 2536 */
-  { 4, "ECC" },
-  { 5, "RSASHA1" }, /* RFC 3110 */
-  { 6, "DSA-NSEC3-SHA1" },  /* RFC 5155 */
-  { 7, "RSASHA1-NSEC3-SHA1" },  /* RFC 5155 */
-  { 8, "RSASHA256" },   /* RFC 5702 */
-  { 10, "RSASHA512" },    /* RFC 5702 */
-  { 12, "ECC-GOST" },   /* RFC 5933 */
-  { 13, "ECDSAP256SHA256" },  /* RFC 6605 */
-  { 14, "ECDSAP384SHA384" },  /* RFC 6605 */
-  { 15, "ED25519" },    /* RFC 8080 */
-  { 16, "ED448" },    /* RFC 8080 */
-  { 252, "INDIRECT" },
-  { 253, "PRIVATEDNS" },
-  { 254, "PRIVATEOID" },
-  { 0, NULL }
-};
+#include "map.h"
+#include "algorithms.map.h"
+#include "certificates.map.h"
 
 /* Number of days per month (except for February in leap years). */
 static const int mdays[] = {
@@ -295,11 +240,15 @@ zone_return_t zone_parse_domain_name(
 zone_return_t zone_parse_algorithm(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
-  const lookup_table_type *alg;
+  const zone_map_t *map, key = {
+    .id = 0, .name = tok->string.data, .namelen = tok->string.length };
+  static const size_t nmemb = sizeof(algorithm_map)/sizeof(algorithm_map[0]);
+  static const size_t size = sizeof(algorithm_map[0]);
+
 
   (void)ptr;
-  if ((alg = lookup_by_name(dns_algorithms, &tok->string))) {
-    fld->int8 = (uint8_t)alg->id;
+  if ((map = bsearch(&key, algorithm_map, nmemb, size, &zone_mapcasecmp))) {
+    fld->int8 = (uint8_t)map->id;
   } else {
     uint64_t u64;
     zone_return_t ret;
@@ -315,11 +264,14 @@ zone_return_t zone_parse_algorithm(
 zone_return_t zone_parse_certificate(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
-  const lookup_table_type *row;
+  const zone_map_t *map, key = {
+    .id = 0, .name = tok->string.data, .namelen = tok->string.length };
+  static const size_t nmemb = sizeof(certificate_map)/sizeof(certificate_map[0]);
+  static const size_t size = sizeof(certificate_map[0]);
 
   (void)ptr;
-  if ((row = lookup_by_name(dns_certificate_types, &tok->string))) {
-    fld->int16 = htons((uint16_t)row->id);
+  if ((map = bsearch(&key, certificate_map, nmemb, size, &zone_mapcasecmp))) {
+    fld->int16 = htons((uint16_t)map->id);
   } else {
     uint64_t u64;
     zone_return_t ret;
@@ -594,24 +546,4 @@ zone_return_t zone_parse_generic_wks(
   (void)fld;
   (void)ptr;
   return ZONE_BAD_PARAMETER;
-}
-
-zone_return_t zone_parse_svc_param(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  (void)par;
-  (void)tok;
-  (void)fld;
-  (void)ptr;
-  return ZONE_SYNTAX_ERROR;
-}
-
-zone_return_t zone_parse_generic_svc_param(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  (void)par;
-  (void)tok;
-  (void)fld;
-  (void)ptr;
-  return ZONE_SYNTAX_ERROR;
 }
