@@ -67,7 +67,16 @@ generate_map(certificate_map src/certificates.map src/certificates.map.h.in src/
 generate_map(type_map src/type.stanzas src/types.map.h.in src/types.map.h)
 
 # FIXME: scanner-types.h can be generated eventually
-add_library(zone SHARED src/zone.c src/scanner.c src/parser.c src/log.c src/types.c src/types.h src/base64.c src/svcb.c)
+add_library(zone SHARED
+  src/zone.c
+  src/scanner.c
+  src/parser.c
+  src/log.c
+  src/types.c
+  src/types.h
+  src/base64.c
+  src/svcb.c
+  src/util.c)
 target_include_directories(
   zone PUBLIC include $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 set_target_properties(zone PROPERTIES C_STANDARD_REQUIRED 11)

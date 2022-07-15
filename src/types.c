@@ -11,8 +11,7 @@
 #include "map.h"
 #include "parser.h"
 
-extern int b64_pton(char const *src, uint8_t *target, size_t targsize);
-
+#include "base64.h"
 #include "map.h"
 #include "algorithms.map.h"
 #include "certificates.map.h"
@@ -317,7 +316,7 @@ zone_return_t zone_parse_base64(
     SYNTAX_ERROR(par, "{l}: Invalid base64 data in %s", tok, desc->name);
   unesc[len] = '\0';
 
-  int declen = b64_pton(unesc, dec, sizeof(dec));
+  int declen = b64_pton(unesc, len, dec, sizeof(dec));
   if (declen == -1)
     SYNTAX_ERROR(par, "{l}: Invalid base64 data in %s", tok, desc->name);
 

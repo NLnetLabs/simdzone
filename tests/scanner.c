@@ -226,14 +226,14 @@ void service_mode_figure_1(void **state)
 
   // expect priority
   code = zone_scan(&par, &tok);
-  assert_int_equal(code, ZONE_SVC_PRIORITY | ZONE_STRING);
+  assert_int_equal(code, ZONE_RDATA | ZONE_STRING);
   assert_int_equal(tok.code, code);
   assert_int_equal(tok.string.length, strlen("1"));
   assert_memory_equal(tok.string.data, "1", strlen("1"));
 
   // expect targetname
   code = zone_scan(&par, &tok);
-  assert_int_equal(code, ZONE_TARGET_NAME | ZONE_STRING);
+  assert_int_equal(code, ZONE_RDATA | ZONE_STRING);
   assert_int_equal(tok.code, code);
   assert_int_equal(tok.string.length, strlen("."));
   assert_memory_equal(tok.string.data, ".", strlen("."));
@@ -271,21 +271,21 @@ void service_mode_figure_2(void **state)
 
   // expect priority
   code = zone_scan(&par, &tok);
-  assert_int_equal(code, ZONE_SVC_PRIORITY | ZONE_STRING);
+  assert_int_equal(code, ZONE_RDATA | ZONE_STRING);
   assert_int_equal(tok.code, code);
   assert_int_equal(tok.string.length, strlen("16"));
   assert_memory_equal(tok.string.data, "16", strlen("16"));
 
   // expect targetname
   code = zone_scan(&par, &tok);
-  assert_int_equal(code, ZONE_TARGET_NAME | ZONE_STRING);
+  assert_int_equal(code, ZONE_RDATA | ZONE_STRING);
   assert_int_equal(tok.code, code);
   assert_int_equal(tok.string.length, strlen("foo.example.com."));
   assert_memory_equal(tok.string.data, "foo.example.com.", strlen("foo.example.com."));
 
   // expect svcparam
   code = zone_scan(&par, &tok);
-  assert_int_equal(code, ZONE_SVC_PARAMS | ZONE_SVC_PARAM);
+  assert_int_equal(code, ZONE_RDATA | ZONE_SVC_PARAM);
   assert_int_equal(tok.code, code);
   assert_int_equal(tok.svc_param.key.length, strlen("port"));
   assert_memory_equal(tok.svc_param.key.data, "port", strlen("port"));

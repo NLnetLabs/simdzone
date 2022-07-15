@@ -590,7 +590,7 @@ scan_rdata(zone_parser_t *par, zone_token_t *tok)
         return (tok->code |= ZONE_BACKSLASH_HASH);
       } else if ((par->scanner.state & ~flags) == ZONE_SVC_PRIORITY) {
         par->scanner.state = ZONE_TARGET_NAME | (par->scanner.state & flags);
-        return (tok->code |= ZONE_SVC_PRIORITY);
+        return (tok->code |= ZONE_RDATA);
       } else {
         assert(!(par->scanner.state & ZONE_GENERIC_RDATA));
         par->scanner.state = ZONE_RDATA | (par->scanner.state & flags);
@@ -608,10 +608,10 @@ scan_rdata(zone_parser_t *par, zone_token_t *tok)
     case ZONE_TARGET_NAME:
       assert((tok->code & ZONE_STRING) == ZONE_STRING);
       par->scanner.state = ZONE_SVC_PARAMS | (par->scanner.state & flags);
-      return (tok->code |= ZONE_TARGET_NAME);
+      return (tok->code |= ZONE_RDATA);
     case ZONE_SVC_PARAMS:
       assert((tok->code & ZONE_SVC_PARAM) == ZONE_SVC_PARAM);
-      return (tok->code |= ZONE_SVC_PARAMS);
+      return (tok->code |= ZONE_RDATA);
     default:
       assert((par->scanner.state & ~flags) == ZONE_RDATA);
       assert((tok->code & ZONE_STRING) == ZONE_STRING);

@@ -86,8 +86,8 @@
 
 #define Assert(Cond) if (!(Cond)) abort()
 
-static const char Base64[] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+//static const char Base64[] =
+//	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 static const char Pad64 = '=';
 
 /* (From RFC1521 and draft-ietf-dnssec-secext-03.txt)
@@ -197,7 +197,7 @@ static uint8_t b64rmap[256] = {
 static const uint8_t b64rmap_special = 0xf0;
 static const uint8_t b64rmap_end = 0xfd;
 static const uint8_t b64rmap_space = 0xfe;
-static const uint8_t b64rmap_invalid = 0xff;
+//static const uint8_t b64rmap_invalid = 0xff;
 
 static int
 b64_pton_do(uint8_t const *src, size_t len, uint8_t *target, size_t targsize)
@@ -322,6 +322,7 @@ b64_pton_len(uint8_t const *src, size_t len)
 {
 	int tarindex, state, ch;
 	uint8_t ofs;
+  size_t cnt = 0;
 
 	state = 0;
 	tarindex = 0;

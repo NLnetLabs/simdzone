@@ -556,8 +556,10 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
           if (par->parser.fields[TYPE].int16 != 11)
             memset(&par->parser.wks.services, 0, sizeof(zone_field_t));
           par->parser.state &= ~ZONE_DEFERRED_RDATA;
-          // FIXME: only increase field if multiple occurences are not allowed
-          par->parser.descriptors.rdata = (const void *)(desc + 1);
+          if (!(desc->public.qualifiers & ZONE_OPTIONAL))
+            par->parser.descriptors.rdata = (const void *)(desc + 1);
+          else
+            assert(!(desc + 1)->public.type);
         }
       }
     }
