@@ -418,11 +418,11 @@ static inline uint32_t add(uint32_t lhs, uint32_t rhs, uint32_t max)
 }
 
 #include "map.h"
-#include "types.map.h"
+#include "types.h"
 
 uint16_t zone_is_type(const char *str, size_t len)
 {
-  const zone_map_t *map, key = { 0, str, len };
+  const zone_map_t *map, key = { str, len, 0 };
   static const size_t nmemb = sizeof(type_map)/sizeof(type_map[0]);
   static const size_t size = sizeof(type_map[0]);
 

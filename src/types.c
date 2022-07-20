@@ -13,8 +13,8 @@
 
 #include "base64.h"
 #include "map.h"
-#include "algorithms.map.h"
-#include "certificates.map.h"
+//#include "algorithms.map.h"
+//#include "certificates.map.h"
 
 /* Number of days per month (except for February in leap years). */
 static const int mdays[] = {
@@ -236,6 +236,7 @@ zone_return_t zone_parse_domain_name(
   return ZONE_RDATA;
 }
 
+#if 0
 zone_return_t zone_parse_algorithm(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
@@ -282,6 +283,7 @@ zone_return_t zone_parse_certificate(
 
   return ZONE_RDATA;
 }
+#endif
 
 zone_return_t zone_parse_type(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)

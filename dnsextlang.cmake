@@ -1,0 +1,395 @@
+#
+# dnsextlang.cmake -- generate record descriptors from dnsextlang stanzas
+#
+# Copyright (c) 2022, NLnet Labs. All rights reserved.
+#
+# See LICENSE for the license.
+#
+#
+
+cmake_minimum_required(VERSION 3.10)
+
+# generator adapted from draft-levine-dnsextlang-12
+# https://datatracker.ietf.org/doc/html/draft-levine-dnsextlang-12
+#
+# extra addition for the SVCB record type Z[SVCB]
+
+# ALPHA, DIGIT and WSP as specified by RFC5234
+#
+# ALPHA  %x41-5A / %x61-7A   ; A-Z / a-z
+# DIGIT  %x30-39             ; 0-9
+# HTAB   %x09                ; horizontal tab
+# SP     %x20                ; space
+# WSP    SP / HTAB           ; white space
+set(ALPHA "[a-zA-Z]")
+set(DIGIT "[0-9]")
+set(WSP "[ \t]")
+
+set(ldh "${__ALPHA}[a-zA-Z0-9-]*")
+# field types as defined in section 3.1 (R mentioned in section 3.5.1)
+set(ftype "(I1|I2|I4|A|AA|AAAA|N|S|B32|B64|X|EUI48|EUI64|T|Z|R)")
+
+set(I1_type_print "ZONE_INT8")
+set(I2_type_print "ZONE_INT16")
+set(I4_type_print "ZONE_INT32")
+set(A_type_print "ZONE_IP4")
+set(AAAA_type_print "ZONE_IP6")
+set(N_type_print "ZONE_NAME")
+set(S_type_print "ZONE_STRING")
+set(B32_type_print "ZONE_BASE32")
+set(B64_type_print "ZONE_BASE64")
+
+set(Z_SVCB_type_print "ZONE_SVC_PARAM")
+set(Z_WKS_type_print "ZONE_WKS")
+
+# Options (record types)
+#   X: Implementing the RRTYPE requires extra processing
+set(X_opt_print "ZONE_COMPLEX")
+#   I: Type defined in IN class only
+set(I_opt_print "ZONE_IN")
+#   A: Type defined in ANY class
+set(A_opt_print "ZONE_ANY")
+#   O: Type is obsolete
+set(O_opt_print "ZONE_OBSOLETE")
+#   E: Type is experimental
+set(E_opt_print "ZONE_EXPERIMENTAL")
+
+# Qualifiers (rdata fields)
+#
+# Integer fields
+#   ldh=1*DIGIT: Defines one or more symbolic field values
+set(I1_qual "${ldh}=${DIGIT}+")
+set(I2_qual "${ldh}=${DIGIT}+")
+set(I4_qual "${ldb}=${DIGIT}+")
+set(R_qual "[L]") # R[L] only mentioned in section 3.5.1
+# IP address and partial address fields
+set(A_qual)
+set(AA_qual)
+set(AAAA_qual)
+# Domain name fields, section 3.5.3
+#   C: Domain name is compressed
+set(N_C_qual_print "ZONE_COMPRESSED")
+#   A: Domain name represents a mailbox
+set(N_A_qual_print "ZONE_MAILBOX")
+#   L: Domain name is converted to lower case before DNSSEC validation
+set(N_L_qual_print "ZONE_LOWER_CASE")
+#   O: Domain name is optional and can only appear as the last field
+set(N_L_qual_print "ZONE_OPTIONAL")
+set(N_qual "[CALO]")
+# String fields
+#   S: Single string preceded by a one-octet length.
+#   S[M]: Multiple strings, each stored as a length and string. Must be last!
+set(S_M_qual_print "ZONE_MULTIPLE")
+#   S[X]: Raw string, without any length bytes. Must be last!
+set(S_X_qual_print "ZONE_RAW")
+set(S_qual "[MX]")
+# Base-32 and Base-64 fields
+set(B32_qual)
+set(B64_qual)
+# Hex fields
+#   X: Binary data. Must be last. May include spaces for readability.
+#   X[C]: Stored as a string with a preceding one-octet length.
+set(X_qual "[C]")
+# Time stamp fields
+set(T_qual)
+# Miscellaneous fields
+#   Z[WKS]: Bitmap of port numbers in the WKS RRTYPE.
+#   Z[NSAP]: Special hex syntax for the address in the NSAP RRTYPE.
+#   Z[NXT]: Bitmap of RRTYPES in the NXT RRTYPE.
+#   Z[A6P] + Z[A6S]: Prefix length and the variable length address suffix in the A6 RRTYPE.
+#   Z[APL]: List of address prefixes in the APL RRTYPE.
+#   Z[IPSECKEY]: Variable format gateway in the IPSECKEY RRTYPE.
+#   Z[HIPHIT] + Z[HIPKK]: Hex HIT and base64 PK fields with detached implicit lengths in the HIP RRTYPE.
+#   Z[SVCB]: Service parameters in the SVCB and HTTPS RRTYPEs.
+set(Z_qual "(WKS|NSAP|NXT|A6P|A6S|APL|IPSECKEY|HIPHIT|SVCB)")
+
+if(NOT STANZAS)
+  message(FATAL_ERROR "STANZAS file to read not specified")
+elseif(NOT EXISTS ${STANZAS})
+  message(FATAL_ERROR "STANZAS file (${STANZAS}) does not exist")
+endif()
+
+if(NOT TEMPLATE)
+  message(FATAL_ERROR "TEMPLATE file to read not specified")
+elseif(NOT EXISTS ${TEMPLATE})
+  message(FATAL_ERROR "TEMPLATE file (${TEMPLATE}) does not exist")
+endif()
+
+if(NOT HEADER)
+  message(FATAL_ERROR "HEADER file to generate not specified")
+endif()
+
+# Maximum number of types descriptors directly accessible by type code to
+# avoid generating a humongous descriptor array. e.g. DLV record type is
+# assigned type code 32769 by IANA.
+if(NOT INDEXED)
+  set(INDEXED 258)
+endif()
+
+set(lineno 0)
+set(maxid 0)
+
+file(READ ${STANZAS} input)
+while(1)
+  string(FIND "${input}" "\n" lf) # UNIX
+  string(FIND "${input}" "\r\n" crlf) # Windows
+  string(FIND "${input}" "\r" cr) # Macintosh
+
+  if (lf GREATER -1 AND (lf LESS crlf OR crlf EQUAL -1)
+                    AND (lf LESS cr   OR cr   EQUAL -1))
+    set(newline ${lf})
+  elseif(crlf GREATER -1 AND (crlf LESS cr OR cr EQUAL -1))
+    set(newline ${crlf})
+  elseif(cr GREATER -1)
+    set(newline ${cr})
+  else()
+    set(newline -1)
+  endif()
+
+  string(SUBSTRING "${input}" 0 ${newline} line)
+  math(EXPR lineno "${lineno} + 1")
+
+  # ignore blank lines and lines where the first nonblank character is "#"
+  if(line MATCHES "^${WSP}*(#.*)?$")
+    # discard
+  elseif(line MATCHES "^(${ldh}):(${DIGIT}+)((:[a-zA-Z])*)(${WSP}+.*)?$")
+    set(name "${CMAKE_MATCH_1}")
+    string(TOLOWER "${name}" lname) # normalize name
+    string(TOUPPER "${CMAKE_MATCH_3}" opts)
+    # cleanup id
+    string(REGEX REPLACE "^0+" "" id "${CMAKE_MATCH_2}")
+    # cleanup options
+    string(REGEX REPLACE "^:" "" opts "${opts}")
+    string(REGEX REPLACE ":" ";" opts "${opts}")
+    # cleanup description
+    string(REGEX REPLACE "^[^ \t]+" "" desc "${line}")
+    string(STRIP "${desc}" desc)
+
+    # ensure name and identifier are not in use
+    foreach(type ${types})
+      string(TOLOWER "${type}" ltype)
+      if(ltype MATCHES "${lname}:.*")
+        message(FATAL_ERROR "Type ${type} was previously defined")
+      elseif(type MATCHES "^[^:]+:${id}$")
+        message(FATAL_ERROR "Type identifier ${id} was previously assigned")
+      endif()
+    endforeach()
+
+    # Set highest id to generate name to id mapping
+    if(NOT maxid OR id GREATER maxid)
+      set(maxid ${id})
+    endif()
+    list(APPEND names "${name}")
+    list(APPEND codes "${id}")
+    list(APPEND types "${name}:${id}")
+    set(fid 0)
+    set(_${id}_opts "${opts}")
+    set(_${id}_desc "${desc}")
+  elseif(name AND line MATCHES "^${WSP}+${ftype}(\\[[a-zA-Z0-9=,-]+\\])?(:${ldh})?(${WSP}+.*)?$")
+    string(TOUPPER "${CMAKE_MATCH_1}" field)
+    string(TOUPPER "${CMAKE_MATCH_2}" quals)
+    string(STRIP "${CMAKE_MATCH_3}" tag)
+    string(STRIP "${CMAKE_MATCH_4}" desc)
+    # cleanup qualifiers
+    string(REGEX REPLACE "(^\\[[ \t]*|[ \t]*\\]$)" "" quals "${quals}")
+    string(REGEX REPLACE "[ \t]*,+[ \t]*" ";" quals "${quals}")
+    # cleanup tag
+    string(REGEX REPLACE "^:" "" tag "${tag}")
+
+    list(APPEND _${id}_fields "${field}:${tag}")
+    set(_${id}_${fid}_desc "${desc}")
+    set(_${id}_${fid}_quals "${quals}")
+    if(field MATCHES "^I[0-9]$")
+      foreach(qual ${quals})
+        if(NOT qual MATCHES "${ldh}=[0-9]")
+          message(FATAL_ERROR "Invalid symbolic value ${qual} for ${field} on line ${lineno}")
+        endif()
+      endforeach()
+    else()
+      foreach(qual ${quals})
+        if(NOT qual MATCHES "^${${field}_qual}$")
+          message(FATAL_ERROR "Unsupported qualifier ${qual} for ${field} on line ${lineno}")
+        endif()
+      endforeach()
+    endif()
+    math(EXPR fid "${fid} + 1")
+  else()
+    # syntax error, throw error, bail, etc
+    message(FATAL_ERROR "Invalid record or field definition on line ${lineno}")
+  endif()
+
+  if (newline EQUAL -1)
+    break()
+  endif()
+  math(EXPR newline "${newline} + 1")
+  string(SUBSTRING "${input}" ${newline} -1 input)
+endwhile()
+
+list(SORT names) # sort alphabetically
+
+# generate name map
+set(sep "")
+foreach(name ${names})
+  foreach(type ${types})
+    if(NOT type MATCHES "^${name}:")
+      continue()
+    endif()
+    string(REGEX REPLACE "^[^:]+:" "" id "${type}")
+    set(NAMES "${NAMES}${sep}{ \"${name}\", sizeof(\"${name}\") - 1, ${id} }")
+    set(sep ",\n")
+    break()
+  endforeach()
+endforeach()
+
+# generate descriptor map, indexed by type id
+set(gap 0)
+set(sparse 0)
+
+set(sep "")
+foreach(id RANGE ${maxid})
+  if(NOT id IN_LIST codes)
+    # Descriptors for the most common record types must be directly accessible
+    # using the corresponding type code for performance reasons. To limit the
+    # amount of memory required, no dummy entries are generated for types
+    # beyond the user configurable maximum if the array becomes spares.
+    if(id GREATER ${INDEXED} AND (sparse OR gap GREATER 10))
+      set(sparse 1)
+      continue()
+    endif()
+  endif()
+
+  set(descr)
+  foreach(type ${types})
+    if(NOT type MATCHES "^[^:]+:${id}")
+      continue()
+    endif()
+
+    string(REGEX REPLACE ":.*$" "" name "${type}")
+
+    # options
+    set(opts)
+    if(_${id}_opts)
+      set(optsep "")
+      foreach(opt ${_${id}_opts})
+        if(DEFINED ${opt}_opt_print)
+          set(opts "${opts}${optsep}${${opt}_opt_print}")
+          set(optsep" | ")
+        endif()
+      endforeach()
+    else()
+      set(opts "0")
+    endif()
+
+    # description
+    set(desc "")
+    if(_${id}_desc)
+      set(desc "${_${id}_desc}")
+      # FIXME: can be implemented in more robust fashion...
+      string(REPLACE "\"" "\\\"" desc "${desc}")
+    endif()
+
+    set(fid "0")
+    set(fsep "")
+    unset(rdata)
+    unset(rdatas)
+    foreach(field ${_${id}_fields})
+      string(REGEX REPLACE ":.*$" "" ftype "${field}")
+      string(REGEX REPLACE "^[^:]+:" "" fname "${field}")
+
+      # symbols
+      set(fquals)
+      if(ftype MATCHES "I[0-9]+")
+        set(fquals)
+        if(_${id}_${fid}_quals)
+          set(fquals ".symbols = { .array = (zone_map_t[]){ ")
+          set(fqualid "")
+          set(fquallen 0)
+          set(fqualsep "")
+          # FIXME: to really be useful, i.e. use bsearch, the list must be sorted
+          foreach(fqual ${_${id}_${fid}_quals})
+            string(REGEX REPLACE "=.*$" "" label "${fqual}")
+            string(REGEX REPLACE "^[^=]+=" "" value "${fqual}")
+            set(fquals "${fquals}${fqualsep}{ \"${label}\", sizeof(\"${label}\") - 1, ${value} }")
+            set(fqualsep ", ")
+            math(EXPR fqualid "${fqualid} + 1")
+          endforeach()
+          set(fquals "${fquals}${fqualsep} }, .length = ${fqualid} }")
+        endif()
+        if(NOT fquals)
+          set(fquals ".symbols = { .array = NULL, .length = 0 }")
+        endif()
+      # flags
+      else()
+        if(_${id}_${fid}_quals)
+          set(fqualsep ".flags = ")
+          foreach(fqual ${_${id}_${fid}_quals})
+            if(NOT ${ftype}_${fqual}_qual_print)
+              continue()
+            endif()
+            set(fquals "${fquals}${fqualsep}${${ftype}_${fqual}_qual_print}")
+            set(fqualsep " | ")
+          endforeach()
+        endif()
+        if(NOT fquals)
+          set(fquals ".flags = 0")
+        endif()
+      endif()
+
+      if(_${id}_${fid}_desc)
+        set(fdesc "${_${id}_${fid}_desc}")
+        # FIXME: implement in more robust fashion
+        string(REPLACE "\"" "\\\"" fdesc "${fdesc}")
+        set(fdesc "\"${fdesc}\"")
+      else()
+        set(fdesc "NULL")
+      endif()
+
+      if(ftype STREQUAL "Z")
+        set(typename "${${ftype}_${_${id}_${fid}_quals}_type_print}")
+      else()
+        set(typename "${${ftype}_type_print}")
+      endif()
+
+      string(CONCAT rdata
+        "${rdata}" "${fsep}" "{ "
+        ".public = { "
+          ".name = \"${fname}\", "
+          ".length = sizeof(\"${fname}\") - 1, "
+          ".type = ${typename}, "
+          ".qualifiers = { ${fquals} }, "
+          ".description = ${fdesc} "
+        "} }")
+
+      math(EXPR fid "${fid} + 1")
+      set(fsep ",\n")
+    endforeach()
+
+    if(rdata)
+      set(rdatas "(struct rdata_descriptor[]){ ${rdata}, { { NULL, 0, 0, { .flags = 0 }, NULL }, .typed = 0, .generic = 0 } }")
+    else()
+      set(rdatas "(struct rdata_descriptor[]){ { { NULL, 0, 0, { .flags = 0 }, NULL }, .typed = 0, .generic = 0 } }")
+    endif()
+
+    string(CONCAT descr
+      "{ "
+      ".public = { "
+        ".name = \"${name}\", "
+        ".length = sizeof(\"${name}\") - 1, "
+        ".type = ${id}, "
+        ".options = ${opts}, "
+        ".description = \"${desc}\" "
+      "}, "
+      ".rdata = ${rdatas} }")
+    break()
+  endforeach()
+
+  if(NOT descr)
+    math(EXPR gap "${gap} + 1")
+    set(descr "{ .public = { .name = NULL, .length = 0, .options = 0, .description = NULL }, .rdata = NULL }")
+  endif()
+
+  set(DESCRIPTORS "${DESCRIPTORS}${sep}${descr}")
+  set(sep ",\n")
+endforeach()
+
+configure_file("${TEMPLATE}" "${HEADER}" @ONLY)

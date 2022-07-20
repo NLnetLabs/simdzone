@@ -9,8 +9,6 @@ else()
   add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
-include(Generate.cmake)
-
 
 set(ANALYZER "" CACHE STRING "Analyzer to enable on the build.")
 if(ANALYZER)
@@ -62,9 +60,21 @@ if(SANITIZER)
   endforeach()
 endif()
 
-generate_map(algorithm_map src/algorithms.map src/algorithms.map.h.in src/algorithms.map.h)
-generate_map(certificate_map src/certificates.map src/certificates.map.h.in src/certificates.map.h)
-generate_map(type_map src/type.stanzas src/types.map.h.in src/types.map.h)
+# generate type descriptors from dnsextlang stanzas
+add_custom_command(
+  OUTPUT src/types.h
+  COMMAND ${CMAKE_COMMAND}
+  ARGS
+    "-DSTANZAS=${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
+    "-DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/src/types.h.in"
+    "-DHEADER=src/types.h"
+    "-P" "${CMAKE_CURRENT_SOURCE_DIR}/dnsextlang.cmake"
+  DEPENDS
+    "src/type.stanzas"
+    "src/types.h.in"
+    "dnsextlang.cmake")
+
+  #add_custom_target(descriptors DEPENDS src/types.h)
 
 # FIXME: scanner-types.h can be generated eventually
 add_library(zone SHARED
@@ -76,11 +86,13 @@ add_library(zone SHARED
   src/types.h
   src/base64.c
   src/svcb.c
-  src/util.c)
+  src/util.c
+  src/types.h)
 target_include_directories(
-  zone PUBLIC include $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
+  zone PUBLIC include $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+                      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>)
 set_target_properties(zone PROPERTIES C_STANDARD_REQUIRED 11)
-target_link_libraries(zone algorithm_map certificate_map type_map)
+target_link_libraries(zone)
 
 option(BUILD_TESTING "Build the testing tree." OFF)
 

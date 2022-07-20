@@ -12,9 +12,18 @@ SOA:6
 MB:7
 MG:8
 MR:9
-WKS:11
+
+WKS:11:X Well known services
+  A:addess
+  I1:protocol
+  Z[WKS]:bitmap
+
 PTR:12
+
 HINFO:13
+  S:cpu
+  S:os
+
 MINFO:14
 
 MX:15 Mail exchanger
@@ -45,7 +54,12 @@ SRV:33 Service location
 
 NAPTR:35
 KX:36
+
 CERT:37
+  I2[PKIX=1,SPKI=2,PGP=2,IPKIX=4,ISPKI=5,IPGP=6,ACPKIX=7,IACPKIX=8,URI=253,OID=254]:type Certificate type
+  I2:tag Key tag
+  I1:algorithm
+
 DNAME:39
 OPT:41
 APL:42
@@ -64,7 +78,12 @@ CDS:59
 CDNSKEY:60
 OPENPGPKEY:61
 CSYNC:62
-SVCB:64
+
+SVCB:64 Service binding and parameter specification
+  I2:SvcPriority
+  N:TargetName
+  Z[SVCB]:SvcParam
+
 SPF:99
 NID:104
 L32:105
@@ -72,7 +91,7 @@ L64:106
 LP:107
 EUI48:108
 EUI64:109
-URI:265
+URI:256
 CAA:257
 AVC:258
 DLV:32769

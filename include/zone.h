@@ -109,24 +109,39 @@ inline zone_item_t zone_item(const zone_code_t code)
 #define ZONE_OPTIONAL (1<<3)
 #define ZONE_MULTIPLE (1<<4) // string fields, must be last
 
+typedef struct zone_map zone_map_t;
+struct zone_map {
+  const char *name;
+  const size_t length;
+  uint32_t id;
+};
+
 typedef struct zone_rdata_descriptor zone_rdata_descriptor_t;
 struct zone_rdata_descriptor {
   const char *name;
+  const size_t length;
   zone_type_t type;
-  uint32_t qualifiers;
+  union {
+    struct { zone_map_t *array; size_t length; } symbols;
+    uint32_t flags;
+  } qualifiers;
+  const char *description;
 };
 
 // type options
-#define ZONE_IN (x)
-#define ZONE_ANY (x)
-#define ZONE_EXPERIMENTAL (x)
-#define ZONE_OBSOLETE (x)
+#define ZONE_COMPLEX (1<<0) // type requires extra processing!
+#define ZONE_IN (1<<1)
+#define ZONE_ANY (1<<2)
+#define ZONE_EXPERIMENTAL (1<<3)
+#define ZONE_OBSOLETE (1<<4)
 
 typedef struct zone_type_descriptor zone_type_descriptor_t;
 struct zone_type_descriptor {
   const char *name;
+  const size_t length; // length of the name...
   uint16_t type;
   uint32_t options;
+  const char *description;
 };
 
 typedef struct zone_field zone_field_t;

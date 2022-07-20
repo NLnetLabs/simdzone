@@ -238,7 +238,7 @@ parse_port(
 {
   zone_token_t tmp;
   zone_return_t ret;
-  static zone_rdata_descriptor_t dsc = { "port", ZONE_SVC_PARAM, 0 };
+  static zone_rdata_descriptor_t dsc = { "port", ZONE_SVC_PARAM, 0, { .flags = 0 }, NULL };
   uint64_t u64;
   uint8_t *octs;
 

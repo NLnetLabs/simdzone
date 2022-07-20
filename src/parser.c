@@ -17,21 +17,6 @@
 
 #include "parser.h"
 
-typedef zone_return_t(*rdata_parse_t)(
-  zone_parser_t *, const zone_token_t *, zone_field_t *, void *);
-
-struct rdata_descriptor {
-  zone_rdata_descriptor_t public;
-  rdata_parse_t typed;
-  rdata_parse_t generic;
-};
-
-struct type_descriptor {
-  zone_type_descriptor_t public;
-  struct rdata_descriptor *rdata;
-  // FIXME: need cleanup/finalize functions. i.e. for wks cleanup?
-};
-
 #define TYPES(...) \
   static const struct type_descriptor types[] = { __VA_ARGS__ };
 
@@ -485,8 +470,10 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
         zone_return_t ret;
         const struct type_descriptor *desc;
 
-        if (tok.int16 < sizeof(types)/sizeof(types[0]))
-          desc = &types[tok.int16];
+        if (tok.int16 == 11)
+          desc = &wks_descriptor;
+        else if (tok.int16 < sizeof(descriptors)/sizeof(descriptors[0]))
+          desc = &descriptors[tok.int16];
         else
           desc = &unknown_type;
 
@@ -524,6 +511,7 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
 
         fid = zone_type(desc->public.type) >> 8;
         assert(fid < sizeof(functions)/sizeof(functions[0]));
+
         if (par->scanner.state & ZONE_GENERIC_RDATA)
           fun = desc->generic ? desc->generic : functions[fid].generic;
         else
@@ -556,7 +544,9 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
           if (par->parser.fields[TYPE].int16 != 11)
             memset(&par->parser.wks.services, 0, sizeof(zone_field_t));
           par->parser.state &= ~ZONE_DEFERRED_RDATA;
-          if (!(desc->public.qualifiers & ZONE_OPTIONAL))
+          if (!(desc->public.qualifiers.flags & ZONE_OPTIONAL) &&
+              !(desc->public.type == ZONE_WKS) &&
+              !(desc->public.type == ZONE_SVC_PARAM))
             par->parser.descriptors.rdata = (const void *)(desc + 1);
           else
             assert(!(desc + 1)->public.type);
