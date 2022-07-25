@@ -417,102 +417,37 @@ static inline uint32_t add(uint32_t lhs, uint32_t rhs, uint32_t max)
   return (max < lhs || max - lhs < rhs) ? max + 1 : lhs + rhs;
 }
 
-#include "map.h"
-#include "types.h"
-
-uint16_t zone_is_type(const char *str, size_t len)
-{
-  const zone_map_t *map, key = { str, len, 0 };
-  static const size_t nmemb = sizeof(type_map)/sizeof(type_map[0]);
-  static const size_t size = sizeof(type_map[0]);
-
-  if (!len)
-    return -1;
-
-  if ((map = bsearch(&key, type_map, nmemb, size, &zone_mapcasecmp)))
-    return (int32_t)map->id;
-  return 0;
-}
-
 static inline int32_t scan_type(zone_parser_t *par, zone_token_t *tok)
 {
-  uint32_t type;
+  int32_t type;
 
   assert(tok->code == ZONE_STRING);
 
-  // FIXME: unescape here first!
-  if ((type = zone_is_type(tok->string.data, tok->string.length)) > 0)
-    goto done;
-  // support unknown DNS resource record types (rfc 3597)
-  if (tok->string.length < 4)
-    return 0;
-  if (strncasecmp(tok->string.data, "TYPE", 4) != 0)
+  const char *str = tok->string.data;
+  const size_t len = tok->string.length;
+  if ((type = zone_is_type(str, len, ZONE_ESCAPED | ZONE_GENERIC)) < 0)
+    SYNTAX_ERROR(par, "Invalid escape sequence on line {l}", tok);
+  if (!type)
     return 0;
 
-  if (tok->string.length == 4)
-    SYNTAX_ERROR(par, "Invalid type at {l}, missing type number");
-
-  type = 0;
-  for (size_t i = 4; i < tok->string.length; i++) {
-    char chr = tok->string.data[i];
-    if (chr < '0' || chr > '9')
-      SYNTAX_ERROR(par, "Invalid type at {l}, non-digit in type number");
-    type = add(multiply(type, 10, UINT16_MAX), (uint32_t)(chr - '0'), UINT16_MAX);
-    if (type > UINT16_MAX)
-      SYNTAX_ERROR(par, "Invalid type at {l}, type number exceeds maximum");
-  }
-
-done:
   assert(type <= UINT16_MAX);
   tok->int16 = (uint16_t)type;
   return tok->code = ZONE_TYPE | ZONE_INT16;
 }
 
-uint16_t zone_is_class(const char *str, size_t len)
-{
-  if (len != 2)
-    return 0;
-  if (strncasecmp(str, "IN", 2) == 0)
-    return 1;
-  if (strncasecmp(str, "CH", 2) == 0)
-    return 2;
-  if (strncasecmp(str, "CS", 2) == 0)
-    return 3;
-  if (strncasecmp(str, "HS", 2) == 0)
-    return 4;
-  return 0;
-}
-
 static inline zone_return_t
 scan_class(zone_parser_t *par, zone_token_t *tok)
 {
-  uint32_t class;
+  int32_t class;
 
   assert(tok->code == ZONE_STRING);
-
-  // FIXME: unescape here first!
-  if ((class = zone_is_class(tok->string.data, tok->string.length)) > 0)
-    goto done;
-  // support unknown DNS class (rfc 3597)
-  if (tok->string.length < 5)
-    return 0;
-  if (strncasecmp(tok->string.data, "CLASS", 5) != 0)
+  const char *str = tok->string.data;
+  const size_t len = tok->string.length;
+  if ((class = zone_is_class(str, len, ZONE_ESCAPED | ZONE_GENERIC)) < 0)
+    SYNTAX_ERROR(par, "Invalid escape sequence on line {l}");
+  if (!class)
     return 0;
 
-  if (tok->string.length == 5)
-    SYNTAX_ERROR(par, "Invalid class at {l}, missing class number");
-
-  class = 0;
-  for (size_t i = 5; i < tok->string.length; i++) {
-    uint8_t c = tok->string.data[i];
-    if (c < '0' || c > '9')
-      SYNTAX_ERROR(par, "Invalid class at {l}, non-digit in class number");
-    class = add(multiply(class, 10, UINT16_MAX), (uint32_t)c - '0', UINT16_MAX);
-    if (class > UINT16_MAX)
-      SYNTAX_ERROR(par, "Invalid class at {l}, class number exceeds maximum");
-  }
-
-done:
   assert(class <= UINT16_MAX);
   tok->int16 = (uint16_t)class;
   return tok->code = ZONE_CLASS | ZONE_INT16;

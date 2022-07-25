@@ -1,3 +1,13 @@
+/*
+ * base.h -- parser for basic rdata in (DNS) zone files
+ *
+ * Copyright (c) 2022, NLnet Labs. All rights reserved.
+ *
+ * See LICENSE for the license.
+ */
+#ifndef ZONE_BASE_H
+#define ZONE_BASE_H
+
 #define _XOPEN_SOURCE
 #include <assert.h>
 #include <string.h>
@@ -8,13 +18,9 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include "map.h"
 #include "parser.h"
 
 #include "base64.h"
-#include "map.h"
-//#include "algorithms.map.h"
-//#include "certificates.map.h"
 
 /* Number of days per month (except for February in leap years). */
 static const int mdays[] = {
@@ -63,7 +69,7 @@ mktime_from_utc(const struct tm *tm)
     return seconds;
 }
 
-zone_return_t zone_parse_period(
+zone_return_t parse_ttl(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   uint32_t ttl;
@@ -78,7 +84,7 @@ zone_return_t zone_parse_period(
   return ZONE_RDATA;
 }
 
-zone_return_t zone_parse_time(
+zone_return_t parse_time(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   char buf[] = "YYYYmmddHHMMSS";
@@ -99,7 +105,7 @@ zone_return_t zone_parse_time(
   return ZONE_RDATA;
 }
 
-zone_return_t zone_parse_int8(
+zone_return_t parse_int8(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   uint64_t u64;
@@ -114,7 +120,7 @@ zone_return_t zone_parse_int8(
   return ZONE_RDATA;
 }
 
-zone_return_t zone_parse_int16(
+zone_return_t parse_int16(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   uint64_t u64;
@@ -129,7 +135,7 @@ zone_return_t zone_parse_int16(
   return ZONE_RDATA;
 }
 
-zone_return_t zone_parse_int32(
+zone_return_t parse_int32(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   uint64_t num;
@@ -144,7 +150,7 @@ zone_return_t zone_parse_int32(
   return ZONE_RDATA;
 }
 
-zone_return_t zone_parse_ip4(
+zone_return_t parse_ip4(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   struct in_addr *ip4 = NULL;
@@ -174,7 +180,7 @@ bad_ip:
   SYNTAX_ERROR(par, "Invalid IPv4 address at {l}", &tok);
 }
 
-zone_return_t zone_parse_ip6(
+zone_return_t parse_ip6(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   struct in6_addr *ip6 = NULL;
@@ -203,7 +209,7 @@ bad_ip:
   SYNTAX_ERROR(par, "Invalid IPv6 address at {l}", &tok);
 }
 
-zone_return_t zone_parse_domain_name(
+zone_return_t parse_domain_name(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   size_t len;
@@ -236,19 +242,17 @@ zone_return_t zone_parse_domain_name(
   return ZONE_RDATA;
 }
 
-#if 0
-zone_return_t zone_parse_algorithm(
+static zone_return_t parse_algorithm(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
-  const zone_map_t *map, key = {
-    .id = 0, .name = tok->string.data, .namelen = tok->string.length };
-  static const size_t nmemb = sizeof(algorithm_map)/sizeof(algorithm_map[0]);
-  static const size_t size = sizeof(algorithm_map[0]);
-
+  int32_t id;
+  uint32_t flags = ZONE_ESCAPED | ZONE_STRICT;
 
   (void)ptr;
-  if ((map = bsearch(&key, algorithm_map, nmemb, size, &zone_mapcasecmp))) {
-    fld->int8 = (uint8_t)map->id;
+  const char *str = tok->string.data;
+  const size_t len = tok->string.length;
+  if ((id = zone_is_algorithm(str, len, flags)) > 0) {
+    fld->int8 = (uint16_t)id;
   } else {
     uint64_t u64;
     zone_return_t ret;
@@ -261,17 +265,17 @@ zone_return_t zone_parse_algorithm(
   return ZONE_RDATA;
 }
 
-zone_return_t zone_parse_certificate(
+static zone_return_t parse_certificate(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
-  const zone_map_t *map, key = {
-    .id = 0, .name = tok->string.data, .namelen = tok->string.length };
-  static const size_t nmemb = sizeof(certificate_map)/sizeof(certificate_map[0]);
-  static const size_t size = sizeof(certificate_map[0]);
+  int32_t id;
+  uint32_t flags = ZONE_ESCAPED | ZONE_STRICT;
 
   (void)ptr;
-  if ((map = bsearch(&key, certificate_map, nmemb, size, &zone_mapcasecmp))) {
-    fld->int16 = htons((uint16_t)map->id);
+  const char *str = tok->string.data;
+  const size_t len = tok->string.length;
+  if ((id = zone_is_certificate(str, len, flags)) > 0) {
+    fld->int16 = htons(id);
   } else {
     uint64_t u64;
     zone_return_t ret;
@@ -283,24 +287,26 @@ zone_return_t zone_parse_certificate(
 
   return ZONE_RDATA;
 }
-#endif
 
-zone_return_t zone_parse_type(
+zone_return_t parse_type(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
-  // FIXME: accept TYPExx too!
-  // FIXME: unencode first!
-  uint16_t t;
+  int32_t id;
+  uint32_t flags = ZONE_ESCAPED | ZONE_STRICT | ZONE_GENERIC;
+
   (void)ptr;
-  if (!(t = zone_is_type(tok->string.data, tok->string.length)))
-    SYNTAX_ERROR(par, "{l}: Invalid type in %s", tok, fld->descriptor.rdata->name);
-  fld->int16 = t;
+  id = zone_is_type(tok->string.data, tok->string.length, flags);
+  if (id < 0)
+    SYNTAX_ERROR(par, "{l}: Invalid escape sequence", tok);
+  if (id == 0)
+    SEMANTIC_ERROR(par, "{l}: Invalid type in %s", tok, fld->descriptor.rdata->name);
+  fld->int16 = (uint16_t)id;
   return ZONE_RDATA;
 }
 
 #define B64BUFSIZE 65536
 
-zone_return_t zone_parse_base64(
+zone_return_t parse_base64(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   char unesc[B64BUFSIZE*2];
@@ -328,7 +334,7 @@ zone_return_t zone_parse_base64(
   return ZONE_RDATA;
 }
 
-zone_return_t zone_parse_generic_ip4(
+zone_return_t parse_generic_ip4(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   struct in_addr *ip4;
@@ -349,7 +355,7 @@ bad_ip:
   return ZONE_SEMANTIC_ERROR;
 }
 
-zone_return_t zone_parse_generic_ip6(
+zone_return_t parse_generic_ip6(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   struct in6_addr *ip6;
@@ -370,7 +376,7 @@ bad_ip:
   return ZONE_SEMANTIC_ERROR;
 }
 
-zone_return_t zone_parse_string(
+zone_return_t parse_string(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   ssize_t len = 0;
@@ -401,7 +407,7 @@ zone_return_t zone_parse_string(
   return ZONE_RDATA;
 }
 
-zone_return_t zone_parse_generic_string(
+zone_return_t parse_generic_string(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   ssize_t len;
@@ -431,120 +437,4 @@ zone_return_t zone_parse_generic_string(
   return ZONE_RDATA | ZONE_STRING;
 }
 
-static ssize_t copy_string(const zone_token_t *tok, char *buf, size_t size)
-{
-  ssize_t len;
-
-  assert(tok && (tok->code & ZONE_STRING) == ZONE_STRING);
-
-  if (tok->string.escaped) {
-    len = zone_unescape(tok->string.data, tok->string.length, buf, size, 0);
-    if (len < 0)
-      return len;
-    if ((size_t)len >= size)
-      buf[size - 1] = '\0';
-    else
-      buf[(size_t)len] = '\0';
-    return len;
-  } else {
-    if (tok->string.length < size)
-      len = tok->string.length;
-    else
-      len = size - 1;
-    memcpy(buf, tok->string.data, (size_t)len);
-    buf[(size_t)len] = '\0';
-    return tok->string.length;
-  }
-}
-
-zone_return_t zone_parse_wks_protocol(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  char buf[32];
-  struct protoent *proto;
-
-  (void)ptr;
-  assert((tok->code & ZONE_STRING) == ZONE_STRING);
-
-  if (copy_string(tok, buf, sizeof(buf)) < 0)
-    SEMANTIC_ERROR(par, "{l}: Invalid escape sequence in protocol", tok);
-
-  if (!(proto = getprotobyname(buf))) {
-    uint64_t u64;
-    zone_return_t ret;
-    const zone_rdata_descriptor_t *desc = fld->descriptor.rdata;
-    if ((ret = zone_parse_int(par, desc, tok, UINT8_MAX, &u64)) < 0)
-      return ret;;
-    assert(u64 <= UINT8_MAX);
-    proto = getprotobynumber((int)u64);
-  }
-
-  if (!proto)
-    SEMANTIC_ERROR(par, "{l}: Unknown protocol", tok);
-
-  assert(proto);
-  par->parser.wks.protocol = proto;
-
-  fld->int8 = (uint8_t)proto->p_proto;
-  return ZONE_RDATA;
-}
-
-zone_return_t zone_parse_wks(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  int port = 0;
-  char buf[32];
-  const struct protoent *proto;
-  const struct servent *serv;
-
-  (void)ptr;
-  assert(par->parser.wks.protocol);
-  assert((tok->code & ZONE_STRING) == ZONE_STRING);
-  assert((fld->code & ZONE_WKS) == ZONE_WKS);
-  assert(!fld->wks.length || fld->wks.octets);
-
-  if (copy_string(tok, buf, sizeof(buf)) < 0)
-    SEMANTIC_ERROR(par, "{l}: Invalid escape sequence in service", tok);
-
-  proto = par->parser.wks.protocol;
-  if ((serv = getservbyname(buf, proto->p_name))) {
-    port = ntohs((uint16_t)serv->s_port);
-  } else {
-    uint64_t u64;
-    zone_return_t ret;
-    const zone_rdata_descriptor_t *desc = fld->descriptor.rdata;
-    if ((ret = zone_parse_int(par, desc, tok, UINT16_MAX, &u64)) < 0)
-      return ret;
-    assert(u64 <= UINT16_MAX);
-    port = (int)u64;
-  }
-
-  assert(port >= 0 && port <= 65535);
-
-  if ((size_t)port > fld->wks.length * 8) {
-    uint8_t *octets;
-    const size_t size = sizeof(uint8_t) * (port / 8 + 1);
-    if (!(octets = zone_realloc(par, fld->wks.octets, size)))
-      return ZONE_OUT_OF_MEMORY;
-    // ensure newly allocated octets are set to zero
-    memset(&octets[fld->wks.length], 0, size - fld->wks.length);
-    fld->wks.length = size;
-    fld->wks.octets = octets;
-  }
-
-  // bits are counted from left to right, so bit #0 is the left most bit
-  fld->wks.octets[port / 8] |= (1 << (7 - port % 8));
-
-  return ZONE_DEFER_ACCEPT;
-}
-
-zone_return_t zone_parse_generic_wks(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  // implement
-  (void)par;
-  (void)tok;
-  (void)fld;
-  (void)ptr;
-  return ZONE_BAD_PARAMETER;
-}
+#endif // ZONE_BASE_H

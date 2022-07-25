@@ -1,10 +1,13 @@
 /*
- * svcb.c -- SVCB specific parsers
+ * svcb.c -- parser for SVCB records in (DNS) zone files
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
  * See LICENSE for the license.
  */
+#ifndef ZONE_SVCB_H
+#define ZONE_SVCB_H
+
 #include <assert.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -396,7 +399,7 @@ static const struct svc_param svc_params[] = {
 #undef SVCB_KEY
 
 
-zone_return_t zone_parse_svc_param(
+static inline zone_return_t parse_svc_param(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   int32_t key;
@@ -439,7 +442,7 @@ zone_return_t zone_parse_svc_param(
   return 0;
 }
 
-zone_return_t zone_parse_generic_svc_param(
+static inline zone_return_t parse_generic_svc_param(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   (void)par;
@@ -448,3 +451,5 @@ zone_return_t zone_parse_generic_svc_param(
   (void)ptr;
   return ZONE_SYNTAX_ERROR;
 }
+
+#endif // ZONE_SVCB_H

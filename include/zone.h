@@ -76,10 +76,11 @@ typedef enum {
   // ZONE_EUI48 (ZONE_HEX6?) - 12
   // ZONE_EUI64 (ZONE_HEX8?) - 13
   // time stamp fields
-  // ZONE_TIME - 14
+  // ZONE_TIME - 14 // FIXME: probably best to turn into a qualifier?!
   // miscellaneous fields
   ZONE_SVC_PARAM = (15 << 8),
-  ZONE_WKS = (16 << 8)
+  ZONE_WKS = (16 << 8),
+  ZONE_NSEC = (17 << 8)
 } zone_type_t;
 
 inline zone_type_t zone_type(const zone_code_t code)
@@ -129,7 +130,7 @@ struct zone_rdata_descriptor {
 };
 
 // type options
-#define ZONE_COMPLEX (1<<0) // type requires extra processing!
+#define ZONE_COMPLEX (1<<0)
 #define ZONE_IN (1<<1)
 #define ZONE_ANY (1<<2)
 #define ZONE_EXPERIMENTAL (1<<3)
@@ -164,6 +165,7 @@ struct zone_field {
     struct in6_addr *ip6;
     struct { uint16_t length; uint8_t *octets; } b64;
     struct { size_t length; uint8_t *octets; } wks;
+    struct { size_t length; uint8_t *octets; } nsec;
   };
 };
 
@@ -251,7 +253,7 @@ struct zone_parser {
     // small backlog to track items before invoking accept_rr. memory for
     // owner, if no accept_name was registered, is allocated just before
     // invoking accept_rr to simplify memory management
-    zone_field_t fields[4]; // { owner, ttl, class, type }
+    zone_field_t fields[5]; // { owner, ttl, class, type, rdata }
     struct {
       const zone_type_descriptor_t *type;
       const zone_rdata_descriptor_t *rdata;
@@ -262,6 +264,17 @@ struct zone_parser {
       size_t expect;
       size_t count;
     } rdlength;
+    union {
+      struct {
+        const void *protocol;
+        uint16_t highest_port;
+        uint8_t ports[UINT16_MAX / 8];
+      } wks;
+      struct {
+        uint16_t highest_bit;
+        uint8_t bits[256][256];
+      } nsec;
+    };
     // FIXME: some record types require special handling of rdata. e.g. WKS,
     //        where all services are consolidated in a bitmap, and SVCB, where
     //        all svc_params must be sorted before being handed off and each
@@ -272,10 +285,6 @@ struct zone_parser {
     //   MUST NOT be repeated.
     // SVCB draft section 2.2 states:
     //   SvcParamKeys SHALL appear in increasing numeric order.
-    struct {
-      const void *protocol;
-      zone_field_t services;
-    } wks;
   } parser;
 };
 
@@ -285,6 +294,7 @@ struct zone_parser {
 #define ZONE_SEMANTIC_ERROR (-2)
 #define ZONE_OUT_OF_MEMORY (-3)
 #define ZONE_BAD_PARAMETER (-4)
+#define ZONE_NOT_IMPLEMENTED (-5)
 
 // initializes the parser with a static fixed buffer
 zone_return_t zone_open_string(
@@ -306,6 +316,13 @@ zone_return_t zone_parse(zone_parser_t *parser, void *user_data);
 // for easy printing of location. more flags may follow later
 void zone_error(const zone_parser_t *parser, const char *fmt, ...);
 
-// FIXME: probably should implement zone_warning, zone_info, zone_debug too?
+#define ZONE_ESCAPED (1u<<0)
+#define ZONE_GENERIC (1u<<1)
+#define ZONE_STRICT (1u<<2)
+
+int32_t zone_is_algorithm(const char *str, size_t len, uint32_t flags);
+int32_t zone_is_certificate(const char *str, size_t len, uint32_t flags);
+int32_t zone_is_class(const char *str, size_t len, uint32_t flags);
+int32_t zone_is_type(const char *str, size_t len, uint32_t flags);
 
 #endif // ZONE_H

@@ -29,6 +29,19 @@ set(ldh "${__ALPHA}[a-zA-Z0-9-]*")
 # field types as defined in section 3.1 (R mentioned in section 3.5.1)
 set(ftype "(I1|I2|I4|A|AA|AAAA|N|S|B32|B64|X|EUI48|EUI64|T|Z|R)")
 
+# Some fields require overrides. e.g. the protocol field in the WKS record
+# must retain context information and fields representing a time-to-live are
+# generally expected to accept values like "1h2m3s"
+set(overrides "6:3:typed:parse_ttl"
+              "6:4:typed:parse_ttl"
+              "6:5:typed:parse_ttl"
+              "6:6:typed:parse_ttl"
+              "11:1:typed:parse_wks_protocol"
+              "11:1:generic:parse_generic_wks_protocol"
+              "37:2:typed:parse_certificate"
+              "37:2:typed:parse_algorithm"
+              "48:2:typed:parse_algorithm")
+
 set(I1_type_print "ZONE_INT8")
 set(I2_type_print "ZONE_INT16")
 set(I4_type_print "ZONE_INT32")
@@ -38,9 +51,10 @@ set(N_type_print "ZONE_NAME")
 set(S_type_print "ZONE_STRING")
 set(B32_type_print "ZONE_BASE32")
 set(B64_type_print "ZONE_BASE64")
-
+set(T_type_print "ZONE_INT32")
 set(Z_SVCB_type_print "ZONE_SVC_PARAM")
 set(Z_WKS_type_print "ZONE_WKS")
+set(Z_NXT_type_print "ZONE_NSEC")
 
 # Options (record types)
 #   X: Implementing the RRTYPE requires extra processing
@@ -58,9 +72,9 @@ set(E_opt_print "ZONE_EXPERIMENTAL")
 #
 # Integer fields
 #   ldh=1*DIGIT: Defines one or more symbolic field values
-set(I1_qual "${ldh}=${DIGIT}+")
-set(I2_qual "${ldh}=${DIGIT}+")
-set(I4_qual "${ldb}=${DIGIT}+")
+set(I1_qual "(${ldh}=${DIGIT}+)")
+set(I2_qual "(${ldh}=${DIGIT}+)")
+set(I4_qual "(${ldb}=${DIGIT}+)")
 set(R_qual "[L]") # R[L] only mentioned in section 3.5.1
 # IP address and partial address fields
 set(A_qual)
@@ -193,6 +207,8 @@ while(1)
     # cleanup qualifiers
     string(REGEX REPLACE "(^\\[[ \t]*|[ \t]*\\]$)" "" quals "${quals}")
     string(REGEX REPLACE "[ \t]*,+[ \t]*" ";" quals "${quals}")
+    # sort qualifiers alphabetically
+    list(SORT quals CASE INSENSITIVE)
     # cleanup tag
     string(REGEX REPLACE "^:" "" tag "${tag}")
 
@@ -344,6 +360,21 @@ foreach(id RANGE ${maxid})
         set(fdesc "NULL")
       endif()
 
+      set(typed "0")
+      set(generic "0")
+      set(accept "0")
+      if(ftype STREQUAL "T")
+        set(typed "parse_time")
+      endif()
+      foreach(func "typed" "generic" "accept")
+        foreach(override ${overrides})
+          if(override MATCHES "${id}:${fid}:${func}:([^ \t]+)")
+            set(${func} "${CMAKE_MATCH_1}")
+            break()
+          endif()
+        endforeach()
+      endforeach()
+
       if(ftype STREQUAL "Z")
         set(typename "${${ftype}_${_${id}_${fid}_quals}_type_print}")
       else()
@@ -358,7 +389,11 @@ foreach(id RANGE ${maxid})
           ".type = ${typename}, "
           ".qualifiers = { ${fquals} }, "
           ".description = ${fdesc} "
-        "} }")
+        "}, "
+        ".typed = ${typed}, "
+        ".generic = ${generic}, "
+        ".accept = ${accept} "
+        "}")
 
       math(EXPR fid "${fid} + 1")
       set(fsep ",\n")

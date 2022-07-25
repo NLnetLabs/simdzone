@@ -60,21 +60,33 @@ if(SANITIZER)
   endforeach()
 endif()
 
-# generate type descriptors from dnsextlang stanzas
+# generate types from dnsextlang stanzas
 add_custom_command(
   OUTPUT src/types.h
-  COMMAND ${CMAKE_COMMAND}
+  COMMAND "${CMAKE_COMMAND}"
   ARGS
     "-DSTANZAS=${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
     "-DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/src/types.h.in"
     "-DHEADER=src/types.h"
     "-P" "${CMAKE_CURRENT_SOURCE_DIR}/dnsextlang.cmake"
   DEPENDS
-    "src/type.stanzas"
-    "src/types.h.in"
-    "dnsextlang.cmake")
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/types.h.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dnsextlang.cmake")
 
-  #add_custom_target(descriptors DEPENDS src/types.h)
+# generate descriptors from dnsextlang stanzas
+add_custom_command(
+  OUTPUT src/grammar.h
+  COMMAND "${CMAKE_COMMAND}"
+  ARGS
+    "-DSTANZAS=${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
+    "-DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/src/grammar.h.in"
+    "-DHEADER=src/grammar.h"
+    "-P" "${CMAKE_CURRENT_SOURCE_DIR}/dnsextlang.cmake"
+  DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/grammar.h.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dnsextlang.cmake")
 
 # FIXME: scanner-types.h can be generated eventually
 add_library(zone SHARED
@@ -82,12 +94,10 @@ add_library(zone SHARED
   src/scanner.c
   src/parser.c
   src/log.c
-  src/types.c
-  src/types.h
   src/base64.c
-  src/svcb.c
   src/util.c
-  src/types.h)
+  "${CMAKE_CURRENT_BINARY_DIR}/src/types.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/src/grammar.h")
 target_include_directories(
   zone PUBLIC include $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
                       $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>)

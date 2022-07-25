@@ -2,6 +2,8 @@ A:1 Host address [RFC1035]
   A:address IPv4 address
 
 NS:2
+  N:nsdname
+
 MD:3
 MF:4
 
@@ -9,6 +11,14 @@ CNAME:5 Canonical name
   N[C]:cname Host name
 
 SOA:6
+  N[C]:primary Primary server name
+  N[A]:mailbox Responsible mailbox
+  I4:serial Serial number
+  I4:refresh Refresh time (seconds)
+  I4:retry Retry time (seconds)
+  I4:expire Expire time (seconds)
+  I4:minimum Minimum time (seconds)
+
 MB:7
 MG:8
 MR:9
@@ -31,6 +41,8 @@ MX:15 Mail exchanger
   N[A,C]:exchanger Host name
 
 TXT:16
+  S[M]:txt-data
+
 RP:17
 AFSDB:18
 X25:19
@@ -56,7 +68,7 @@ NAPTR:35
 KX:36
 
 CERT:37
-  I2[PKIX=1,SPKI=2,PGP=2,IPKIX=4,ISPKI=5,IPGP=6,ACPKIX=7,IACPKIX=8,URI=253,OID=254]:type Certificate type
+  I2:type Certificate type
   I2:tag Key tag
   I1:algorithm
 
@@ -66,9 +78,28 @@ APL:42
 DS:43
 SSHFP:44
 IPSECKEY:45
+
 RRSIG:46
+  I2:type
+  I1:algorithm
+  I1:labels
+  T:ttl
+  I4:expiration
+  I4:inception
+  I2:tag
+  N:signer
+  B64:signature
+
 NSEC:47
+  N:next
+  Z[NXT]:bitmap
+
 DNSKEY:48
+  I2:flags
+  I1:protocol
+  I1:algorithm
+  B64:key
+
 DHCID:49
 NSEC3:50
 NSEC3PARAM:51

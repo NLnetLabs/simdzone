@@ -1,0 +1,18 @@
+/*
+ * grammar.h -- resource record descriptors for (DNS) zone files
+ *
+ * Copyright (c) 2022, NLnet Labs. All rights reserved.
+ *
+ * See LICENSE for the license.
+ *
+ */
+#ifndef ZONE_GRAMMAR_H
+#define ZONE_GRAMMER_H
+
+#include "parser.h"
+
+static const struct type_descriptor descriptors[] = {
+@DESCRIPTORS@
+};
+
+#endif // ZONE_GRAMMAR_H

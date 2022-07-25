@@ -6,6 +6,7 @@
  * See LICENSE for the license.
  *
  */
+#define _XOPEN_SOURCE
 #include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -16,6 +17,11 @@
 #include <netinet/in.h>
 
 #include "parser.h"
+
+#include "base.h"
+#include "nsec.h"
+#include "wks.h"
+#include "svcb.h"
 
 #define TYPES(...) \
   static const struct type_descriptor types[] = { __VA_ARGS__ };
@@ -53,7 +59,7 @@
 #define COMPRESSED (ZONE_COMPRESSED)
 #define OPTIONAL (ZONE_OPTIONAL)
 
-#include "types.h"
+#include "grammar.h"
 
 #undef NAME
 #undef IP6
@@ -296,28 +302,31 @@ zone_parse_name(
 #define TTL (1)
 #define CLASS (2)
 #define TYPE (3)
+#define RDATA (4)
 
 static const struct {
   rdata_parse_t typed;
   rdata_parse_t generic;
+  rdata_accept_t accept;
 } functions[] = {
-  { 0, 0 }, // FIXME: should probably store the unknown rdata callback here?!?!
-  { 0, 0 }, // domain, reference returned by accept_name, never parsed
-  { zone_parse_int8, 0 },
-  { zone_parse_int16, 0, },
-  { zone_parse_int32, 0, },
-  { zone_parse_ip4, zone_parse_generic_ip4 },
-  { zone_parse_ip6, zone_parse_generic_ip6 },
-  { zone_parse_domain_name, 0 },
-  { zone_parse_string, zone_parse_generic_string },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { 0, 0 },
-  { zone_parse_svc_param, zone_parse_generic_svc_param },
-  { zone_parse_wks, zone_parse_generic_wks }
+  { 0, 0, 0 }, // FIXME: should probably store the unknown rdata callback here?!?!
+  { 0, 0, 0 }, // domain, reference returned by accept_name, never parsed
+  { parse_int8, 0, 0 },
+  { parse_int16, 0, 0 },
+  { parse_int32, 0, 0 },
+  { parse_ip4, parse_generic_ip4, 0 },
+  { parse_ip6, parse_generic_ip6, 0 },
+  { parse_domain_name, 0, 0 },
+  { parse_string, parse_generic_string, 0 },
+  { 0, 0, 0 },
+  { 0, 0, 0 },
+  { 0, 0, 0 },
+  { 0, 0, 0 },
+  { 0, 0, 0 },
+  { 0, 0, 0 },
+  { parse_svc_param, parse_generic_svc_param, 0 },
+  { parse_wks, parse_generic_wks, accept_wks },
+  { parse_nsec, parse_generic_nsec, accept_nsec }
 };
 
 static zone_return_t
@@ -399,6 +408,42 @@ accept_rr(zone_parser_t *par, void *ptr)
   return ret < 0 ? ret : 0;
 }
 
+static inline zone_return_t
+accept_rdata(zone_parser_t *par, zone_field_t *fld, void *ptr)
+{
+  size_t fid;
+  zone_return_t ret;
+  const struct rdata_descriptor *desc;
+
+  desc = (const struct rdata_descriptor *)par->parser.descriptors.rdata;
+  assert(desc);
+
+  assert(!(par->parser.state & ZONE_DEFERRED_RDATA) ||
+          (&par->parser.fields[RDATA] == fld));
+
+  fid = zone_type(desc->public.type) >> 8;
+  assert(fid < sizeof(functions)/sizeof(functions[0]));
+  if (desc->accept)
+    ret = desc->accept(par, fld, ptr);
+  else if (functions[fid].accept)
+    ret = functions[fid].accept(par, fld, ptr);
+  else
+    ret = par->options.accept.rdata(par, fld, ptr);
+
+  // FIXME: if accept failed, free the allocated memory
+  if (ret < 0)
+    return ret;
+  par->parser.state &= ~ZONE_DEFERRED_RDATA;
+  // forward descriptor unless the current descriptor is known to be last
+  if (!(desc->public.qualifiers.flags & ZONE_OPTIONAL) &&
+      !(desc->public.type == ZONE_WKS) &&
+      !(desc->public.type == ZONE_SVC_PARAM) &&
+      !(desc->public.type == ZONE_NSEC))
+    par->parser.descriptors.rdata = (const void *)(desc + 1);
+
+  return 0;
+}
+
 zone_return_t zone_parse(zone_parser_t *par, void *user_data)
 {
   zone_token_t tok;
@@ -431,7 +476,7 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
           SEMANTIC_ERROR(par, "Expected rdata at {l}", &tok);
 
         if (par->parser.state & ZONE_DEFERRED_RDATA)
-          ret = par->options.accept.rdata(par, &par->parser.wks.services, user_data);
+          ret = accept_rdata(par, &par->parser.fields[RDATA], user_data);
 
         if (ret < 0 || (ret = par->options.accept.delimiter(par, &fld, user_data)) < 0)
           code = ret;
@@ -470,9 +515,7 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
         zone_return_t ret;
         const struct type_descriptor *desc;
 
-        if (tok.int16 == 11)
-          desc = &wks_descriptor;
-        else if (tok.int16 < sizeof(descriptors)/sizeof(descriptors[0]))
+        if (tok.int16 < sizeof(descriptors)/sizeof(descriptors[0]))
           desc = &descriptors[tok.int16];
         else
           desc = &unknown_type;
@@ -518,8 +561,7 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
           fun = desc->typed ? desc->typed : functions[fid].typed;
 
         if (par->parser.state & ZONE_DEFERRED_RDATA) {
-          fld = par->parser.wks.services;
-          // FIXME: assume types match for now, may need to update though
+          fld = par->parser.fields[RDATA];
           assert(zone_type(fld.code) == desc->public.type);
           fld.location.end = tok.location.end;
         } else {
@@ -532,24 +574,12 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
         assert(desc->public.type);
 
         if ((ret = fun(par,  &tok, &fld, user_data)) == ZONE_DEFER_ACCEPT) {
-          // for now, we only support wks in doing this but that may change
-          // update this check accordingly then!!!!
-          par->parser.wks.services = fld;
+          par->parser.fields[4] = fld;
           par->parser.state |= ZONE_DEFERRED_RDATA;
         } else if (ret < 0) {
           code = ret;
-        } else if ((ret = par->options.accept.rdata(par, &fld, user_data)) < 0) {
+        } else if ((ret = accept_rdata(par, &fld, user_data)) < 0) {
           code = ret;
-        } else {
-          if (par->parser.fields[TYPE].int16 != 11)
-            memset(&par->parser.wks.services, 0, sizeof(zone_field_t));
-          par->parser.state &= ~ZONE_DEFERRED_RDATA;
-          if (!(desc->public.qualifiers.flags & ZONE_OPTIONAL) &&
-              !(desc->public.type == ZONE_WKS) &&
-              !(desc->public.type == ZONE_SVC_PARAM))
-            par->parser.descriptors.rdata = (const void *)(desc + 1);
-          else
-            assert(!(desc + 1)->public.type);
         }
       }
     }

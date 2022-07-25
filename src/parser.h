@@ -57,4 +57,22 @@ inline void zone_free(zone_parser_t *par, void *ptr)
     par->options.allocator.free(par->options.allocator.arena, ptr);
 }
 
+typedef zone_return_t(*rdata_parse_t)(
+  zone_parser_t *, const zone_token_t *, zone_field_t *, void *);
+
+typedef zone_return_t(*rdata_accept_t)(
+  zone_parser_t *, zone_field_t *, void *);
+
+struct rdata_descriptor {
+  zone_rdata_descriptor_t public;
+  rdata_parse_t typed;
+  rdata_parse_t generic;
+  rdata_accept_t accept;
+};
+
+struct type_descriptor {
+  zone_type_descriptor_t public;
+  const struct rdata_descriptor *rdata;
+};
+
 #endif // ZONE_PARSER_H
