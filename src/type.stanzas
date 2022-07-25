@@ -83,9 +83,9 @@ RRSIG:46
   I2:type
   I1:algorithm
   I1:labels
-  T:ttl
-  I4:expiration
-  I4:inception
+  I4:ttl
+  T:expiration
+  T:inception
   I2:tag
   N:signer
   B64:signature

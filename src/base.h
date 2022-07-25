@@ -300,7 +300,7 @@ zone_return_t parse_type(
     SYNTAX_ERROR(par, "{l}: Invalid escape sequence", tok);
   if (id == 0)
     SEMANTIC_ERROR(par, "{l}: Invalid type in %s", tok, fld->descriptor.rdata->name);
-  fld->int16 = (uint16_t)id;
+  fld->int16 = htons((uint16_t)id);
   return ZONE_RDATA;
 }
 
@@ -331,6 +331,7 @@ zone_return_t parse_base64(
   if (!(fld->b64.octets = zone_malloc(par, (size_t)len)))
     return ZONE_OUT_OF_MEMORY;
   memcpy(fld->b64.octets, dec, (size_t)declen);
+  fld->b64.length = declen;
   return ZONE_RDATA;
 }
 

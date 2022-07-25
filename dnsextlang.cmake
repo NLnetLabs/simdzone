@@ -40,6 +40,8 @@ set(overrides "6:3:typed:parse_ttl"
               "11:1:generic:parse_generic_wks_protocol"
               "37:2:typed:parse_certificate"
               "37:2:typed:parse_algorithm"
+              "46:0:typed:parse_type"
+              "46:1:typed:parse_algorithm"
               "48:2:typed:parse_algorithm")
 
 set(I1_type_print "ZONE_INT8")
@@ -368,7 +370,7 @@ foreach(id RANGE ${maxid})
       endif()
       foreach(func "typed" "generic" "accept")
         foreach(override ${overrides})
-          if(override MATCHES "${id}:${fid}:${func}:([^ \t]+)")
+          if(override MATCHES "^${id}:${fid}:${func}:([^ \t]+)")
             set(${func} "${CMAKE_MATCH_1}")
             break()
           endif()

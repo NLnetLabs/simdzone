@@ -319,7 +319,7 @@ static const struct {
   { parse_domain_name, 0, 0 },
   { parse_string, parse_generic_string, 0 },
   { 0, 0, 0 },
-  { 0, 0, 0 },
+  { parse_base64, 0, 0 },
   { 0, 0, 0 },
   { 0, 0, 0 },
   { 0, 0, 0 },
