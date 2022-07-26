@@ -242,6 +242,7 @@ zone_return_t parse_domain_name(
   return ZONE_RDATA;
 }
 
+#if 0
 static zone_return_t parse_algorithm(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
@@ -264,7 +265,9 @@ static zone_return_t parse_algorithm(
 
   return ZONE_RDATA;
 }
+#endif
 
+#if 0
 static zone_return_t parse_certificate(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
@@ -287,6 +290,7 @@ static zone_return_t parse_certificate(
 
   return ZONE_RDATA;
 }
+#endif
 
 zone_return_t parse_type(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)

@@ -435,7 +435,7 @@ accept_rdata(zone_parser_t *par, zone_field_t *fld, void *ptr)
     return ret;
   par->parser.state &= ~ZONE_DEFERRED_RDATA;
   // forward descriptor unless the current descriptor is known to be last
-  if (!(desc->public.qualifiers.flags & ZONE_OPTIONAL) &&
+  if (!(desc->public.qualifiers & ZONE_QUALIFIER_OPTIONAL) &&
       !(desc->public.type == ZONE_WKS) &&
       !(desc->public.type == ZONE_SVC_PARAM) &&
       !(desc->public.type == ZONE_NSEC))

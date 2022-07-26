@@ -12,7 +12,9 @@ cmake_minimum_required(VERSION 3.10)
 # generator adapted from draft-levine-dnsextlang-12
 # https://datatracker.ietf.org/doc/html/draft-levine-dnsextlang-12
 #
-# extra addition for the SVCB record type Z[SVCB]
+# additions:
+#   * Add Z[SVCB] to denote SvcParam fields to support SVCB and HTTPS records
+#   * Add L as a qualifier for type T to denote TTL fields
 
 # ALPHA, DIGIT and WSP as specified by RFC5234
 #
@@ -32,17 +34,8 @@ set(ftype "(I1|I2|I4|A|AA|AAAA|N|S|B32|B64|X|EUI48|EUI64|T|Z|R)")
 # Some fields require overrides. e.g. the protocol field in the WKS record
 # must retain context information and fields representing a time-to-live are
 # generally expected to accept values like "1h2m3s"
-set(overrides "6:3:typed:parse_ttl"
-              "6:4:typed:parse_ttl"
-              "6:5:typed:parse_ttl"
-              "6:6:typed:parse_ttl"
-              "11:1:typed:parse_wks_protocol"
-              "11:1:generic:parse_generic_wks_protocol"
-              "37:2:typed:parse_certificate"
-              "37:2:typed:parse_algorithm"
-              "46:0:typed:parse_type"
-              "46:1:typed:parse_algorithm"
-              "48:2:typed:parse_algorithm")
+set(overrides "11:1:typed:parse_wks_protocol"
+              "11:1:generic:parse_generic_wks_protocol")
 
 set(I1_type_print "ZONE_INT8")
 set(I2_type_print "ZONE_INT16")
@@ -54,9 +47,10 @@ set(S_type_print "ZONE_STRING")
 set(B32_type_print "ZONE_BASE32")
 set(B64_type_print "ZONE_BASE64")
 set(T_type_print "ZONE_INT32")
+set(X_type_print "ZONE_BINARY")
 set(Z_SVCB_type_print "ZONE_SVC_PARAM")
 set(Z_WKS_type_print "ZONE_WKS")
-set(Z_NXT_type_print "ZONE_NSEC")
+set(Z_NXT_type_print "ZONE_NXT")
 
 # Options (record types)
 #   X: Implementing the RRTYPE requires extra processing
@@ -84,20 +78,23 @@ set(AA_qual)
 set(AAAA_qual)
 # Domain name fields, section 3.5.3
 #   C: Domain name is compressed
-set(N_C_qual_print "ZONE_COMPRESSED")
+set(N_C_qual_print "ZONE_QUALIFIER_COMPRESSED")
 #   A: Domain name represents a mailbox
-set(N_A_qual_print "ZONE_MAILBOX")
+set(N_A_qual_print "ZONE_QUALIFIER_MAILBOX")
 #   L: Domain name is converted to lower case before DNSSEC validation
 set(N_L_qual_print "ZONE_LOWER_CASE")
 #   O: Domain name is optional and can only appear as the last field
-set(N_L_qual_print "ZONE_OPTIONAL")
+set(N_L_qual_print "ZONE_QUALIFIER_OPTIONAL")
 set(N_qual "[CALO]")
+# Type fields
+set(R_L_qual_print "ZONE_QUALIFIER_TYPE")
+set(R_qual "[L]")
 # String fields
 #   S: Single string preceded by a one-octet length.
 #   S[M]: Multiple strings, each stored as a length and string. Must be last!
-set(S_M_qual_print "ZONE_MULTIPLE")
+set(S_M_qual_print "ZONE_QUALIFIER_SEQUENCE")
 #   S[X]: Raw string, without any length bytes. Must be last!
-set(S_X_qual_print "ZONE_RAW")
+set(S_X_qual_print "ZONE_QUALIFIER_UNBOUNDED")
 set(S_qual "[MX]")
 # Base-32 and Base-64 fields
 set(B32_qual)
@@ -107,7 +104,10 @@ set(B64_qual)
 #   X[C]: Stored as a string with a preceding one-octet length.
 set(X_qual "[C]")
 # Time stamp fields
-set(T_qual)
+#   T: Time. Require "YYYYMMDDHHmmSS" notation.
+#   T[L]: Time-to-live. Allow for "1h2m3s" notation and disallow use of MSB.
+set(T_L_qual_print "ZONE_QUALIFIER_TIME_TO_LIVE")
+set(T_qual "[L]")
 # Miscellaneous fields
 #   Z[WKS]: Bitmap of port numbers in the WKS RRTYPE.
 #   Z[NSAP]: Special hex syntax for the address in the NSAP RRTYPE.
@@ -278,7 +278,7 @@ foreach(id RANGE ${maxid})
 
   set(descr)
   foreach(type ${types})
-    if(NOT type MATCHES "^[^:]+:${id}")
+    if(NOT type MATCHES "^[^:]+:${id}$")
       continue()
     endif()
 
@@ -314,43 +314,35 @@ foreach(id RANGE ${maxid})
       string(REGEX REPLACE ":.*$" "" ftype "${field}")
       string(REGEX REPLACE "^[^:]+:" "" fname "${field}")
 
-      # symbols
-      set(fquals)
-      if(ftype MATCHES "I[0-9]+")
-        set(fquals)
+      set(fquals "0")
+      set(flabels "{ .map = NULL, .count = 0 }")
+      if(ftype MATCHES "I[0-9]+") # labels
         if(_${id}_${fid}_quals)
-          set(fquals ".symbols = { .array = (zone_map_t[]){ ")
-          set(fqualid "")
-          set(fquallen 0)
-          set(fqualsep "")
-          # FIXME: to really be useful, i.e. use bsearch, the list must be sorted
+          set(flabels "{ .map = (zone_map_t[]){ ")
+          set(flabelid "")
+          set(flabellen 0)
+          set(flabelsep "")
           foreach(fqual ${_${id}_${fid}_quals})
-            string(REGEX REPLACE "=.*$" "" label "${fqual}")
-            string(REGEX REPLACE "^[^=]+=" "" value "${fqual}")
-            set(fquals "${fquals}${fqualsep}{ \"${label}\", sizeof(\"${label}\") - 1, ${value} }")
-            set(fqualsep ", ")
-            math(EXPR fqualid "${fqualid} + 1")
+            string(REGEX REPLACE "=.*$" "" flabel "${fqual}")
+            string(REGEX REPLACE "^[^=]+=" "" flabelid "${fqual}")
+            STRING(CONCAT
+              "${flabels}" "${flabelsep}"
+              "{ \"${flabel}\", sizeof(\"${flabel}\") - 1, ${flabelid} }")
+            set(flabelsep ", ")
+            math(EXPR flabellen "${flabellen} + 1")
           endforeach()
-          set(fquals "${fquals}${fqualsep} }, .length = ${fqualid} }")
+          set(flabels "${fquals}${flabelsep} }, .count = ${flabellen} }")
         endif()
-        if(NOT fquals)
-          set(fquals ".symbols = { .array = NULL, .length = 0 }")
-        endif()
-      # flags
-      else()
-        if(_${id}_${fid}_quals)
-          set(fqualsep ".flags = ")
-          foreach(fqual ${_${id}_${fid}_quals})
-            if(NOT ${ftype}_${fqual}_qual_print)
-              continue()
-            endif()
-            set(fquals "${fquals}${fqualsep}${${ftype}_${fqual}_qual_print}")
-            set(fqualsep " | ")
-          endforeach()
-        endif()
-        if(NOT fquals)
-          set(fquals ".flags = 0")
-        endif()
+      elseif(_${id}_${fid}_quals) # qualifiers
+        set(fquals "")
+        set(fqualsep "")
+        foreach(fqual ${_${id}_${fid}_quals})
+          if(NOT ${ftype}_${fqual}_qual_print)
+            continue()
+          endif()
+          set(fquals "${fquals}${fqualsep}${${ftype}_${fqual}_qual_print}")
+          set(fqualsep " | ")
+        endforeach()
       endif()
 
       if(_${id}_${fid}_desc)
@@ -366,8 +358,36 @@ foreach(id RANGE ${maxid})
       set(generic "0")
       set(accept "0")
       if(ftype STREQUAL "T")
-        set(typed "parse_time")
+        set(typename "ZONE_INT32")
+        if(_${id}_${fid}_quals STREQUAL "L")
+          set(fquals "ZONE_QUALIFIER_TIME_TO_LIVE")
+          set(typed "parse_ttl")
+        else()
+          set(fquals "ZONE_QUALIFIER_TIME")
+          set(typed "parse_time")
+        endif()
+      elseif(ftype STREQUAL "R")
+        if(_${id}_${fid}_quals STREQUAL "L")
+          set(typename "ZONE_NSEC")
+          set(fquals "0")
+        else()
+          set(typename "ZONE_INT16")
+          set(fquals "ZONE_QUALIFIER_TYPE")
+          set(typed "parse_type")
+        endif()
+      elseif(ftype STREQUAL "X")
+        if(_${id}_${fid}_quals STREQUAL "C")
+          set(fquals "0")
+        else()
+          set(fquals "ZONE_QUALIFIER_UNBOUNDED")
+        endif()
+      elseif(ftype STREQUAL "Z")
+        set(typename "${${ftype}_${_${id}_${fid}_quals}_type_print}")
+        set(fquals "0")
+      else()
+        set(typename "${${ftype}_type_print}")
       endif()
+
       foreach(func "typed" "generic" "accept")
         foreach(override ${overrides})
           if(override MATCHES "^${id}:${fid}:${func}:([^ \t]+)")
@@ -377,19 +397,14 @@ foreach(id RANGE ${maxid})
         endforeach()
       endforeach()
 
-      if(ftype STREQUAL "Z")
-        set(typename "${${ftype}_${_${id}_${fid}_quals}_type_print}")
-      else()
-        set(typename "${${ftype}_type_print}")
-      endif()
-
       string(CONCAT rdata
         "${rdata}" "${fsep}" "{ "
         ".public = { "
           ".name = \"${fname}\", "
           ".length = sizeof(\"${fname}\") - 1, "
           ".type = ${typename}, "
-          ".qualifiers = { ${fquals} }, "
+          ".qualifiers = ${fquals}, "
+          ".labels = ${flabels}, "
           ".description = ${fdesc} "
         "}, "
         ".typed = ${typed}, "
@@ -402,9 +417,9 @@ foreach(id RANGE ${maxid})
     endforeach()
 
     if(rdata)
-      set(rdatas "(struct rdata_descriptor[]){ ${rdata}, { { NULL, 0, 0, { .flags = 0 }, NULL }, .typed = 0, .generic = 0 } }")
+      set(rdatas "(struct rdata_descriptor[]){ ${rdata}, { { NULL, 0, 0, 0, { NULL, 0 }, NULL } } }")
     else()
-      set(rdatas "(struct rdata_descriptor[]){ { { NULL, 0, 0, { .flags = 0 }, NULL }, .typed = 0, .generic = 0 } }")
+      set(rdatas "(struct rdata_descriptor[]){ { { NULL, 0, 0, 0, { NULL, 0 }, NULL } } }")
     endif()
 
     string(CONCAT descr

@@ -11,8 +11,13 @@
 
 #include "parser.h"
 
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wmissing-field-initializers\"")
+
 static const struct type_descriptor descriptors[] = {
 @DESCRIPTORS@
 };
+
+_Pragma("GCC diagnostic pop")
 
 #endif // ZONE_GRAMMAR_H

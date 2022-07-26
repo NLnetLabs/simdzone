@@ -72,7 +72,7 @@ typedef enum {
   ZONE_BASE32 = (9 << 8),
   ZONE_BASE64 = (10 << 8),
   // hex fields
-  // ZONE_HEX - 11
+  ZONE_BINARY = (11 << 8),
   // ZONE_EUI48 (ZONE_HEX6?) - 12
   // ZONE_EUI64 (ZONE_HEX8?) - 13
   // time stamp fields
@@ -104,11 +104,20 @@ inline zone_item_t zone_item(const zone_code_t code)
 }
 
 // field qualifiers (can be combined in various way, hence not an enumeration)
-#define ZONE_COMPRESSED (1<<0)
-#define ZONE_MAILBOX (1<<1)
-#define ZONE_LOWER_CASE (1<<2)
-#define ZONE_OPTIONAL (1<<3)
-#define ZONE_MULTIPLE (1<<4) // string fields, must be last
+#define ZONE_QUALIFIER_COMPRESSED (1<<0)
+#define ZONE_QUALIFIER_MAILBOX (1<<1)
+#define ZONE_QUALIFIER_LOWER_CASE (1<<2)
+#define ZONE_QUALIFIER_OPTIONAL (1<<3)
+// string fields may occur in a sequence. must be last
+#define ZONE_QUALIFIER_SEQUENCE (1<<4)
+// string and binary fields may omit a length octet. must be last
+#define ZONE_QUALIFIER_UNBOUNDED (1<<5)
+// int32 fields, require "YYYYMMDDHHmmSS" format
+#define ZONE_QUALIFIER_TIME (1<<6)
+// int32 fields, allow "1h2m3s" format and disallow use of MSB
+#define ZONE_QUALIFIER_TIME_TO_LIVE (1<<7)
+// int32 fields, allow for type names, "TYPExx" format and plain numbers
+#define ZONE_QUALIFIER_TYPE (1<<8)
 
 typedef struct zone_map zone_map_t;
 struct zone_map {
@@ -122,10 +131,8 @@ struct zone_rdata_descriptor {
   const char *name;
   const size_t length;
   zone_type_t type;
-  union {
-    struct { zone_map_t *array; size_t length; } symbols;
-    uint32_t flags;
-  } qualifiers;
+  uint32_t qualifiers;
+  struct { zone_map_t *map; size_t count; } labels;
   const char *description;
 };
 
