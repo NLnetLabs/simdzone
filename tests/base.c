@@ -170,7 +170,7 @@ struct {
   { 6,  "foo. 1 IN SOA ns.foo. noc.foo. 2022072501 1 2 3 4",
     soa_fields, sizeof(soa_fields)/sizeof(soa_fields[0]) },
   { 46, "host.example.com. 1 IN RRSIG "
-        "A 5 3 86400 20030322173103 20030322173103 2642 example.com. "
+        "A RSASHA1 3 86400 20030322173103 20030322173103 2642 example.com. "
         "oJB1W6WNGv+ldvQ3WDG0MQkg5IEhjRip8WTr"
         "PYGv07h108dUKGMeDPKijVCHX3DDKdfb+v6o"
         "B9wfuh3DTJXUAfI/M0zmO/zz8bW0Rznl8O3t"

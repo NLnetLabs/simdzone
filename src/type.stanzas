@@ -46,16 +46,16 @@ CERT:37
   I2:tag Key tag
   I1:algorithm
 
-RRSIG:46
-  R:type
-  I1:algorithm
-  I1:labels
-  T[L]:ttl
-  T:expiration
-  T:inception
-  I2:tag
-  N:signer
-  B64:signature
+RRSIG:46:A RRSIG [RFC4034][RFC3755]
+  R:rrtype Type covered (Type mnemonic)
+  I1[RSAMD5=1,DH=2,DSA=3,ECC=4,RSASHA1=5,INDIRECT=252,PRIVATEDNS=253,PRIVATEOID=254]:algorithm Algorithm
+  I1:labels Labels
+  I4:origttl Original TTL
+  T:expire Signature expiration (timestamp)
+  T:inception Signature inception (timestamp)
+  I2:keytag Key tag
+  N:signer Signer's name
+  B64:signature Signature
 
 NSEC:47
   N:next

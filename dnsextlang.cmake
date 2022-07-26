@@ -325,13 +325,13 @@ foreach(id RANGE ${maxid})
           foreach(fqual ${_${id}_${fid}_quals})
             string(REGEX REPLACE "=.*$" "" flabel "${fqual}")
             string(REGEX REPLACE "^[^=]+=" "" flabelid "${fqual}")
-            STRING(CONCAT
+            STRING(CONCAT flabels
               "${flabels}" "${flabelsep}"
               "{ \"${flabel}\", sizeof(\"${flabel}\") - 1, ${flabelid} }")
             set(flabelsep ", ")
             math(EXPR flabellen "${flabellen} + 1")
           endforeach()
-          set(flabels "${fquals}${flabelsep} }, .count = ${flabellen} }")
+          set(flabels "${flabels}${flabelsep} }, .count = ${flabellen} }")
         endif()
       elseif(_${id}_${fid}_quals) # qualifiers
         set(fquals "")

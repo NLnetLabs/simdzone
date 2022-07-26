@@ -191,6 +191,14 @@ zone_parse_ttl(zone_parser_t *par, const zone_token_t *tok, uint32_t *ttl)
   return 0;
 }
 
+static int mapcmp(const void *p1, const void *p2)
+{
+  const zone_map_t *m1 = p1, *m2 = p2;
+  assert(m1 && m1->name && m1->length);
+  assert(m2 && m2->name && m2->length);
+  return zone_stresccasecmp(m1->name, m1->length, m2->name, m2->length);
+}
+
 zone_return_t
 zone_parse_int(
   zone_parser_t *par,
@@ -203,6 +211,21 @@ zone_parse_int(
   ssize_t len;
   const char *str, *fld = desc ? desc->name : "integer";
   uint64_t sum = 0u;
+
+  assert(desc);
+  assert(!desc->labels.map || desc->labels.count);
+  if (desc->labels.count) {
+    const zone_map_t *map, key = { tok->string.data, tok->string.length, 0 };
+    const size_t size = sizeof(desc->labels.map[0]);
+    const size_t nmemb = desc->labels.count;
+
+    if ((map = bsearch(&key, desc->labels.map, nmemb, size, mapcmp))) {
+      if (map->id > max)
+        SYNTAX_ERROR(par, "Invalid %s at {l}, value exceeds maximum", fld, tok);
+      *num = map->id;
+      return 0;
+    }
+  }
 
   assert(max < UINT64_MAX);
   if (tok->string.length == 0 || tok->string.length > sizeof(buf) * 4)

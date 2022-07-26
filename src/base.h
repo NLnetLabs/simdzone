@@ -242,56 +242,6 @@ zone_return_t parse_domain_name(
   return ZONE_RDATA;
 }
 
-#if 0
-static zone_return_t parse_algorithm(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  int32_t id;
-  uint32_t flags = ZONE_ESCAPED | ZONE_STRICT;
-
-  (void)ptr;
-  const char *str = tok->string.data;
-  const size_t len = tok->string.length;
-  if ((id = zone_is_algorithm(str, len, flags)) > 0) {
-    fld->int8 = (uint16_t)id;
-  } else {
-    uint64_t u64;
-    zone_return_t ret;
-    if ((ret = zone_parse_int(par, fld->descriptor.rdata, tok, UINT8_MAX, &u64)) < 0)
-      return ret;
-    assert(u64 <= UINT8_MAX);
-    fld->int8 = (uint8_t)u64;
-  }
-
-  return ZONE_RDATA;
-}
-#endif
-
-#if 0
-static zone_return_t parse_certificate(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  int32_t id;
-  uint32_t flags = ZONE_ESCAPED | ZONE_STRICT;
-
-  (void)ptr;
-  const char *str = tok->string.data;
-  const size_t len = tok->string.length;
-  if ((id = zone_is_certificate(str, len, flags)) > 0) {
-    fld->int16 = htons(id);
-  } else {
-    uint64_t u64;
-    zone_return_t ret;
-    if ((ret = zone_parse_int(par, fld->descriptor.rdata, tok, UINT16_MAX, &u64)) < 0)
-      return ret;
-    assert(u64 <= UINT16_MAX);
-    fld->int16 = htons((uint16_t)u64);
-  }
-
-  return ZONE_RDATA;
-}
-#endif
-
 zone_return_t parse_type(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {

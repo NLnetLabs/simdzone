@@ -327,8 +327,6 @@ void zone_error(const zone_parser_t *parser, const char *fmt, ...);
 #define ZONE_GENERIC (1u<<1)
 #define ZONE_STRICT (1u<<2)
 
-int32_t zone_is_algorithm(const char *str, size_t len, uint32_t flags);
-int32_t zone_is_certificate(const char *str, size_t len, uint32_t flags);
 int32_t zone_is_class(const char *str, size_t len, uint32_t flags);
 int32_t zone_is_type(const char *str, size_t len, uint32_t flags);
 
