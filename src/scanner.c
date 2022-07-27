@@ -563,6 +563,9 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
     code = scan(par, tok);
     if (code == ZONE_REFRESH_BUFFER) {
       code = refill(par);
+    } else if (code == ';') {
+      // ignore comments
+      continue;
     } else if (code == '(') {
       if (par->scanner.state & ZONE_GROUPED)
         SYNTAX_ERROR(par, "Nested braces");
@@ -602,7 +605,7 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
         return scan_rdata(par, tok);
       }
     }
-  } while (code == ZONE_REFRESH_BUFFER);
+  } while (code == ZONE_REFRESH_BUFFER || code >= 0);
 
   return code;
 }

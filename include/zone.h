@@ -173,6 +173,7 @@ struct zone_field {
     struct { uint16_t length; uint8_t *octets; } b64;
     struct { size_t length; uint8_t *octets; } wks;
     struct { size_t length; uint8_t *octets; } nsec;
+    struct { size_t length; uint8_t *octets; } binary;
   };
 };
 

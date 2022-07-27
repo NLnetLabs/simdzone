@@ -1,50 +1,57 @@
 A:1 Host address [RFC1035]
   A:address IPv4 address
 
-NS:2
-  N:nsdname
+NS:2:A an authoritative name server [RFC1035]
+  N[C]:host Host name
 
-CNAME:5 Canonical name
-  N[C]:cname Host name
+CNAME:5:A the canonical name for an alias [RFC1035]
+  N[C]:host Host name
 
-SOA:6
+SOA:6:A marks the start of a zone of authority [RFC1035]
   N[C]:primary Primary server name
   N[A]:mailbox Responsible mailbox
   I4:serial Serial number
   T[L]:refresh Refresh time (seconds)
   T[L]:retry Retry time (seconds)
   T[L]:expire Expire time (seconds)
-  T[L]:minimum Minimum time (seconds)
+  T[L]:minimum Minium time (seconds)
 
-WKS:11:X Well known services
-  A:addess
-  I1:protocol
-  Z[WKS]:bitmap
+WKS:11:I a well known service description [RFC1035]
+  A:address IPv4 address
+  I1:protocol Protocol number
+  Z[WKS]:bitmap Bit Map
 
-HINFO:13
-  S:cpu
-  S:os
+HINFO:13:A host information [RFC1035]
+  S:cpu CPU type
+  S:os Operating system
 
-MX:15 Mail exchanger
+MX:15:A mail exchange [RFC1035]
   I2:priority Priority (lower values are higher priority)
-  N[A,C]:exchanger Host name
+  N[C]:hostname Host name
 
-TXT:16
-  S[M]:txt-data
+TXT:16:A text strings [RFC1035]
+  S[M]:text Strings
 
-AAAA:28 IPv6
-  AAAA:address IPv6 address
+AAAA:28:I IP6 Address [RFC3596]
+  AAAA:address Address
 
-SRV:33 Service location
+SRV:33:I Server Selection [1][RFC2782]
   I2:priority Priority
   I2:weight Weight
   I2:port Port
   N:target Target host name
 
-CERT:37
-  I2:type Certificate type
+CERT:37:A CERT [RFC4398]
+  I2[PKIX=1,SPKI=2,PGP=2,IPKIX=4,ISPKI=5,IPGP=6,ACPKIX=7,IACPKIX=8,URI=253,OID=254]:type Type
   I2:tag Key tag
-  I1:algorithm
+  I1[RSAMD5=1,DH=2,DSA=3,ECC=4,RSASHA1=5,INDIRECT=252,PRIVATEDNS=253,PRIVATEOID=254]:algorithm Algorithm
+  B64:certificate Certificate or CRL
+
+DS:43:A Delegation Signer [RFC4034][RFC3658]
+  I2:keytag Key tag
+  I1[RSAMD5=1,DH=2,DSA=3,ECC=4,RSASHA1=5,DSA-NSEC-SHA1=6,RSASHA1-NSEC3-SHA1=7,RSASHA256=8,RSASHA512=10,ECC-GOST=12,ECDSAP256SHA256=13,ECDSAP384SHA384=14,INDIRECT=252,PRIVATEDNS=253,PRIVATEOID=254]:algorithm Algorithm
+  I1[SHA-1=1,SHA-256=2,GOST=3,SHA-384=4]:digtype Digest type
+  X:digest Digest
 
 RRSIG:46:A RRSIG [RFC4034][RFC3755]
   R:rrtype Type covered (Type mnemonic)
@@ -57,15 +64,15 @@ RRSIG:46:A RRSIG [RFC4034][RFC3755]
   N:signer Signer's name
   B64:signature Signature
 
-NSEC:47
-  N:next
-  R[L]:bitmap
+NSEC:47:A NSEC [RFC4034][RFC3755]
+  N:next Next domain name
+  R[L]:types Type bitmaps (as window blocks)
 
-DNSKEY:48
-  I2:flags
-  I1:protocol
-  I1:algorithm
-  B64:key
+DNSKEY:48:A DNSKEY [RFC4034][RFC3755]
+  I2:flags Flags
+  I1:protocol Protocol (must be 3)
+  I1[RSAMD5=1,DH=2,DSA=3,ECC=4,RSASHA1=5,INDIRECT=252,PRIVATEDNS=253,PRIVATEOID=254]:algorithm Algorithm
+  B64:publickey Public key
 
 SVCB:64 Service binding and parameter specification
   I2:SvcPriority

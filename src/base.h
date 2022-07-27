@@ -392,4 +392,45 @@ zone_return_t parse_generic_string(
   return ZONE_RDATA | ZONE_STRING;
 }
 
+static inline zone_return_t parse_binary(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  (void)ptr;
+  assert(fld);
+  assert(fld->descriptor.rdata);
+  assert((tok->code & ZONE_STRING) == ZONE_STRING);
+
+  const char *str = tok->string.data;
+  const size_t len = tok->string.length;
+
+  const char *name = fld->descriptor.rdata->name;
+  const size_t off = !(fld->descriptor.rdata->qualifiers & ZONE_QUALIFIER_UNBOUNDED);
+  const ssize_t cnt = zone_decode(str, len, NULL, 0);
+
+  if (cnt < 0)
+    SYNTAX_ERROR(par, "Invalid %s, non-hexadecimal string or bad escape sequence", name);
+  if (off && cnt > 1 + 255)
+    SEMANTIC_ERROR(par, "Invalid %s, length exceeds maximum", name);
+
+  uint8_t *octs;
+  if (!(octs = zone_malloc(par, off + (size_t)cnt)))
+    return ZONE_OUT_OF_MEMORY;
+  if (off)
+    octs[0] = (size_t)cnt;
+  zone_decode(str, len, &octs[off], (size_t)cnt);
+  fld->binary.length = off + (size_t)cnt;
+  fld->binary.octets = octs;
+  return 0;
+}
+
+static inline zone_return_t parse_generic_binary(
+  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+{
+  (void)par;
+  (void)tok;
+  (void)fld;
+  (void)ptr;
+  return ZONE_NOT_IMPLEMENTED;
+}
+
 #endif // ZONE_BASE_H

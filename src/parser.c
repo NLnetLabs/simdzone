@@ -209,21 +209,23 @@ zone_parse_int(
 {
   char buf[32];
   ssize_t len;
-  const char *str, *fld = desc ? desc->name : "integer";
+  const char *str, *fld = "integer";
   uint64_t sum = 0u;
 
-  assert(desc);
-  assert(!desc->labels.map || desc->labels.count);
-  if (desc->labels.count) {
-    const zone_map_t *map, key = { tok->string.data, tok->string.length, 0 };
-    const size_t size = sizeof(desc->labels.map[0]);
-    const size_t nmemb = desc->labels.count;
+  if (desc) {
+    fld = desc->name;
+    assert(!desc->labels.map || desc->labels.count);
+    if (desc->labels.count) {
+      const zone_map_t *map, key = { tok->string.data, tok->string.length, 0 };
+      const size_t size = sizeof(desc->labels.map[0]);
+      const size_t nmemb = desc->labels.count;
 
-    if ((map = bsearch(&key, desc->labels.map, nmemb, size, mapcmp))) {
-      if (map->id > max)
-        SYNTAX_ERROR(par, "Invalid %s at {l}, value exceeds maximum", fld, tok);
-      *num = map->id;
-      return 0;
+      if ((map = bsearch(&key, desc->labels.map, nmemb, size, mapcmp))) {
+        if (map->id > max)
+          SYNTAX_ERROR(par, "Invalid %s at {l}, value exceeds maximum", fld, tok);
+        *num = map->id;
+        return 0;
+      }
     }
   }
 
@@ -343,7 +345,7 @@ static const struct {
   { parse_string, parse_generic_string, 0 },
   { 0, 0, 0 },
   { parse_base64, 0, 0 },
-  { 0, 0, 0 },
+  { parse_binary, 0, 0 },
   { 0, 0, 0 },
   { 0, 0, 0 },
   { 0, 0, 0 },
@@ -458,6 +460,8 @@ accept_rdata(zone_parser_t *par, zone_field_t *fld, void *ptr)
     return ret;
   par->parser.state &= ~ZONE_DEFERRED_RDATA;
   // forward descriptor unless the current descriptor is known to be last
+  if (desc->public.qualifiers & ZONE_QUALIFIER_SEQUENCE)
+    return 0;
   if (!(desc->public.qualifiers & ZONE_QUALIFIER_OPTIONAL) &&
       !(desc->public.type == ZONE_WKS) &&
       !(desc->public.type == ZONE_SVC_PARAM) &&
@@ -582,6 +586,8 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
           fun = desc->generic ? desc->generic : functions[fid].generic;
         else
           fun = desc->typed ? desc->typed : functions[fid].typed;
+        if (!fun)
+          return ZONE_NOT_IMPLEMENTED;
 
         if (par->parser.state & ZONE_DEFERRED_RDATA) {
           fld = par->parser.fields[RDATA];
