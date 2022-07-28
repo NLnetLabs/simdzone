@@ -404,7 +404,7 @@ static inline zone_return_t parse_binary(
   const size_t len = tok->string.length;
 
   const char *name = fld->descriptor.rdata->name;
-  const size_t off = !(fld->descriptor.rdata->qualifiers & ZONE_QUALIFIER_UNBOUNDED);
+  const size_t off = !(fld->descriptor.rdata->qualifiers & ZONE_UNBOUNDED);
   const ssize_t cnt = zone_decode(str, len, NULL, 0);
 
   if (cnt < 0)

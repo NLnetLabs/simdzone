@@ -142,7 +142,7 @@ static const field_t a[] = {
 };
 
 static const field_t ns[] = {
-  N(ZONE_QUALIFIER_COMPRESSED,
+  N(ZONE_COMPRESSED,
     0x04, 0x68, 0x6f, 0x73, 0x74, 0x07, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c,
     0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00
   )
@@ -152,14 +152,14 @@ static const field_t soa[] = {
   N(0,
     0x02, 0x6e, 0x73, 0x07, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x03,
     0x63, 0x6f, 0x6d, 0x00),
-  N(ZONE_QUALIFIER_MAILBOX,
+  N(ZONE_MAILBOX,
     0x03, 0x6e, 0x6f, 0x63, 0x07, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65,
     0x03, 0x63, 0x6f, 0x6d, 0x00),
   I4(0, 2022072501),
-  I4(ZONE_QUALIFIER_TIME_TO_LIVE, 1),
-  I4(ZONE_QUALIFIER_TIME_TO_LIVE, 2),
-  I4(ZONE_QUALIFIER_TIME_TO_LIVE, 3),
-  I4(ZONE_QUALIFIER_TIME_TO_LIVE, 4)
+  I4(ZONE_TTL, 1),
+  I4(ZONE_TTL, 2),
+  I4(ZONE_TTL, 3),
+  I4(ZONE_TTL, 4)
 };
 
 static const field_t txt[] = {
@@ -189,9 +189,9 @@ static const field_t rrsig[] = {
   I2(1u),
   I1(5u),
   I1(3u),
-  I4(ZONE_QUALIFIER_TIME_TO_LIVE, 86400),
-  I4(ZONE_QUALIFIER_TIME, 1048354263),
-  I4(ZONE_QUALIFIER_TIME, 1048354263),
+  I4(ZONE_TTL, 86400),
+  I4(ZONE_TIME, 1048354263),
+  I4(ZONE_TIME, 1048354263),
   I2(2642),
   N(0,
     0x07, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d,

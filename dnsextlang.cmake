@@ -78,23 +78,23 @@ set(AA_qual)
 set(AAAA_qual)
 # Domain name fields, section 3.5.3
 #   C: Domain name is compressed
-set(N_C_qual_print "ZONE_QUALIFIER_COMPRESSED")
+set(N_C_qual_print "ZONE_COMPRESSED")
 #   A: Domain name represents a mailbox
-set(N_A_qual_print "ZONE_QUALIFIER_MAILBOX")
+set(N_A_qual_print "ZONE_MAILBOX")
 #   L: Domain name is converted to lower case before DNSSEC validation
 set(N_L_qual_print "ZONE_LOWER_CASE")
 #   O: Domain name is optional and can only appear as the last field
-set(N_L_qual_print "ZONE_QUALIFIER_OPTIONAL")
+set(N_L_qual_print "ZONE_OPTIONAL")
 set(N_qual "[CALO]")
 # Type fields
-set(R_L_qual_print "ZONE_QUALIFIER_TYPE")
+set(R_L_qual_print "ZONE_TYPE")
 set(R_qual "[L]")
 # String fields
 #   S: Single string preceded by a one-octet length.
 #   S[M]: Multiple strings, each stored as a length and string. Must be last!
-set(S_M_qual_print "ZONE_QUALIFIER_SEQUENCE")
+set(S_M_qual_print "ZONE_SEQUENCE")
 #   S[X]: Raw string, without any length bytes. Must be last!
-set(S_X_qual_print "ZONE_QUALIFIER_UNBOUNDED")
+set(S_X_qual_print "ZONE_UNBOUNDED")
 set(S_qual "[MX]")
 # Base-32 and Base-64 fields
 set(B32_qual)
@@ -106,7 +106,7 @@ set(X_qual "[C]")
 # Time stamp fields
 #   T: Time. Require "YYYYMMDDHHmmSS" notation.
 #   T[L]: Time-to-live. Allow for "1h2m3s" notation and disallow use of MSB.
-set(T_L_qual_print "ZONE_QUALIFIER_TIME_TO_LIVE")
+set(T_L_qual_print "ZONE_TTL")
 set(T_qual "[L]")
 # Miscellaneous fields
 #   Z[WKS]: Bitmap of port numbers in the WKS RRTYPE.
@@ -360,10 +360,10 @@ foreach(id RANGE ${maxid})
       if(ftype STREQUAL "T")
         set(typename "ZONE_INT32")
         if(_${id}_${fid}_quals STREQUAL "L")
-          set(fquals "ZONE_QUALIFIER_TIME_TO_LIVE")
+          set(fquals "ZONE_TTL")
           set(typed "parse_ttl")
         else()
-          set(fquals "ZONE_QUALIFIER_TIME")
+          set(fquals "ZONE_TIME")
           set(typed "parse_time")
         endif()
       elseif(ftype STREQUAL "R")
@@ -372,7 +372,7 @@ foreach(id RANGE ${maxid})
           set(fquals "0")
         else()
           set(typename "ZONE_INT16")
-          set(fquals "ZONE_QUALIFIER_TYPE")
+          set(fquals "ZONE_TYPE")
           set(typed "parse_type")
         endif()
       elseif(ftype STREQUAL "X")
@@ -380,7 +380,7 @@ foreach(id RANGE ${maxid})
         if(_${id}_${fid}_quals STREQUAL "C")
           set(fquals "0")
         else()
-          set(fquals "ZONE_QUALIFIER_UNBOUNDED")
+          set(fquals "ZONE_UNBOUNDED")
         endif()
       elseif(ftype STREQUAL "Z")
         set(typename "${${ftype}_${_${id}_${fid}_quals}_type_print}")
