@@ -74,9 +74,10 @@
 
 static const struct type_descriptor unknown_type = { 0 };
 
-extern inline void *zone_malloc(zone_parser_t *par, size_t size);
-extern inline void *zone_realloc(zone_parser_t *par, void *ptr, size_t size);
-extern inline void zone_free(zone_parser_t *par, void *ptr);
+extern inline void *zone_malloc(void *opts, size_t size);
+extern inline void *zone_realloc(void *opts, void *ptr, size_t size);
+extern inline void zone_free(void *opts, void *ptr);
+extern inline char *zone_strdup(void *opts, const char *str);
 
 static inline uint64_t multiply(uint64_t lhs, uint64_t rhs, uint64_t max)
 {

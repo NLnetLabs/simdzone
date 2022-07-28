@@ -7,25 +7,22 @@
  *
  */
 #include <assert.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 
-#include "scanner.h"
+#include "parser.h"
 #include "util.h"
 
-static const char string[] = "<string>";
+static const char not_a_file[] = "<string>";
 
 extern inline zone_type_t zone_type(const zone_code_t code);
 extern inline zone_item_t zone_item(const zone_code_t code);
 
-zone_return_t zone_open_string(
-  zone_parser_t *par, const zone_options_t *opts, const char *str, size_t len)
+static zone_return_t check_options(const zone_options_t *opts)
 {
-  zone_file_t *file;
-
-  if (!str)
-    return ZONE_BAD_PARAMETER;
-
   // custom allocator must be fully specified or not at all
   int alloc = (opts->allocator.malloc != 0) +
               (opts->allocator.realloc != 0) +
@@ -33,7 +30,6 @@ zone_return_t zone_open_string(
               (opts->allocator.arena != NULL);
   if (alloc != 0 && alloc != 4)
     return ZONE_BAD_PARAMETER;
-  //
   if (!opts->accept.rr)
     return ZONE_BAD_PARAMETER;
   if (!opts->accept.rdata)
@@ -41,17 +37,29 @@ zone_return_t zone_open_string(
   if (!opts->accept.delimiter)
     return ZONE_BAD_PARAMETER;
 
-  if (!(file = calloc(1, sizeof(*file))))
-    return ZONE_OUT_OF_MEMORY;
-  file->name = string;
-  file->path = string;
-  file->handle = NULL; // valid for fixed buffer
-  file->buffer.used = len;
-  file->buffer.size = len;
+  return 0;
+}
+
+zone_return_t zone_open_string(
+  zone_parser_t *par, const zone_options_t *opts, const char *str, size_t len)
+{
+  zone_return_t ret;
+  zone_file_t *file;
+
+  if (!str)
+    return ZONE_BAD_PARAMETER;
+  if ((ret = check_options(opts)) < 0)
+    return ret;
+
+  memset(par, 0, sizeof(*par));
+  file = &par->first;
+  file->name = not_a_file;
+  file->path = not_a_file;
+  file->handle = -1; // valid for fixed buffer icw string
+  file->buffer.used = file->buffer.size = len;
   file->buffer.data.read = str;
   file->position.line = 1;
   file->position.column = 1;
-  memset(par, 0, sizeof(*par));
   par->scanner.state = ZONE_INITIAL;
   par->parser.state = ZONE_INITIAL;
   par->file = file;
@@ -59,20 +67,77 @@ zone_return_t zone_open_string(
   return 0;
 }
 
+zone_return_t zone_open(
+  zone_parser_t *par, const zone_options_t *ropts, const char *path)
+{
+  zone_return_t ret;
+  zone_file_t *file;
+  zone_options_t opts = *ropts;
+  int fd = -1;
+  char buf[PATH_MAX], *relpath = NULL, *abspath = NULL;
+
+  if (!path)
+    return ZONE_BAD_PARAMETER;
+  if ((ret = check_options(&opts)) < 0)
+    return ret;
+  if (!realpath(path, buf))
+    return ZONE_BAD_PARAMETER;
+
+  if (!(relpath = zone_strdup(&opts, path)))
+    goto err_relpath;
+  if (!(abspath = zone_strdup(&opts, buf)))
+    goto err_abspath;
+  if ((fd = open(buf, O_RDONLY)) == -1)
+    goto err_open;
+
+  memset(par, 0, sizeof(*par));
+  file = &par->first;
+  file->name = relpath;
+  file->path = abspath;
+  file->handle = fd;
+  file->buffer.used = file->buffer.size = 0;
+  file->buffer.data.write = NULL;
+  file->position.line = 1;
+  file->position.column = 1;
+  par->scanner.state = ZONE_INITIAL;
+  par->parser.state = ZONE_INITIAL;
+  par->file = file;
+  par->options = opts;
+  if (!par->options.block_size)
+    par->options.block_size = 4096;
+  return 0;
+err_open:
+  zone_free(&opts, abspath);
+err_abspath:
+  zone_free(&opts, relpath);
+err_relpath:
+  return ZONE_OUT_OF_MEMORY;
+}
+
 void zone_close(zone_parser_t *par)
 {
-  if (par) {
-    if (par->file) {
-      if (par->file->handle)
-        fclose(par->file->handle);
-      free(par->file);
+  if (!par)
+    return;
+
+  for (zone_file_t *file = par->file, *includer; file; file = includer) {
+    includer = file->includer;
+    if (file->handle != -1) {
+      if (file->buffer.data.write)
+        zone_free(par, file->buffer.data.write);
+      assert(file->name != not_a_file);
+      assert(file->path != not_a_file);
+      zone_free(par, (char *)file->name);
+      zone_free(par, (char *)file->path);
+      (void)close(file->handle);
+      if (file != &par->first)
+        zone_free(par, file);
+    } else {
+      assert(file->name == not_a_file);
+      assert(file->path == not_a_file);
+      assert(file == &par->first);
+      assert(!includer);
     }
   }
-  // FIXME: implement
-  // x. close the whole thing.
-  // x. cleanup buffers
-  // x. etc, etc, etc
-  return;
 }
 
 static int mapcmp(const void *p1, const void *p2)

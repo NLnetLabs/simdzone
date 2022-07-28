@@ -35,26 +35,45 @@ zone_parse_name(
   uint8_t str[255],
   size_t *len);
 
-inline void *zone_malloc(zone_parser_t *par, size_t size)
+inline void *zone_malloc(void *vopts, size_t size)
 {
-  if (!par->options.allocator.malloc)
+  zone_options_t *opts = vopts;
+  if (!opts->allocator.malloc)
     return malloc(size);
-  return par->options.allocator.malloc(par->options.allocator.arena, size);
+  return opts->allocator.malloc(opts->allocator.arena, size);
 }
 
-inline void *zone_realloc(zone_parser_t *par, void *ptr, size_t size)
+inline void *zone_realloc(void *vopts, void *ptr, size_t size)
 {
-  if (!par->options.allocator.realloc)
+  zone_options_t *opts = vopts;
+  if (!opts->allocator.realloc)
     return realloc(ptr, size);
-  return par->options.allocator.realloc(par->options.allocator.arena, ptr, size);
+  return opts->allocator.realloc(opts->allocator.arena, ptr, size);
 }
 
-inline void zone_free(zone_parser_t *par, void *ptr)
+inline void zone_free(void *vopts, void *ptr)
 {
-  if (!par->options.allocator.free)
+  zone_options_t *opts = vopts;
+  if (!opts->allocator.free)
     free(ptr);
   else
-    par->options.allocator.free(par->options.allocator.arena, ptr);
+    opts->allocator.free(opts->allocator.arena, ptr);
+}
+
+inline char *zone_strdup(void *vopts, const char *str)
+{
+  zone_options_t *opts = vopts;
+  size_t len = strlen(str);
+  char *ptr;
+  if (!opts->allocator.malloc)
+    ptr = malloc(len + 1);
+  else
+    ptr = opts->allocator.malloc(opts->allocator.arena, len + 1);
+  if (!ptr)
+    return NULL;
+  memcpy(ptr, str, len);
+  ptr[len] = '\0';
+  return ptr;
 }
 
 typedef zone_return_t(*rdata_parse_t)(

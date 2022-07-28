@@ -7,21 +7,63 @@
  *
  */
 #include <assert.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdarg.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "parser.h"
 
-static zone_return_t refill(const zone_parser_t *par)
+static zone_return_t refill(zone_parser_t *par)
 {
-  // FIXME: implement
-  // x. take into account the offset and cursor
-  (void)par;
-  return ZONE_OUT_OF_MEMORY;
+  zone_file_t *file = par->file;
+
+  assert(file->handle != -1 && !file->empty);
+  assert(file->name != file->path);
+
+  // shuffle buffer if sensible
+  if (file->buffer.cursor > file->buffer.used / 2) {
+    memmove(file->buffer.data.write,
+            file->buffer.data.write + file->buffer.cursor,
+            file->buffer.used - file->buffer.cursor);
+    file->buffer.used = file->buffer.used - file->buffer.cursor;
+    file->buffer.cursor = 0;
+  }
+
+  // grow buffer if no space is available
+  if (file->buffer.used == file->buffer.size) {
+    // highly unlikely, but still
+    if (file->buffer.size > SIZE_MAX - par->options.block_size)
+      return (par->scanner.state = ZONE_OUT_OF_MEMORY);
+
+    size_t size = file->buffer.size + par->options.block_size;
+    char *buf;
+    if (!(buf = zone_realloc(par, file->buffer.data.write, size)))
+      return (par->scanner.state = ZONE_OUT_OF_MEMORY);
+    file->buffer.size = size;
+    file->buffer.data.write = buf;
+  }
+
+  ssize_t cnt;
+
+  do {
+    cnt = read(file->handle,
+               file->buffer.data.write + file->buffer.used,
+               file->buffer.size - file->buffer.used);
+  } while (cnt == -1 && errno == EINTR);
+
+  if (cnt == -1)
+    return (par->scanner.state = ZONE_READ_ERROR);
+  assert(cnt >= 0);
+  if (cnt == 0)
+    file->empty = true;
+
+  file->buffer.used += (size_t)cnt;
+  return 0;
 }
 
 static int32_t peek(const zone_parser_t *par, size_t idx)
@@ -30,7 +72,7 @@ static int32_t peek(const zone_parser_t *par, size_t idx)
   assert(par->file->buffer.cursor <= par->file->buffer.used);
   if (idx < par->file->buffer.used - par->file->buffer.cursor)
     return par->file->buffer.data.read[par->file->buffer.cursor + idx];
-  return !par->file->handle || feof(par->file->handle) ? 0 : ZONE_REFRESH_BUFFER;
+  return par->file->handle == -1 || par->file->empty ? 0 : ZONE_REFRESH_BUFFER;
 }
 
 static inline zone_return_t

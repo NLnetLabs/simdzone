@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <netinet/in.h>
 
@@ -42,7 +43,8 @@ struct zone_file {
   zone_position_t position;
   const char *name; // file name in include directive
   const char *path; // fully-qualified path to include file
-  FILE *handle;
+  int handle;
+  bool empty;
   struct {
     size_t cursor;
     size_t used;
@@ -231,6 +233,7 @@ struct zone_options {
   uint32_t flags;
   uint16_t default_class;
   uint32_t default_ttl;
+  size_t block_size;
   struct {
     zone_malloc_t malloc;
     zone_realloc_t realloc;
@@ -247,8 +250,8 @@ struct zone_options {
 };
 
 struct zone_parser {
-  zone_file_t *file;
   zone_options_t options;
+  zone_file_t first, *file;
   struct {
     zone_code_t state;
   } scanner;
@@ -302,7 +305,8 @@ struct zone_parser {
 #define ZONE_SEMANTIC_ERROR (-2)
 #define ZONE_OUT_OF_MEMORY (-3)
 #define ZONE_BAD_PARAMETER (-4)
-#define ZONE_NOT_IMPLEMENTED (-5)
+#define ZONE_READ_ERROR (-5)
+#define ZONE_NOT_IMPLEMENTED (-6)
 
 // initializes the parser with a static fixed buffer
 zone_return_t zone_open_string(
