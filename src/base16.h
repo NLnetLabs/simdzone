@@ -26,6 +26,8 @@ static inline zone_return_t accept_base16(
     zone_free(par, octs);
   par->parser.base16.length = 0;
   par->parser.base16.state = 0;
+  // FIXME: improve, quick hack
+  par->parser.wks.protocol = NULL;
   return 0;
 }
 

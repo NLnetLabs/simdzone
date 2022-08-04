@@ -8,6 +8,7 @@ void zone_error(const zone_parser_t *par, const char *fmt, ...)
 {
   assert(par);
   assert(fmt);
+  (void)par;
   // pending a proper implementation
   va_list ap;
   va_start(ap, fmt);

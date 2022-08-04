@@ -55,6 +55,8 @@ static inline zone_return_t accept_nsec(
   if ((ret = par->options.accept.rdata(par, fld, ptr)) < 0)
     zone_free(par, octs);
   par->parser.nsec.highest_bit = 0;
+  // FIXME: improve, quick hack
+  par->parser.wks.protocol = NULL;
   return ret;
 }
 

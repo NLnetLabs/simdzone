@@ -170,6 +170,8 @@ zone_return_t accept_base64(
   par->parser.base64.pad = 0;
   par->parser.base64.state = 0;
   par->parser.base64.length = 0;
+  // FIXME: quick hack
+  par->parser.wks.protocol = NULL;
   return 0;
 }
 

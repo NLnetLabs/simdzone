@@ -103,6 +103,9 @@ target_include_directories(
 set_target_properties(zone PROPERTIES C_STANDARD_REQUIRED 11)
 target_link_libraries(zone)
 
+add_executable(zone-parser src/main.c)
+target_link_libraries(zone-parser PRIVATE zone)
+
 option(BUILD_TESTING "Build the testing tree." OFF)
 
 include(CTest)
