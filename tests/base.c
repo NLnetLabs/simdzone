@@ -252,8 +252,9 @@ struct {
   { 28, "host.example.com. 1 IN AAAA 2001:DB8::1",
         RDATA(aaaa) },
   { 43, "dskey.example.com. 86400 IN DS 60485 5 1 (\n"
-        "2BB183AF5F22588179A53B0A"
-        "98631FAD1A292118 )",
+        "2BB183AF5F22588179A53B0A\n"
+        "98631FAD1A292118\n"
+        ")",
         RDATA(ds) },
   { 46, "host.example.com. 1 IN RRSIG A "
         "RSASHA1 3 86400 20030322173103 20030322173103 2642 example.com. (\n"
@@ -264,15 +265,15 @@ struct {
         "J5D6fwFm8nN+6pBzeDQfsS3Ap3o=\n"
         ")",
         RDATA(rrsig) },
-  { 48, "dskey.example.com. 86400 IN DNSKEY 256 3 5 ("
-        "AQOeiiR0GOMYkDshWoSKz9Xz"
-        "fwJr1AYtsmx3TGkJaNXVbfi/"
-        "2pHm822aJ5iI9BMzNXxeYCmZ"
-        "DRD99WYwYqUSdjMmmAphXdvx"
-        "egXd/M5+X7OrzKBaMbCVdFLU"
-        "Uh6DhweJBjEVv5f2wwjM9Xzc"
-        "nOf+EPbtG9DMBmADjFDc2w/r"
-        "ljwvFw=="
+  { 48, "dskey.example.com. 86400 IN DNSKEY 256 3 5 (\n"
+        "AQOeiiR0GOMYkDshWoSKz9Xz\n"
+        "fwJr1AYtsmx3TGkJaNXVbfi/\n"
+        "2pHm822aJ5iI9BMzNXxeYCmZ\n"
+        "DRD99WYwYqUSdjMmmAphXdvx\n"
+        "egXd/M5+X7OrzKBaMbCVdFLU\n"
+        "Uh6DhweJBjEVv5f2wwjM9Xzc\n"
+        "nOf+EPbtG9DMBmADjFDc2w/r\n"
+        "ljwvFw==\n"
         ") ;  key id = 60485",
         RDATA(dnskey) }
 };

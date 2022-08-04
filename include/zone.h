@@ -310,10 +310,17 @@ struct zone_parser {
         //   6: parsed 16 bits and have (at least) one '='
         uint8_t state;
         uint8_t pad;
-        uint8_t decoded[3];
+        uint8_t decoded[3]; // << do we even need this?!?!
         uint16_t length;
         uint8_t octets[UINT16_MAX];
       } base64;
+      struct {
+        // 0: parse bits 0-3
+        // 1: parse bits 4-7
+        uint8_t state;
+        uint16_t length;
+        uint8_t octets[UINT16_MAX];
+      } base16;
     };
     // FIXME: some record types require special handling of rdata. e.g. WKS,
     //        where all services are consolidated in a bitmap, and SVCB, where

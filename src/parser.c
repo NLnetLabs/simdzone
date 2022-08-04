@@ -23,6 +23,7 @@
 #include "wks.h"
 #include "svcb.h"
 #include "base64.h"
+#include "base16.h"
 
 #define TYPES(...) \
   static const struct type_descriptor types[] = { __VA_ARGS__ };
@@ -346,7 +347,7 @@ static const struct {
   { parse_string, parse_generic_string, 0 },
   { 0, 0, 0 },
   { parse_base64, 0, accept_base64 },
-  { parse_binary, 0, 0 },
+  { parse_base16, 0, accept_base16 },
   { 0, 0, 0 },
   { 0, 0, 0 },
   { 0, 0, 0 },
