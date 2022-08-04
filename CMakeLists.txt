@@ -94,7 +94,6 @@ add_library(zone SHARED
   src/scanner.c
   src/parser.c
   src/log.c
-  src/base64.c
   src/util.c
   "${CMAKE_CURRENT_BINARY_DIR}/src/types.h"
   "${CMAKE_CURRENT_BINARY_DIR}/src/grammar.h")

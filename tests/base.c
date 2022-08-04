@@ -256,12 +256,13 @@ struct {
         "98631FAD1A292118 )",
         RDATA(ds) },
   { 46, "host.example.com. 1 IN RRSIG A "
-        "RSASHA1 3 86400 20030322173103 20030322173103 2642 example.com. "
-        "oJB1W6WNGv+ldvQ3WDG0MQkg5IEhjRip8WTr"
-        "PYGv07h108dUKGMeDPKijVCHX3DDKdfb+v6o"
-        "B9wfuh3DTJXUAfI/M0zmO/zz8bW0Rznl8O3t"
-        "GNazPwQKkRN20XPXV6nwwfoXmJQbsLNrLfkG"
-        "J5D6fwFm8nN+6pBzeDQfsS3Ap3o=",
+        "RSASHA1 3 86400 20030322173103 20030322173103 2642 example.com. (\n"
+        "oJB1W6WNGv+ldvQ3WDG0MQkg5IEhjRip8WTr\n"
+        "PYGv07h108dUKGMeDPKijVCHX3DDKdfb+v6o\n"
+        "B9wfuh3DTJXUAfI/M0zmO/zz8bW0Rznl8O3t\n"
+        "GNazPwQKkRN20XPXV6nwwfoXmJQbsLNrLfkG\n"
+        "J5D6fwFm8nN+6pBzeDQfsS3Ap3o=\n"
+        ")",
         RDATA(rrsig) },
   { 48, "dskey.example.com. 86400 IN DNSKEY 256 3 5 ("
         "AQOeiiR0GOMYkDshWoSKz9Xz"

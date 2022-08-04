@@ -18,6 +18,11 @@
 
 #include "parser.h"
 
+extern inline zone_char_t zone_string_peek(
+  const zone_string_t *, size_t *, uint32_t);
+extern inline zone_char_t zone_string_next(
+  const zone_string_t *, size_t *, uint32_t);
+
 static zone_return_t refill(zone_parser_t *par)
 {
   zone_file_t *file = par->file;
@@ -72,7 +77,7 @@ static int32_t peek(const zone_parser_t *par, size_t idx)
   assert(par->file->buffer.cursor <= par->file->buffer.used);
   if (idx < par->file->buffer.used - par->file->buffer.cursor)
     return par->file->buffer.data.read[par->file->buffer.cursor + idx];
-  return par->file->handle == -1 || par->file->empty ? 0 : ZONE_REFRESH_BUFFER;
+  return par->file->handle == -1 || par->file->empty ? 0 : ZONE_REFILL_BUFFER;
 }
 
 static inline zone_return_t
@@ -603,7 +608,7 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
 
   do {
     code = scan(par, tok);
-    if (code == ZONE_REFRESH_BUFFER) {
+    if (code == ZONE_REFILL_BUFFER) {
       code = refill(par);
     } else if (code == ';') {
       // ignore comments
@@ -647,7 +652,7 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
         return scan_rdata(par, tok);
       }
     }
-  } while (code == ZONE_REFRESH_BUFFER || code >= 0);
+  } while (code == ZONE_REFILL_BUFFER || code >= 0);
 
   return code;
 }

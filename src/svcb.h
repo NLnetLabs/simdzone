@@ -269,9 +269,10 @@ parse_ech(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   int len;
-  uint8_t *octs;
-  size_t size;
-
+//  uint8_t *octs;
+//  size_t size;
+(void)fld;
+(void)par;
   (void)ptr;
   assert(tok->svc_param.value.length);
   assert(!tok->svc_param.value.escaped);
@@ -280,22 +281,24 @@ parse_ech(
   const size_t n = tok->svc_param.value.length;
   if (n == 1 && s[0] == '0')
     len = 0;
-  else if ((len = b64_pton(s, n, NULL, 0)) < 0)
-    SEMANTIC_ERROR(par, "{l}: Invalid base64 sequence in ech parameter", tok);
-  else if (len > UINT16_MAX)
-    SEMANTIC_ERROR(par, "{l}: Invalid base64 sequence in ech, "
-                        "value exceeds maximum", tok);
+  (void)len;
+//  else if ((len = b64_pton(s, n, NULL, 0)) < 0)
+//    SEMANTIC_ERROR(par, "{l}: Invalid base64 sequence in ech parameter", tok);
+//  else if (len > UINT16_MAX)
+//    SEMANTIC_ERROR(par, "{l}: Invalid base64 sequence in ech, "
+//                        "value exceeds maximum", tok);
+  return ZONE_SYNTAX_ERROR;
 
-  size = 4 * sizeof(uint8_t) + (size_t)len;
-  if (!(octs = zone_malloc(par, size)))
-    return ZONE_OUT_OF_MEMORY;
-  *((uint16_t *)&octs[0]) = htons(5);
-  *((uint16_t *)&octs[2]) = htons((uint16_t)len);
-  if (len > 0)
-    b64_pton(s, n, &octs[4], (size_t)len);
-  fld->svc_param.length = size;
-  fld->svc_param.octets = octs;
-  return 0;
+//  size = 4 * sizeof(uint8_t) + (size_t)len;
+//  if (!(octs = zone_malloc(par, size)))
+//    return ZONE_OUT_OF_MEMORY;
+//  *((uint16_t *)&octs[0]) = htons(5);
+//  *((uint16_t *)&octs[2]) = htons((uint16_t)len);
+//  if (len > 0)
+//    b64_pton(s, n, &octs[4], (size_t)len);
+//  fld->svc_param.length = size;
+//  fld->svc_param.octets = octs;
+//  return 0;
 }
 
 static inline int zone_inet_pton(

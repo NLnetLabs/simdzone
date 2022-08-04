@@ -60,22 +60,6 @@ inline void zone_free(void *vopts, void *ptr)
     opts->allocator.free(opts->allocator.arena, ptr);
 }
 
-inline char *zone_strdup(void *vopts, const char *str)
-{
-  zone_options_t *opts = vopts;
-  size_t len = strlen(str);
-  char *ptr;
-  if (!opts->allocator.malloc)
-    ptr = malloc(len + 1);
-  else
-    ptr = opts->allocator.malloc(opts->allocator.arena, len + 1);
-  if (!ptr)
-    return NULL;
-  memcpy(ptr, str, len);
-  ptr[len] = '\0';
-  return ptr;
-}
-
 typedef zone_return_t(*rdata_parse_t)(
   zone_parser_t *, const zone_token_t *, zone_field_t *, void *);
 

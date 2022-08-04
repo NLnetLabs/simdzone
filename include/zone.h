@@ -154,6 +154,21 @@ struct zone_type_descriptor {
   const char *description;
 };
 
+//
+// FIXME: the field requires some changes. namely, we always want to have
+//        the length and octets combination available, and each and every
+//        field must be allocated from heap to simplify usage.
+//        we could simply make it easy to dereference some types.
+//        union {
+//          const void *domain;
+//          uint8_t *int8;
+//          uint16_t *int16;
+//          uint32_t *int32;
+//          struct in_addr *ip4;
+//          struct in6_addr *ip6;
+//          struct { uint8_t *octets; size_t length; } wire;
+//        };
+//
 typedef struct zone_field zone_field_t;
 struct zone_field {
   zone_location_t location;
@@ -283,8 +298,22 @@ struct zone_parser {
       } wks;
       struct {
         uint16_t highest_bit;
-        uint8_t bits[256][256];
+        uint8_t bits[256][256 / 8];
       } nsec;
+      struct {
+        // base64 state can be any of:
+        //   0: parse bits 0-5
+        //   2: parse bits 6-11
+        //   3: parse bits 12-17
+        //   4: parse bits 18-23
+        //   5: parsed 8 bits and have (at least) one '='
+        //   6: parsed 16 bits and have (at least) one '='
+        uint8_t state;
+        uint8_t pad;
+        uint8_t decoded[3];
+        uint16_t length;
+        uint8_t octets[UINT16_MAX];
+      } base64;
     };
     // FIXME: some record types require special handling of rdata. e.g. WKS,
     //        where all services are consolidated in a bitmap, and SVCB, where

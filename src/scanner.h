@@ -9,11 +9,11 @@
 #ifndef ZONE_SCANNER_H
 #define ZONE_SCANNER_H
 
-#include "zone.h"
+#include "slice.h"
 
-// private return codes
+// specialized return codes
 #define ZONE_DEFER_ACCEPT (-50)
-#define ZONE_REFRESH_BUFFER (-51)
+#define ZONE_REFILL_BUFFER (-51)
 
 // scanner states
 //
@@ -45,13 +45,6 @@
 #define ZONE_GROUPED (1 << 24)
 #define ZONE_GENERIC_RDATA (1 << 25) // parsing generic rdata (RFC3597)
 #define ZONE_DEFERRED_RDATA (1 << 26)
-
-typedef struct zone_string zone_string_t;
-struct zone_string {
-  const char *data;
-  size_t length;
-  int32_t escaped;
-};
 
 typedef struct zone_token zone_token_t;
 struct zone_token {

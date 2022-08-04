@@ -22,6 +22,7 @@
 #include "nsec.h"
 #include "wks.h"
 #include "svcb.h"
+#include "base64.h"
 
 #define TYPES(...) \
   static const struct type_descriptor types[] = { __VA_ARGS__ };
@@ -77,7 +78,6 @@ static const struct type_descriptor unknown_type = { 0 };
 extern inline void *zone_malloc(void *opts, size_t size);
 extern inline void *zone_realloc(void *opts, void *ptr, size_t size);
 extern inline void zone_free(void *opts, void *ptr);
-extern inline char *zone_strdup(void *opts, const char *str);
 
 static inline uint64_t multiply(uint64_t lhs, uint64_t rhs, uint64_t max)
 {
@@ -345,7 +345,7 @@ static const struct {
   { parse_domain_name, 0, 0 },
   { parse_string, parse_generic_string, 0 },
   { 0, 0, 0 },
-  { parse_base64, 0, 0 },
+  { parse_base64, 0, accept_base64 },
   { parse_binary, 0, 0 },
   { 0, 0, 0 },
   { 0, 0, 0 },

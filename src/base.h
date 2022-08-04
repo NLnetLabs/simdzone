@@ -258,36 +258,6 @@ zone_return_t parse_type(
   return ZONE_RDATA;
 }
 
-#define B64BUFSIZE 65536
-
-zone_return_t parse_base64(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  char unesc[B64BUFSIZE*2];
-  uint8_t dec[B64BUFSIZE];
-  ssize_t len = -1;
-  const zone_rdata_descriptor_t *desc = fld->descriptor.rdata;
-
-  (void)ptr;
-  if (tok->string.escaped)
-    len = zone_unescape(tok->string.data, tok->string.length, unesc, sizeof(unesc), 0);
-  else if (tok->string.length < sizeof(unesc))
-    memcpy(unesc, tok->string.data, (len = tok->string.length));
-
-  if (len < 0)
-    SYNTAX_ERROR(par, "{l}: Invalid base64 data in %s", tok, desc->name);
-  unesc[len] = '\0';
-
-  int declen = b64_pton(unesc, len, dec, sizeof(dec));
-  if (declen == -1)
-    SYNTAX_ERROR(par, "{l}: Invalid base64 data in %s", tok, desc->name);
-
-  if (!(fld->b64.octets = zone_malloc(par, (size_t)len)))
-    return ZONE_OUT_OF_MEMORY;
-  memcpy(fld->b64.octets, dec, (size_t)declen);
-  fld->b64.length = declen;
-  return ZONE_RDATA;
-}
 
 zone_return_t parse_generic_ip4(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)

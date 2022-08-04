@@ -67,6 +67,22 @@ zone_return_t zone_open_string(
   return 0;
 }
 
+static char *zone_strdup(void *vopts, const char *str)
+{
+  zone_options_t *opts = vopts;
+  size_t len = strlen(str);
+  char *ptr;
+  if (!opts->allocator.malloc)
+    ptr = malloc(len + 1);
+  else
+    ptr = opts->allocator.malloc(opts->allocator.arena, len + 1);
+  if (!ptr)
+    return NULL;
+  memcpy(ptr, str, len);
+  ptr[len] = '\0';
+  return ptr;
+}
+
 zone_return_t zone_open(
   zone_parser_t *par, const zone_options_t *ropts, const char *path)
 {
