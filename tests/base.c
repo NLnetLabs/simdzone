@@ -37,10 +37,10 @@ typedef struct {
 
 static zone_return_t accept_rr(
   const zone_parser_t *par,
-  zone_field_t *owner,
-  zone_field_t *ttl,
-  zone_field_t *class,
-  zone_field_t *type,
+  const zone_field_t *owner,
+  const zone_field_t *ttl,
+  const zone_field_t *class,
+  const zone_field_t *type,
   void *user_data)
 {
   (void)par;
@@ -54,7 +54,7 @@ static zone_return_t accept_rr(
 
 static zone_return_t accept_rdata(
   const zone_parser_t *par,
-  zone_field_t *fld,
+  const zone_field_t *rdata,
   void *user_data)
 {
   int eq = 0;
@@ -63,50 +63,50 @@ static zone_return_t accept_rdata(
   (void)par;
   if (test->count == test->length)
     return ZONE_SYNTAX_ERROR;
-  if ((test->fields[test->count].code | ZONE_RDATA) != fld->code)
+  if ((test->fields[test->count].code | ZONE_RDATA) != rdata->code)
     return ZONE_SYNTAX_ERROR;
   switch (test->fields[test->count].code) {
     case ZONE_INT8:
-      eq = test->fields[test->count].int8 == fld->int8;
+      eq = test->fields[test->count].int8 == *rdata->wire.int8;
       break;
     case ZONE_INT16:
-      eq = test->fields[test->count].int16 == ntohs(fld->int16);
+      eq = test->fields[test->count].int16 == ntohs(*rdata->wire.int16);
       break;
     case ZONE_INT32:
-      eq = test->fields[test->count].int32 == ntohl(fld->int32);
+      eq = test->fields[test->count].int32 == ntohl(*rdata->wire.int32);
       break;
     case ZONE_IP4:
-      eq = test->fields[test->count].ip4.s_addr == fld->ip4->s_addr;
+      if (sizeof(test->fields[test->count].ip4.s_addr) == rdata->wire.length)
+        eq = !memcmp(&test->fields[test->count].ip4.s_addr,
+                     rdata->wire.octets, rdata->wire.length);
       break;
     case ZONE_IP6:
-      eq = !memcmp(test->fields[test->count].ip6.s6_addr,
-                   fld->ip6->s6_addr,
-                   sizeof(fld->ip6->s6_addr));
+      if (sizeof(test->fields[test->count].ip6.s6_addr) == rdata->wire.length)
+        eq = !memcmp(&test->fields[test->count].ip6.s6_addr,
+                     rdata->wire.octets, rdata->wire.length);
       break;
     case ZONE_NAME:
-      if (test->fields[test->count].name.length == fld->name.length)
+      if (test->fields[test->count].name.length == rdata->wire.length)
         eq = !memcmp(test->fields[test->count].name.octets,
-                     fld->name.octets, fld->name.length);
+                     rdata->wire.octets, rdata->wire.length);
       break;
     case ZONE_BASE64:
-      if (test->fields[test->count].b64.length == fld->b64.length)
+      if (test->fields[test->count].b64.length == rdata->wire.length)
         eq = !memcmp(test->fields[test->count].b64.octets,
-                     fld->b64.octets,
-                     fld->b64.length);
+                     rdata->wire.octets, rdata->wire.length);
       break;
     case ZONE_STRING:
     {
-      size_t len = (size_t)*fld->string;
-      const uint8_t *str = fld->string + 1;
+      size_t len = (size_t)*rdata->wire.octets;
+      const uint8_t *str = rdata->wire.octets + 1;
       if (test->fields[test->count].string.length == len)
         eq = !memcmp(test->fields[test->count].string.octets, str, len);
     }
       break;
-    case ZONE_BINARY:
-      if (test->fields[test->count].binary.length == fld->binary.length)
+    case ZONE_BASE16:
+      if (test->fields[test->count].binary.length == rdata->wire.length)
         eq = !memcmp(test->fields[test->count].binary.octets,
-                     fld->binary.octets,
-                     fld->binary.length);
+                     rdata->wire.octets, rdata->wire.length);
       break;
     default:
       break;
@@ -118,7 +118,7 @@ static zone_return_t accept_rdata(
 
 static zone_return_t accept_delimiter(
   const zone_parser_t *par,
-  zone_field_t *fld,
+  const zone_field_t *fld,
   void *user_data)
 {
   (void)par;
@@ -135,7 +135,7 @@ static zone_return_t accept_delimiter(
 #define N(o, ...) { .code = ZONE_NAME, .options = o, .name = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
 #define B64(...) { .code = ZONE_BASE64, .options = 0, .b64 = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
 #define S(x) { .code = ZONE_STRING, .options = 0, .string = { .length = sizeof(x) - 1, .octets = (uint8_t *)x } }
-#define X(...) { .code = ZONE_BINARY, .options = 0, .binary = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
+#define X(...) { .code = ZONE_BASE16, .options = 0, .binary = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
 
 static const field_t a[] = {
   A(16908480)

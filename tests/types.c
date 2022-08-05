@@ -17,28 +17,28 @@
 #include "parser.h"
 
 struct str_test {
-  struct { size_t length; uint8_t *octets; } owner;
+  struct { size_t length; uint8_t octets[255]; } owner;
   uint32_t ttl;
   uint16_t class;
   uint16_t type;
   size_t rdcount;
-  uint8_t *rdata[2];
+  uint8_t rdata[2][256];
 };
 
 static zone_return_t accept_rr(
   const zone_parser_t *par,
-  zone_field_t *owner,
-  zone_field_t *ttl,
-  zone_field_t *class,
-  zone_field_t *type,
+  const zone_field_t *owner,
+  const zone_field_t *ttl,
+  const zone_field_t *class,
+  const zone_field_t *type,
   void *user_data)
 {
   struct str_test *test = user_data;
 
   (void)par;
   assert(test);
-  test->owner.length = owner->name.length;
-  test->owner.octets = owner->name.octets;
+  test->owner.length = owner->wire.length;
+  memcpy(test->owner.octets, owner->wire.octets, owner->wire.length);
   if (zone_type(ttl->code) == ZONE_INT32)
     test->ttl = ttl->int32;
   if (zone_type(class->code) == ZONE_INT16)
@@ -51,15 +51,15 @@ static zone_return_t accept_rr(
 
 static zone_return_t accept_rdata(
   const zone_parser_t *par,
-  zone_field_t *rdata,
+  const zone_field_t *rdata,
   void *user_data)
 {
   struct str_test *test = user_data;
 
   (void)par;
   assert(test);
-  if (test->rdcount < 2 && zone_type(rdata->code) == ZONE_STRING)
-    test->rdata[test->rdcount] = rdata->string;
+  if (test->rdcount < 2)
+    memcpy(test->rdata[test->rdcount], rdata->wire.octets, rdata->wire.length);
   test->rdcount++;
 
   return 0;
@@ -67,7 +67,7 @@ static zone_return_t accept_rdata(
 
 static zone_return_t accept_delimiter(
   const zone_parser_t *par,
-  zone_field_t *delimiter,
+  const zone_field_t *delimiter,
   void *user_data)
 {
   (void)par;
@@ -128,12 +128,6 @@ void str_type_max_len(void **state)
       assert_memory_equal(&test.rdata[1][1], os, test.rdata[1][0]);
     }
 
-    if (test.owner.octets)
-      free(test.owner.octets);
-    if (test.rdata[0])
-      free(test.rdata[0]);
-    if (test.rdata[1])
-      free(test.rdata[1]);
     zone_close(&par);
   }
 }
@@ -182,9 +176,6 @@ void str_type_min_len(void **state)
     assert_int_equal(test.rdata[1][0], strlen(tests[i].os));
     assert_memory_equal(&test.rdata[1][1], tests[i].os, test.rdata[1][0]);
 
-    free(test.owner.octets);
-    free(test.rdata[0]);
-    free(test.rdata[1]);
     zone_close(&par);
   }
 }

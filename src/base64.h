@@ -127,52 +127,22 @@ static const char Pad64 = '=';
 zone_return_t accept_base64(
   zone_parser_t *par, zone_field_t *fld, void *ptr)
 {
-  size_t len = 0;
-  uint8_t *octs;
 
-  switch (par->parser.base64.state) {
+  switch (par->rdata.state.base64) {
     case 0:
       break;
     case 1:
       SEMANTIC_ERROR(par, "Invalid base64 sequence");
     case 2:
-    case 4:
-      if (par->parser.base64.pad != 2)
-        SEMANTIC_ERROR(par, "Missing padding characters!");
-      len = 1;
-      break;
     case 3:
+    case 4:
+      SEMANTIC_ERROR(par, "Missing padding characters!");
     case 5:
-      if (par->parser.base64.pad != 1)
-        SEMANTIC_ERROR(par, "Missing padding characters!");
-      len = 2;
       break;
   }
 
-  if (par->parser.base64.length > sizeof(par->parser.base64.octets) - len)
-    SEMANTIC_ERROR(par, "Base64 data is too much!");
-
-  memmove(&par->parser.base64.octets[par->parser.base64.length],
-          &par->parser.base64.decoded[0], len);
-  par->parser.base64.length += len;
-
-
-  if (!(octs = zone_malloc(par, par->parser.base64.length)))
-    return ZONE_OUT_OF_MEMORY;
-  memcpy(octs, par->parser.base64.octets, par->parser.base64.length);
-  fld->b64.length = par->parser.base64.length;
-  fld->b64.octets = octs;
-
-  zone_return_t ret;
-  if ((ret = par->options.accept.rdata(par, fld, ptr)) < 0)
-    zone_free(par, octs);
-
-  par->parser.base64.pad = 0;
-  par->parser.base64.state = 0;
-  par->parser.base64.length = 0;
-  // FIXME: quick hack
-  par->parser.wks.protocol = NULL;
-  return 0;
+  par->rdata.state.base64 = 0;
+  return par->options.accept.rdata(par, fld, ptr);
 }
 
 static uint8_t b64rmap[256] = {
@@ -240,26 +210,27 @@ zone_return_t parse_base64(
       goto bad_char;
     }
 
-    if (par->parser.base64.state == 0) {
-      par->parser.base64.decoded[0]  = ofs << 2;
-      par->parser.base64.state = 1;
-    } else if (par->parser.base64.state == 1) {
-      par->parser.base64.decoded[0] |=  ofs >> 4;
-      par->parser.base64.decoded[1]  = (ofs & 0x0f) << 4;
-      par->parser.base64.state = 2;
-    } else if (par->parser.base64.state == 2) {
-      par->parser.base64.decoded[1] |=  ofs >> 2;
-      par->parser.base64.decoded[2]  = (ofs & 0x03) << 6;
-      par->parser.base64.state = 3;
-    } else if (par->parser.base64.state == 3) {
-      par->parser.base64.decoded[2] |=  ofs;
-      par->parser.base64.state = 0;
-      if (par->parser.base64.length > sizeof(par->parser.base64.octets) - 3)
+    if (par->rdata.state.base64 == 0) {
+      par->rdata.base64[par->rdata.length  ]  = ofs << 2;
+      par->rdata.state.base64 = 1;
+    } else if (par->rdata.state.base64 == 1) {
+      if (par->rdata.length == sizeof(par->rdata.base64) - 1)
         goto too_big;
-      memmove(
-        &par->parser.base64.octets[par->parser.base64.length],
-        &par->parser.base64.decoded[0], 3);
-      par->parser.base64.length += 3;
+      par->rdata.base64[par->rdata.length++] |=  ofs >> 4;
+      par->rdata.base64[par->rdata.length  ]  = (ofs & 0x0f) << 4;
+      par->rdata.state.base64 = 2;
+    } else if (par->rdata.state.base64 == 2) {
+      if (par->rdata.length == sizeof(par->rdata.base64) - 1)
+        goto too_big;
+      par->rdata.base64[par->rdata.length++] |=  ofs >> 2;
+      par->rdata.base64[par->rdata.length  ]  = (ofs & 0x03) << 6;
+      par->rdata.state.base64 = 3;
+    } else if (par->rdata.state.base64 == 3) {
+      if (par->rdata.length == sizeof(par->rdata.base64) - 1)
+        goto too_big;
+      par->rdata.base64[par->rdata.length++] |=  ofs;
+      par->rdata.base64[par->rdata.length  ]  = 0;
+      par->rdata.state.base64 = 0;
     } else {
       break;
     }
@@ -272,40 +243,41 @@ zone_return_t parse_base64(
 
   assert(ch == '\0' || ch == Pad64);
   if ((ch & 0xff) == Pad64) { // We got a pad char.
-    switch (par->parser.base64.state) {
+    switch (par->rdata.state.base64) {
       case 0: // Invalid = in first position
       case 1: // Invalid = in second position
         goto bad_char;
 
       case 2: // Valid, means one byte of info
-        par->parser.base64.state = 4;
+        par->rdata.state.base64 = 4;
         // FALLTHROUGH
       case 4:
         // Skip any number of spaces, count any pad characters.
-        do {
+        while ((ch = zone_string_next(&tok->string, &cur, 0)) != '\0') {
           if (b64rmap[(uint8_t)ch & 0xff] == b64rmap_space)
             continue;
-          if ((ch & 0xff) != Pad64 || ++par->parser.base64.pad > 2)
-            goto bad_char;
-        } while ((ch = zone_string_next(&tok->string, &cur, 0)) != '\0');
-
-        break;
+          if ((ch & 0xff) == Pad64)
+            break;
+          goto bad_char;
+        }
+        // FALLTHROUGH
 
       case 3: // Valid, means two bytes of info
-        par->parser.base64.state = 5;
+        par->rdata.state.base64 = 5;
         // FALLTHROUGH
       case 5:
         //
         // We know this char is an =.  Is there anything but
         // whitespace after it?
         //
-        do {
+        while ((ch = zone_string_next(&tok->string, &cur, 0)) != '\0') {
           if (b64rmap[(uint8_t)ch & 0xff] == b64rmap_space)
             continue;
-          if ((ch & 0xff) != Pad64 || ++par->parser.base64.pad > 1)
-            goto bad_char;
-        } while ((ch = zone_string_next(&tok->string, &cur, 0)) != '\0');
-
+          goto bad_char;
+          // this is always an error
+          //if ((ch & 0xff) != Pad64 || ++par->parser.base64.pad > 1)
+          //  goto bad_char;
+        }
         break;
     }
   }

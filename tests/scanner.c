@@ -30,10 +30,10 @@ static const void *accept_name(const zone_parser_t *par, const zone_field_t *fld
 
 static zone_return_t accept_rr(
   const zone_parser_t *par,
-  zone_field_t *owner,
-  zone_field_t *ttl,
-  zone_field_t *class,
-  zone_field_t *type,
+  const zone_field_t *owner,
+  const zone_field_t *ttl,
+  const zone_field_t *class,
+  const zone_field_t *type,
   void *user_data)
 {
   (void)par;
@@ -52,7 +52,7 @@ static zone_return_t accept_rr(
 
 static zone_return_t accept_rdata(
   const zone_parser_t *par,
-  zone_field_t *rdata,
+  const zone_field_t *rdata,
   void *user_data)
 {
   (void)par;
@@ -62,12 +62,12 @@ static zone_return_t accept_rdata(
 
   if (zone_type(rdata->code) == ZONE_IP4) {
     char buf[INET_ADDRSTRLEN + 1];
-    if (!inet_ntop(AF_INET, rdata->ip4, buf, sizeof(buf)))
+    if (!inet_ntop(AF_INET, rdata->wire.octets, buf, sizeof(buf)))
       return ZONE_SYNTAX_ERROR;
     printf("ip4: %s\n", buf);
   } else if (zone_type(rdata->code) == ZONE_IP6) {
     char buf[INET6_ADDRSTRLEN + 1];
-    if (!inet_ntop(AF_INET6, rdata->ip6, buf, sizeof(buf)))
+    if (!inet_ntop(AF_INET6, rdata->wire.octets, buf, sizeof(buf)))
       return ZONE_SYNTAX_ERROR;
     printf("ip6: %s\n", buf);
   } else {
@@ -78,7 +78,7 @@ static zone_return_t accept_rdata(
 
 static zone_return_t accept_delimiter(
   const zone_parser_t *par,
-  zone_field_t *term,
+  const zone_field_t *term,
   void *user_data)
 {
   (void)par;

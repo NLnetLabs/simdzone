@@ -18,46 +18,23 @@ static inline zone_return_t accept_nsec(
   // nsecbits contains up to 64K bits that represent the types available for
   // a name. walk the bits according to the nsec++ draft from jakob.
 
-  uint32_t blks[256]; // window blocks in use
-  uint8_t lens[256]; // number of octets used per window block
-  uint8_t *octs, *blk;
-  size_t cnt = 0, size = 0;
-  zone_return_t ret;
+  uint8_t *window;
 
-  // iterate over all 256 windows
-  for (size_t i = 0, n = 1 + par->parser.nsec.highest_bit / 256; i < n; i++) {
-    lens[i] = 0;
-    for (size_t j = 0; j < 256 / 8; j++)
-      if (par->parser.nsec.bits[i][j])
-        lens[i] = j + 1;
-    // skip if no bits were set
-    if (!lens[i])
+  // iterate over and compress all (maybe 256) windows
+  for (size_t i = 0, n = 1 + par->rdata.state.nsec.highest_bit / 256; i < n; i++) {
+    uint8_t len = par->rdata.nsec[i][1] / 8 + 1; // saves us from having to iterate a lot of data
+    if (!len)
       continue;
-    blks[cnt++] = i;
-    size += 2 * sizeof(uint8_t) + lens[i];
+    window = ((uint8_t *)par->rdata.nsec) + par->rdata.length;
+    par->rdata.length += 2 * sizeof(uint8_t) + len;
+    window[0] = (uint8_t)i;
+    window[1] = (uint8_t)len;
+    memmove(&window[2], &par->rdata.nsec[i][2], len);
   }
 
-  if (!(octs = zone_malloc(par, size)))
-    return ZONE_OUT_OF_MEMORY;
-
-  blk = octs;
-  for (size_t i = 0; i < cnt; i++) {
-    blk[0] = (uint8_t)blks[i];
-    blk[1] = (uint8_t)lens[blks[i]];
-    memcpy(&blk[2], &par->parser.nsec.bits[blks[i]], lens[blks[i]]);
-    blk += 2 + lens[blks[i]];
-  }
-
-  assert(fld->code == (ZONE_RDATA|ZONE_NSEC));
-  fld->nsec.length = size;
-  fld->nsec.octets = octs;
-
-  if ((ret = par->options.accept.rdata(par, fld, ptr)) < 0)
-    zone_free(par, octs);
-  par->parser.nsec.highest_bit = 0;
-  // FIXME: improve, quick hack
-  par->parser.wks.protocol = NULL;
-  return ret;
+  fld->wire.length = par->rdata.length;
+  par->rdata.state.nsec.highest_bit = 0;
+  return par->options.accept.rdata(par, fld, ptr);
 }
 
 static inline zone_return_t parse_nsec(
@@ -77,29 +54,22 @@ static inline zone_return_t parse_nsec(
   const uint16_t window = (uint16_t)type / 256;
   const uint16_t bit = (uint16_t)type % 256;
 
+  // FIXME: record the highest bit for a window in the second byte
+  //        so we don't have to iterate all 256 bits!!!!
   // ensure newly used windows are zeroed out before use
-  if (type > par->parser.nsec.highest_bit) {
-    size_t off = (par->parser.nsec.highest_bit / 256) + (par->parser.nsec.highest_bit != 0);
-    size_t size = ((window + 1)-off) * sizeof(par->parser.nsec.bits[off]);
+  if (type > par->rdata.state.nsec.highest_bit) {
+    size_t off = (par->rdata.state.nsec.highest_bit / 256) + (par->rdata.state.nsec.highest_bit != 0);
+    size_t size = ((window + 1)-off) * sizeof(par->rdata.nsec[off]);
     if (!off || window > off)
-      memset(&par->parser.nsec.bits[off], 0, size);
-    par->parser.nsec.highest_bit = type;
+      memset(&par->rdata.nsec[off], 0, size);
+    par->rdata.state.nsec.highest_bit = type;
   }
 
   // bits are counted from left to right, so bit #0 is the left most bit
-  par->parser.nsec.bits[window][bit / 8] |= (1 << (7 - bit % 8));
+  par->rdata.nsec[window][1] = bit;
+  par->rdata.nsec[window][2 + bit / 8] |= (1 << (7 - bit % 8));
 
   return ZONE_DEFER_ACCEPT;
-}
-
-static inline zone_return_t parse_generic_nsec(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  (void)par;
-  (void)tok;
-  (void)fld;
-  (void)ptr;
-  return ZONE_NOT_IMPLEMENTED;
 }
 
 #endif // ZONE_NSEC_H

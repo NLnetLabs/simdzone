@@ -343,17 +343,17 @@ static const struct {
   { parse_int32, 0, 0 },
   { parse_ip4, parse_generic_ip4, 0 },
   { parse_ip6, parse_generic_ip6, 0 },
-  { parse_domain_name, 0, 0 },
+  { parse_name, 0, 0 }, // >> we should make an accept_name that automatically calls accept name before!
   { parse_string, parse_generic_string, 0 },
-  { 0, 0, 0 },
-  { parse_base64, 0, accept_base64 },
   { parse_base16, 0, accept_base16 },
   { 0, 0, 0 },
+  { parse_base64, 0, accept_base64 },
   { 0, 0, 0 },
   { 0, 0, 0 },
-  { parse_svc_param, parse_generic_svc_param, 0 },
-  { parse_wks, parse_generic_wks, accept_wks },
-  { parse_nsec, parse_generic_nsec, accept_nsec }
+  { 0, 0, 0 },
+  { parse_svc_param, 0, 0 },
+  { parse_wks, 0, accept_wks },
+  { parse_nsec, 0, accept_nsec }
 };
 
 static zone_return_t
@@ -367,15 +367,15 @@ parse_owner(zone_parser_t *par, const zone_token_t *tok, void *ptr)
     assert(!par->options.accept.name || par->file->origin.domain);
     // reuse persistent reference if available
     if (par->options.accept.name)
-      par->parser.fields[OWNER] = (zone_field_t){
+      par->rr.fields[OWNER] = (zone_field_t){
         .location = tok->location,
         .code = ZONE_OWNER | ZONE_DOMAIN,
         .domain = par->file->origin.domain };
     else
-      par->parser.fields[OWNER] = (zone_field_t){
+      par->rr.fields[OWNER] = (zone_field_t){
         .location = tok->location,
         .code = ZONE_OWNER | ZONE_NAME,
-        .name = {
+        .wire = {
           .length = par->file->origin.name.length,
           .octets = par->file->origin.name.octets }};
   } else {
@@ -385,10 +385,10 @@ parse_owner(zone_parser_t *par, const zone_token_t *tok, void *ptr)
           par, NULL, tok, par->file->owner.name.octets, &par->file->owner.name.length))
       return ZONE_SYNTAX_ERROR;
 
-    par->parser.fields[OWNER] = (zone_field_t){
+    par->rr.fields[OWNER] = (zone_field_t){
       .location = tok->location,
       .code = ZONE_OWNER | ZONE_NAME,
-      .name = {
+      .wire = {
         .length = par->file->owner.name.length,
         .octets = par->file->owner.name.octets }};
   }
@@ -396,17 +396,16 @@ parse_owner(zone_parser_t *par, const zone_token_t *tok, void *ptr)
   return ZONE_OWNER;
 }
 
-static inline zone_return_t
-accept_rr(zone_parser_t *par, void *ptr)
+static inline zone_return_t accept_rr(zone_parser_t *par, void *ptr)
 {
   // allocate memory to hold the owner last-minute (if no persistent reference
   // is available) to simplify memory management
-  zone_field_t owner = par->parser.fields[OWNER];
+  zone_field_t owner = par->rr.fields[OWNER];
   assert(zone_type(owner.code) == ZONE_DOMAIN ||
          zone_type(owner.code) == ZONE_NAME);
   if (zone_type(owner.code) != ZONE_DOMAIN) {
-    assert(owner.name.length == par->file->owner.name.length);
-    assert(owner.name.octets == par->file->owner.name.octets);
+    assert(owner.wire.length == par->file->owner.name.length);
+    assert(owner.wire.octets == par->file->owner.name.octets);
 
     if (par->options.accept.name) {
       const void *ref;
@@ -415,10 +414,6 @@ accept_rr(zone_parser_t *par, void *ptr)
         return ZONE_OUT_OF_MEMORY;
       owner.code = ZONE_OWNER | ZONE_DOMAIN;
       owner.domain = ref;
-    } else {
-      if (!(owner.name.octets = zone_malloc(par, owner.name.length)))
-        return ZONE_OUT_OF_MEMORY;
-      memcpy(owner.name.octets, par->file->owner.name.octets, owner.name.length);
     }
   }
 
@@ -427,9 +422,9 @@ accept_rr(zone_parser_t *par, void *ptr)
   zone_return_t ret = par->options.accept.rr(
     par,
    &owner,
-   &par->parser.fields[TTL],
-   &par->parser.fields[CLASS],
-   &par->parser.fields[TYPE],
+   &par->rr.fields[TTL],
+   &par->rr.fields[CLASS],
+   &par->rr.fields[TYPE],
     ptr);
 
   return ret < 0 ? ret : 0;
@@ -442,11 +437,16 @@ accept_rdata(zone_parser_t *par, zone_field_t *fld, void *ptr)
   zone_return_t ret;
   const struct rdata_descriptor *desc;
 
-  desc = (const struct rdata_descriptor *)par->parser.descriptors.rdata;
+  desc = (const struct rdata_descriptor *)par->rr.descriptors.rdata;
   assert(desc);
 
-  assert(!(par->parser.state & ZONE_DEFERRED_RDATA) ||
-          (&par->parser.fields[RDATA] == fld));
+  assert(!(par->state.parser & ZONE_DEFERRED_RDATA) ||
+          (&par->rr.fields[RDATA] == fld));
+
+  // FIXME: call accept name here if type is ZONE_NAME
+  fld->domain = NULL;
+  fld->wire.length = (uint16_t)par->rdata.length;
+  fld->wire.octets = par->rdata.base64;
 
   fid = zone_type(desc->public.type) >> 8;
   assert(fid < sizeof(functions)/sizeof(functions[0]));
@@ -457,10 +457,11 @@ accept_rdata(zone_parser_t *par, zone_field_t *fld, void *ptr)
   else
     ret = par->options.accept.rdata(par, fld, ptr);
 
-  // FIXME: if accept failed, free the allocated memory
+  par->rdata.length = 0;
+
   if (ret < 0)
     return ret;
-  par->parser.state &= ~ZONE_DEFERRED_RDATA;
+  par->state.parser &= ~ZONE_DEFERRED_RDATA;
   // forward descriptor unless the current descriptor is known to be last
   if (desc->public.qualifiers & ZONE_SEQUENCE)
     return 0;
@@ -468,7 +469,7 @@ accept_rdata(zone_parser_t *par, zone_field_t *fld, void *ptr)
       !(desc->public.type == ZONE_WKS) &&
       !(desc->public.type == ZONE_SVC_PARAM) &&
       !(desc->public.type == ZONE_NSEC))
-    par->parser.descriptors.rdata = (const void *)(desc + 1);
+    par->rr.descriptors.rdata = (const void *)(desc + 1);
 
   return 0;
 }
@@ -491,7 +492,7 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
       continue;
 
     if (item == ZONE_DELIMITER) {
-      if (par->parser.state != ZONE_INITIAL) {
+      if (par->state.parser != ZONE_INITIAL) {
         zone_return_t ret = 0;
         zone_field_t fld = {
           .location = tok.location,
@@ -499,13 +500,13 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
           .int8 = (uint8_t)tok.code & 0xff };
 
         // FIXME: should be a no-op for blank line. perhaps just use rdlength?
-        if (!par->parser.descriptors.type)
+        if (!par->rr.descriptors.type)
           SEMANTIC_ERROR(par, "Expected type at {l}", &tok);
-        else if (!par->parser.descriptors.rdata)
+        else if (!par->rr.descriptors.rdata)
           SEMANTIC_ERROR(par, "Expected rdata at {l}", &tok);
 
-        if (par->parser.state & ZONE_DEFERRED_RDATA)
-          ret = accept_rdata(par, &par->parser.fields[RDATA], user_data);
+        if (par->state.parser & ZONE_DEFERRED_RDATA)
+          ret = accept_rdata(par, &par->rr.fields[RDATA], user_data);
 
         if (ret < 0 || (ret = par->options.accept.delimiter(par, &fld, user_data)) < 0)
           code = ret;
@@ -514,32 +515,36 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
         //        that allows for multiple occurences
         //if ((ret = par->options.accept.delimiter(par, &fld, user_data)) < 0)
         //  code = ret;
-        par->parser.descriptors.type = NULL;
-        par->parser.descriptors.rdata = NULL;
+        par->rr.descriptors.type = NULL;
+        par->rr.descriptors.rdata = NULL;
         //if (tok.code == '\0' && par->file->handle)
         //  close_file(par);
       }
       // FIXME: we must reset the location here so that the location is correct
       //        even if the owner is left blank in the next record!
       // par->parser.state = ZONE_INITIAL;
-      par->parser.state = ZONE_INITIAL;
+      par->state.parser = ZONE_INITIAL;
     } else {
       // update state to properly handle blank lines
-      par->parser.state = item | (par->parser.state & ZONE_DEFERRED_RDATA);
+      par->state.parser = item | (par->state.parser & ZONE_DEFERRED_RDATA);
 
       if (item == ZONE_OWNER) {
         assert(code == (ZONE_OWNER | ZONE_STRING));
         code = parse_owner(par, &tok, user_data);
       } else if (item == ZONE_TTL) {
         assert(code == (ZONE_TTL | ZONE_INT32));
-        par->parser.fields[TTL].location = tok.location;
-        par->parser.fields[TTL].code = ZONE_TTL | ZONE_INT32;
-        par->parser.fields[TTL].int32 = tok.int32;
+        par->rr.fields[TTL].location = tok.location;
+        par->rr.fields[TTL].code = ZONE_TTL | ZONE_INT32;
+        par->rr.fields[TTL].int32 = tok.int32;
+        par->rr.fields[TTL].wire.octets = NULL;
+        par->rr.fields[TTL].wire.length = 0;
       } else if (item == ZONE_CLASS) {
         assert(code == (ZONE_CLASS | ZONE_INT16));
-        par->parser.fields[CLASS].location = tok.location;
-        par->parser.fields[CLASS].code = ZONE_CLASS | ZONE_INT16;
-        par->parser.fields[CLASS].int16 = tok.int16;
+        par->rr.fields[CLASS].location = tok.location;
+        par->rr.fields[CLASS].code = ZONE_CLASS | ZONE_INT16;
+        par->rr.fields[CLASS].int16 = tok.int16;
+        par->rr.fields[CLASS].wire.octets = NULL;
+        par->rr.fields[CLASS].wire.length = 0;
       } else if (item == ZONE_TYPE) {
         zone_return_t ret;
         const struct type_descriptor *desc;
@@ -550,22 +555,24 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
           desc = &unknown_type;
 
         assert(code == (ZONE_TYPE | ZONE_INT16));
-        par->parser.fields[TYPE].location = tok.location;
-        par->parser.fields[TYPE].code = ZONE_TYPE | ZONE_INT16;
-        par->parser.fields[TYPE].int16 = tok.int16;
-        par->parser.fields[TYPE].descriptor.type = &desc->public;
+        par->rr.fields[TYPE].location = tok.location;
+        par->rr.fields[TYPE].code = ZONE_TYPE | ZONE_INT16;
+        par->rr.fields[TYPE].int16 = tok.int16;
+        par->rr.fields[TYPE].wire.octets = NULL;
+        par->rr.fields[TYPE].wire.length = 0;
+        par->rr.fields[TYPE].descriptor.type = &desc->public;
 
-        par->parser.descriptors.type = (const void *)&desc->public;
-        par->parser.descriptors.rdata = &desc->rdata[0].public;
+        par->rr.descriptors.type = (const void *)&desc->public;
+        par->rr.descriptors.rdata = &desc->rdata[0].public;
         if ((ret = accept_rr(par, user_data)) < 0)
           code = ret;
       } else if (item == ZONE_BACKSLASH_HASH) {
         assert(code == (ZONE_BACKSLASH_HASH | ZONE_STRING));
-        assert(par->scanner.state & ZONE_GENERIC_RDATA);
+        assert(par->state.scanner & ZONE_GENERIC_RDATA);
       } else if (item == ZONE_RDLENGTH) {
         assert(code == (ZONE_RDLENGTH | ZONE_INT16));
-        assert(par->scanner.state & ZONE_GENERIC_RDATA);
-        par->parser.rdlength.expect = tok.int16;
+        assert(par->state.scanner & ZONE_GENERIC_RDATA);
+        par->rdlength.expect = tok.int16;
       } else {
         size_t fid;
         zone_field_t fld;
@@ -574,39 +581,39 @@ zone_return_t zone_parse(zone_parser_t *par, void *user_data)
         rdata_parse_t fun;
 
         assert(item == ZONE_RDATA);
-        assert(par->parser.descriptors.type);
-        assert(par->parser.descriptors.rdata);
+        assert(par->rr.descriptors.type);
+        assert(par->rr.descriptors.rdata);
 
-        desc = (const struct rdata_descriptor *)par->parser.descriptors.rdata;
+        desc = (const struct rdata_descriptor *)par->rr.descriptors.rdata;
         if (!desc->public.type)
           SYNTAX_ERROR(par, "Invalid record got too much rdatas");
 
         fid = zone_type(desc->public.type) >> 8;
         assert(fid < sizeof(functions)/sizeof(functions[0]));
 
-        if (par->scanner.state & ZONE_GENERIC_RDATA)
+        if (par->state.scanner & ZONE_GENERIC_RDATA)
           fun = desc->generic ? desc->generic : functions[fid].generic;
         else
           fun = desc->typed ? desc->typed : functions[fid].typed;
         if (!fun)
           return ZONE_NOT_IMPLEMENTED;
 
-        if (par->parser.state & ZONE_DEFERRED_RDATA) {
-          fld = par->parser.fields[RDATA];
+        if (par->state.parser & ZONE_DEFERRED_RDATA) {
+          fld = par->rr.fields[RDATA];
           assert(zone_type(fld.code) == desc->public.type);
           fld.location.end = tok.location.end;
         } else {
           fld = (zone_field_t){
             .location = tok.location,
             .code = ZONE_RDATA | desc->public.type,
-            .descriptor = { .rdata = &desc->public }, { 0 } };
+            .descriptor = { .rdata = &desc->public }, { 0 }, { { NULL }, 0} };
         }
 
         assert(desc->public.type);
 
         if ((ret = fun(par,  &tok, &fld, user_data)) == ZONE_DEFER_ACCEPT) {
-          par->parser.fields[4] = fld;
-          par->parser.state |= ZONE_DEFERRED_RDATA;
+          par->rr.fields[RDATA] = fld;
+          par->state.parser |= ZONE_DEFERRED_RDATA;
         } else if (ret < 0) {
           code = ret;
         } else if ((ret = accept_rdata(par, &fld, user_data)) < 0) {

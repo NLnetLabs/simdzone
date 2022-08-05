@@ -43,12 +43,12 @@ static zone_return_t refill(zone_parser_t *par)
   if (file->buffer.used == file->buffer.size) {
     // highly unlikely, but still
     if (file->buffer.size > SIZE_MAX - par->options.block_size)
-      return (par->scanner.state = ZONE_OUT_OF_MEMORY);
+      return (par->state.scanner = ZONE_OUT_OF_MEMORY);
 
     size_t size = file->buffer.size + par->options.block_size;
     char *buf;
     if (!(buf = zone_realloc(par, file->buffer.data.write, size)))
-      return (par->scanner.state = ZONE_OUT_OF_MEMORY);
+      return (par->state.scanner = ZONE_OUT_OF_MEMORY);
     file->buffer.size = size;
     file->buffer.data.write = buf;
   }
@@ -62,7 +62,7 @@ static zone_return_t refill(zone_parser_t *par)
   } while (cnt == -1 && errno == EINTR);
 
   if (cnt == -1)
-    return (par->scanner.state = ZONE_READ_ERROR);
+    return (par->state.scanner = ZONE_READ_ERROR);
   assert(cnt >= 0);
   if (cnt == 0)
     file->empty = true;
@@ -240,7 +240,7 @@ static inline zone_return_t scan_svcb(zone_parser_t *par, zone_token_t *tok)
 {
   int32_t code = ' ';
 
-  assert((par->scanner.state & ZONE_SVC_PARAMS) == ZONE_SVC_PARAMS);
+  assert((par->state.scanner & ZONE_SVC_PARAMS) == ZONE_SVC_PARAMS);
 
   do {
     size_t cnt = 1;
@@ -299,7 +299,7 @@ scan(zone_parser_t *par, zone_token_t * tok)
   size_t cnt = 0;
   int32_t code = ' ';
 
-  if ((par->scanner.state & ZONE_SVC_PARAMS) == ZONE_SVC_PARAMS)
+  if ((par->state.scanner & ZONE_SVC_PARAMS) == ZONE_SVC_PARAMS)
     return scan_svcb(par, tok);
 
   do {
@@ -350,7 +350,7 @@ eval:
     // separate items that make up an entry, but in order to signal an
     // implicit owner to the parser a space is returned if the state is
     // INITIAL.
-  } while (code == ' ' && par->scanner.state != ZONE_INITIAL);
+  } while (code == ' ' && par->state.scanner != ZONE_INITIAL);
 
   return code;
 }
@@ -523,31 +523,31 @@ scan_rr(zone_parser_t *par, zone_token_t *tok)
 
   // TYPE bit must always be set as state would be ZONE_BACKSLASH_HASH or
   // ZONE_SVC_PRIORITY if TYPE had been previously encountered
-  assert(par->scanner.state & ZONE_TYPE);
+  assert((par->state.scanner & ZONE_TYPE) == ZONE_TYPE);
 
   if ((code = scan_type(par, tok)) > 0) {
-    par->scanner.state &= ~ZONE_RR;
+    par->state.scanner &= ~ZONE_RR;
     assert(tok->code == (ZONE_TYPE|ZONE_INT16));
     if (tok->int16 == 64 || tok->int16 == 65)
-      par->scanner.state = ZONE_SVC_PRIORITY | (par->scanner.state & flags);
+      par->state.scanner = ZONE_SVC_PRIORITY | (par->state.scanner & flags);
     else
-      par->scanner.state = ZONE_BACKSLASH_HASH | (par->scanner.state & flags);;
-  } else if ((par->scanner.state & ZONE_CLASS) && (code = scan_class(par, tok)) > 0) {
-    par->scanner.state &= ~ZONE_CLASS;
+      par->state.scanner = ZONE_BACKSLASH_HASH | (par->state.scanner & flags);;
+  } else if ((par->state.scanner & ZONE_CLASS) && (code = scan_class(par, tok)) > 0) {
+    par->state.scanner &= ~ZONE_CLASS;
     assert(tok->code == (ZONE_CLASS|ZONE_INT16));
-  } else if ((par->scanner.state & ZONE_TTL) && (code = scan_ttl(par, tok)) > 0) {
-    par->scanner.state &= ~ZONE_TTL;
+  } else if ((par->state.scanner & ZONE_TTL) && (code = scan_ttl(par, tok)) > 0) {
+    par->state.scanner &= ~ZONE_TTL;
     assert(tok->code == (ZONE_TTL|ZONE_INT32));
   }
 
   if (!code) {
     assert(tok->code == ZONE_STRING);
     const char *expect = "type";
-    if ((par->scanner.state & (ZONE_CLASS|ZONE_TTL)) == (ZONE_CLASS|ZONE_TTL))
+    if ((par->state.scanner & (ZONE_CLASS|ZONE_TTL)) == (ZONE_CLASS|ZONE_TTL))
       expect = "ttl, class or type";
-    else if ((par->scanner.state & ZONE_TTL) == ZONE_TTL)
+    else if ((par->state.scanner & ZONE_TTL) == ZONE_TTL)
       expect = "ttl or type";
-    else if ((par->scanner.state & ZONE_CLASS) == ZONE_CLASS)
+    else if ((par->state.scanner & ZONE_CLASS) == ZONE_CLASS)
       expect = "class or type";
     SYNTAX_ERROR(par, "Invalid item at {l}, expected %s", expect);
   }
@@ -561,41 +561,41 @@ scan_rdata(zone_parser_t *par, zone_token_t *tok)
   zone_code_t code = 0;
   uint64_t u64 = 0;
 
-  switch (par->scanner.state & ~flags) {
+  switch (par->state.scanner & ~flags) {
     case ZONE_BACKSLASH_HASH:
     case ZONE_SVC_PRIORITY:
       assert((tok->code & ZONE_STRING) == ZONE_STRING);
       // flip GENERIC_DATA flag and transition to rdlength if "\#" is found
       if (tok->string.length == 2 && strncmp(tok->string.data, "\\#", 2) == 0) {
-        par->scanner.state =
-          ZONE_RDLENGTH | ZONE_GENERIC_RDATA | (par->scanner.state & flags);
+        par->state.scanner =
+          ZONE_RDLENGTH | ZONE_GENERIC_RDATA | (par->state.scanner & flags);
         return (tok->code |= ZONE_BACKSLASH_HASH);
-      } else if ((par->scanner.state & ~flags) == ZONE_SVC_PRIORITY) {
-        par->scanner.state = ZONE_TARGET_NAME | (par->scanner.state & flags);
+      } else if ((par->state.scanner & ~flags) == ZONE_SVC_PRIORITY) {
+        par->state.scanner = ZONE_TARGET_NAME | (par->state.scanner & flags);
         return (tok->code |= ZONE_RDATA);
       } else {
-        assert(!(par->scanner.state & ZONE_GENERIC_RDATA));
-        par->scanner.state = ZONE_RDATA | (par->scanner.state & flags);
+        assert(!(par->state.scanner & ZONE_GENERIC_RDATA));
+        par->state.scanner = ZONE_RDATA | (par->state.scanner & flags);
         return (tok->code |= ZONE_RDATA);
       }
     case ZONE_RDLENGTH:
       assert((tok->code & ZONE_STRING) == ZONE_STRING);
-      assert(par->scanner.state & ZONE_GENERIC_RDATA);
+      assert(par->state.scanner & ZONE_GENERIC_RDATA);
       if ((code = zone_parse_int(par, NULL, tok, UINT16_MAX, &u64)) < 0)
         return code;
       assert(u64 <= UINT16_MAX);
-      par->scanner.state = ZONE_RDATA | (par->scanner.state & flags);
+      par->state.scanner = ZONE_RDATA | (par->state.scanner & flags);
       tok->int16 = (uint16_t)u64;
       return (tok->code = (ZONE_RDLENGTH | ZONE_INT16));
     case ZONE_TARGET_NAME:
       assert((tok->code & ZONE_STRING) == ZONE_STRING);
-      par->scanner.state = ZONE_SVC_PARAMS | (par->scanner.state & flags);
+      par->state.scanner = ZONE_SVC_PARAMS | (par->state.scanner & flags);
       return (tok->code |= ZONE_RDATA);
     case ZONE_SVC_PARAMS:
       assert((tok->code & ZONE_SVC_PARAM) == ZONE_SVC_PARAM);
       return (tok->code |= ZONE_RDATA);
     default:
-      assert((par->scanner.state & ~flags) == ZONE_RDATA);
+      assert((par->state.scanner & ~flags) == ZONE_RDATA);
       assert((tok->code & ZONE_STRING) == ZONE_STRING);
       return (tok->code |= ZONE_RDATA);
   }
@@ -614,39 +614,39 @@ zone_scan(zone_parser_t *par, zone_token_t *tok)
       // ignore comments
       continue;
     } else if (code == '(') {
-      if (par->scanner.state & ZONE_GROUPED)
+      if (par->state.scanner & ZONE_GROUPED)
         SYNTAX_ERROR(par, "Nested braces");
       // parentheses are not allowed within control entries, require blank or
       // resource record line
-      if (par->scanner.state == ZONE_INITIAL)
-        par->scanner.state = ZONE_OWNER;
-      par->scanner.state |= ZONE_GROUPED;
+      if (par->state.scanner == ZONE_INITIAL)
+        par->state.scanner = ZONE_OWNER;
+      par->state.scanner |= ZONE_GROUPED;
     } else if (code == ')') {
-      if (!(par->scanner.state & ZONE_GROUPED))
+      if (!(par->state.scanner & ZONE_GROUPED))
         SYNTAX_ERROR(par, "Closing brace without opening brace");
-      par->scanner.state &= ~ZONE_GROUPED;
-      assert(par->scanner.state != ZONE_INITIAL);
+      par->state.scanner &= ~ZONE_GROUPED;
+      assert(par->state.scanner != ZONE_INITIAL);
     } else if (code == ' ') {
-      assert(par->scanner.state == ZONE_INITIAL);
-      par->scanner.state = ZONE_RR | (par->scanner.state & flags);
+      assert(par->state.scanner == ZONE_INITIAL);
+      par->state.scanner = ZONE_RR | (par->state.scanner & flags);
     } else if (code == '\0') {
-      if (par->scanner.state & ZONE_GROUPED)
+      if (par->state.scanner & ZONE_GROUPED)
         SYNTAX_ERROR(par, "Unexpected end-of-file, expected closing brace");
       return code;
     } else if (code == '\n') {
       // discard newlines within parentheses
-      if (par->scanner.state & ZONE_GROUPED)
+      if (par->state.scanner & ZONE_GROUPED)
         continue;
-      par->scanner.state = ZONE_INITIAL;
+      par->state.scanner = ZONE_INITIAL;
       return code;
     } else if (code > 0) {
       assert((code & ZONE_STRING) == ZONE_STRING ||
              (code & ZONE_SVC_PARAM) == ZONE_SVC_PARAM);
-      if (par->scanner.state == ZONE_INITIAL || (par->scanner.state & ~flags) == ZONE_OWNER) {
+      if (par->state.scanner == ZONE_INITIAL || (par->state.scanner & ~flags) == ZONE_OWNER) {
         tok->code = (code |= ZONE_OWNER);
-        par->scanner.state = ZONE_RR | (par->scanner.state & ~flags);
+        par->state.scanner = ZONE_RR | (par->state.scanner & ~flags);
         return code;
-      } else if (par->scanner.state & ZONE_RR) {
+      } else if (par->state.scanner & ZONE_RR) {
         return scan_rr(par, tok);
       } else {
         return scan_rdata(par, tok);

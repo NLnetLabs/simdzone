@@ -24,10 +24,10 @@ struct nsec_test {
 
 static zone_return_t accept_rr(
   const zone_parser_t *par,
-  zone_field_t *owner,
-  zone_field_t *ttl,
-  zone_field_t *class,
-  zone_field_t *type,
+  const zone_field_t *owner,
+  const zone_field_t *ttl,
+  const zone_field_t *class,
+  const zone_field_t *type,
   void *user_data)
 {
   struct nsec_test *test = user_data;
@@ -45,7 +45,7 @@ static zone_return_t accept_rr(
 
 static zone_return_t accept_rdata(
   const zone_parser_t *par,
-  zone_field_t *rdata,
+  const zone_field_t *rdata,
   void *user_data)
 {
   struct nsec_test *test = user_data;
@@ -61,8 +61,9 @@ static zone_return_t accept_rdata(
   } else if (test->count == 2) { // expect nsec
     if (zone_type(rdata->code) != ZONE_NSEC)
       return ZONE_SYNTAX_ERROR;
-    test->records.length = rdata->nsec.length;
-    test->records.octets = rdata->nsec.octets;
+    test->records.length = rdata->wire.length;
+    test->records.octets = malloc(rdata->wire.length);
+    memcpy(test->records.octets, rdata->wire.octets, rdata->wire.length);
     return 0;
   }
 
@@ -71,7 +72,7 @@ static zone_return_t accept_rdata(
 
 static zone_return_t accept_delimiter(
   const zone_parser_t *par,
-  zone_field_t *delimiter,
+  const zone_field_t *delimiter,
   void *user_data)
 {
   (void)par;
@@ -106,6 +107,7 @@ void nsec_happy_go_lucky(void **state)
   assert_int_equal(test.records.length, 8);
   assert_int_equal(test.records.length, sizeof(records));
   assert_memory_equal(test.records.octets, records, sizeof(records));
+  free(test.records.octets);
 
   zone_close(&par);
 }

@@ -112,43 +112,35 @@ static void myfree(void *arena, void *ptr)
 
 static zone_return_t myaccept_rr(
   const zone_parser_t *parser,
-  zone_field_t *owner,
-  zone_field_t *ttl,
-  zone_field_t *class,
-  zone_field_t *type,
+  const zone_field_t *owner,
+  const zone_field_t *ttl,
+  const zone_field_t *class,
+  const zone_field_t *type,
   void *user_data)
 {
-  struct counters *counters = user_data;
-
   (void)parser;
+  (void)owner;
   (void)ttl;
   (void)class;
   (void)type;
-
-  counters->rr_total += owner->name.length;
-  myfree(counters, owner->name.octets);
+  (void)user_data;
   return 0;
 }
 
 static zone_return_t myaccept_rdata(
   const zone_parser_t *parser,
-  zone_field_t *rdata,
+  const zone_field_t *rdata,
   void *user_data)
 {
-  struct counters *counters = user_data;
-
   (void)parser;
-
-  if (rdata->code == ZONE_STRING &&
-      !(rdata->descriptor.rdata->qualifiers & ZONE_UNBOUNDED))
-    counters->rdata_total += *rdata->string;
-  myfree(counters, rdata->string);
+  (void)rdata;
+  (void)user_data;
   return 0;
 }
 
 static zone_return_t myaccept_delimiter(
   const zone_parser_t *parser,
-  zone_field_t *delimiter,
+  const zone_field_t *delimiter,
   void *user_data)
 {
   (void)parser;
@@ -184,6 +176,6 @@ void buffer_refill(void **state)
   assert_int_equal(ret, 0);
   zone_close(&par);
 
-  assert_int_equal(counters.block, 4);
+  assert_int_equal(counters.block, 3);
   assert_int_equal(counters.alloc_calls, counters.free_calls);
 }

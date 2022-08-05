@@ -89,7 +89,7 @@ add_custom_command(
     "${CMAKE_CURRENT_SOURCE_DIR}/dnsextlang.cmake")
 
 # FIXME: scanner-types.h can be generated eventually
-add_library(zone SHARED
+add_library(zone STATIC
   src/zone.c
   src/scanner.c
   src/parser.c

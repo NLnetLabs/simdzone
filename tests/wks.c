@@ -43,10 +43,10 @@ struct wks_test {
 
 static zone_return_t accept_rr(
   const zone_parser_t *par,
-  zone_field_t *owner,
-  zone_field_t *ttl,
-  zone_field_t *class,
-  zone_field_t *type,
+  const zone_field_t *owner,
+  const zone_field_t *ttl,
+  const zone_field_t *class,
+  const zone_field_t *type,
   void *user_data)
 {
   struct wks_test *test = user_data;
@@ -64,7 +64,7 @@ static zone_return_t accept_rr(
 
 static zone_return_t accept_rdata(
   const zone_parser_t *par,
-  zone_field_t *rdata,
+  const zone_field_t *rdata,
   void *user_data)
 {
   struct wks_test *test = user_data;
@@ -80,13 +80,14 @@ static zone_return_t accept_rdata(
   } else if (test->count == 2) { // expect protocol
     if (zone_type(rdata->code) != ZONE_INT8)
       return ZONE_SYNTAX_ERROR;
-    test->protocol = rdata->int8;
+    test->protocol = *rdata->wire.int8;
     return 0;
   } else if (test->count == 3) { // expect bitmask
     if (zone_type(rdata->code) != ZONE_WKS)
       return ZONE_SYNTAX_ERROR;
-    test->services.length = rdata->wks.length;
-    test->services.octets = rdata->wks.octets;
+    test->services.octets = malloc(rdata->wire.length);
+    memcpy(test->services.octets, rdata->wire.octets, rdata->wire.length);
+    test->services.length = rdata->wire.length;
     return 0;
   }
 
@@ -95,7 +96,7 @@ static zone_return_t accept_rdata(
 
 static zone_return_t accept_delimiter(
   const zone_parser_t *par,
-  zone_field_t *delimiter,
+  const zone_field_t *delimiter,
   void *user_data)
 {
   (void)par;

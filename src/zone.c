@@ -51,7 +51,7 @@ zone_return_t zone_open_string(
   if ((ret = check_options(opts)) < 0)
     return ret;
 
-  memset(par, 0, sizeof(*par));
+  memset(par, 0, sizeof(*par) - sizeof(par->rdata.base64));
   file = &par->first;
   file->name = not_a_file;
   file->path = not_a_file;
@@ -60,8 +60,8 @@ zone_return_t zone_open_string(
   file->buffer.data.read = str;
   file->position.line = 1;
   file->position.column = 1;
-  par->scanner.state = ZONE_INITIAL;
-  par->parser.state = ZONE_INITIAL;
+  par->state.scanner = ZONE_INITIAL;
+  par->state.parser = ZONE_INITIAL;
   par->file = file;
   par->options = *opts;
   return 0;
@@ -106,7 +106,7 @@ zone_return_t zone_open(
   if ((fd = open(buf, O_RDONLY)) == -1)
     goto err_open;
 
-  memset(par, 0, sizeof(*par));
+  memset(par, 0, sizeof(*par) - sizeof(par->rdata.base64));
   file = &par->first;
   file->name = relpath;
   file->path = abspath;
@@ -115,8 +115,8 @@ zone_return_t zone_open(
   file->buffer.data.write = NULL;
   file->position.line = 1;
   file->position.column = 1;
-  par->scanner.state = ZONE_INITIAL;
-  par->parser.state = ZONE_INITIAL;
+  par->state.scanner = ZONE_INITIAL;
+  par->state.parser = ZONE_INITIAL;
   par->file = file;
   par->options = opts;
   if (!par->options.block_size)

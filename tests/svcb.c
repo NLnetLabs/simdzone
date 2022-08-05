@@ -29,14 +29,15 @@ struct svcb_test {
   uint16_t type;
   zone_field_t port;
   zone_field_t mandatory;
+  uint16_t rdata[2][3];
 };
 
 static zone_return_t accept_rr(
   const zone_parser_t *par,
-  zone_field_t *owner,
-  zone_field_t *ttl,
-  zone_field_t *class,
-  zone_field_t *type,
+  const zone_field_t *owner,
+  const zone_field_t *ttl,
+  const zone_field_t *class,
+  const zone_field_t *type,
   void *user_data)
 {
   struct svcb_test *test = user_data;
@@ -54,7 +55,7 @@ static zone_return_t accept_rr(
 
 static zone_return_t accept_rdata(
   const zone_parser_t *par,
-  zone_field_t *rdata,
+  const zone_field_t *rdata,
   void *user_data)
 {
   struct svcb_test *test = user_data;
@@ -71,11 +72,15 @@ static zone_return_t accept_rdata(
     if (zone_type(rdata->code) != ZONE_SVC_PARAM)
       return ZONE_SYNTAX_ERROR;
     test->port = *rdata;
+    memcpy(test->rdata[0], rdata->wire.octets, sizeof(test->rdata[0]));
+    test->port.wire.octets = (uint8_t*)&test->rdata[0];
     return 0;
   } else if (test->count == 4) { // expect mandatory
     if (zone_type(rdata->code) != ZONE_SVC_PARAM)
       return ZONE_SYNTAX_ERROR;
     test->mandatory = *rdata;
+    memcpy(test->rdata[1], rdata->wire.octets, sizeof(test->rdata[1]));
+    test->port.wire.octets = (uint8_t*)&test->rdata[1];
     return 0;
   }
 
@@ -84,7 +89,7 @@ static zone_return_t accept_rdata(
 
 static zone_return_t accept_delimiter(
   const zone_parser_t *par,
-  zone_field_t *delimiter,
+  const zone_field_t *delimiter,
   void *user_data)
 {
   (void)par;
@@ -117,28 +122,26 @@ void svcb_happy_go_lucky(void **state)
   assert_int_equal(test.port.code, ZONE_RDATA | ZONE_SVC_PARAM);
   if (test.port.code == ZONE_SVC_PARAM) {
     uint16_t x;
-    assert_int_equal(test.port.svc_param.length, 3*sizeof(uint16_t));
-    assert_non_null(test.port.svc_param.octets);
-    x = ntohs(*(uint16_t *)&test.port.svc_param.octets[0]);
+    assert_int_equal(test.port.wire.length, 3*sizeof(uint16_t));
+    assert_non_null(test.port.wire.octets);
+    x = ntohs(*(uint16_t *)&test.port.wire.octets[0]);
     assert_int_equal(x, 3);
-    x = ntohs(*(uint16_t *)&test.port.svc_param.octets[2]);
+    x = ntohs(*(uint16_t *)&test.port.wire.octets[2]);
     assert_int_equal(x, sizeof(uint16_t));
-    x = ntohs(*(uint16_t *)&test.port.svc_param.octets[4]);
+    x = ntohs(*(uint16_t *)&test.port.wire.octets[4]);
     assert_int_equal(x, 853);
-    free(test.port.svc_param.octets);
   }
   assert_int_equal(test.mandatory.code, ZONE_RDATA | ZONE_SVC_PARAM);
   if (test.port.code == ZONE_SVC_PARAM) {
     uint16_t x;
-    assert_int_equal(test.port.svc_param.length, 3*sizeof(uint16_t));
-    assert_non_null(test.mandatory.svc_param.octets);
-    x = ntohs(*(uint16_t *)&test.mandatory.svc_param.octets[0]);
+    assert_int_equal(test.port.wire.length, 3*sizeof(uint16_t));
+    assert_non_null(test.mandatory.wire.octets);
+    x = ntohs(*(uint16_t *)&test.mandatory.wire.octets[0]);
     assert_int_equal(x, 0);
-    x = ntohs(*(uint16_t *)&test.mandatory.svc_param.octets[2]);
+    x = ntohs(*(uint16_t *)&test.mandatory.wire.octets[2]);
     assert_int_equal(x, sizeof(uint16_t));
-    x = ntohs(*(uint16_t *)&test.mandatory.svc_param.octets[4]);
+    x = ntohs(*(uint16_t *)&test.mandatory.wire.octets[4]);
     assert_int_equal(x, 3);
-    free(test.mandatory.svc_param.octets);
   }
 
   zone_close(&par);

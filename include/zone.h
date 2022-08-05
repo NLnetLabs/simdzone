@@ -71,10 +71,10 @@ typedef enum {
   ZONE_IP6 = (6 << 8),
   ZONE_NAME = (7 << 8),
   ZONE_STRING = (8 << 8),
-  ZONE_BASE32 = (9 << 8),
-  ZONE_BASE64 = (10 << 8),
+  ZONE_BASE16 = (9 << 8),
+  ZONE_BASE32 = (10 << 8),
+  ZONE_BASE64 = (11 << 8),
   // hex fields
-  ZONE_BINARY = (11 << 8),
   // ZONE_EUI48 (ZONE_HEX6?) - 12
   // ZONE_EUI64 (ZONE_HEX8?) - 13
   // miscellaneous fields
@@ -139,7 +139,6 @@ struct zone_rdata_descriptor {
 };
 
 // type options
-#define ZONE_COMPLEX (1<<0)
 #define ZONE_IN (1<<1)
 #define ZONE_ANY (1<<2)
 #define ZONE_EXPERIMENTAL (1<<3)
@@ -154,21 +153,6 @@ struct zone_type_descriptor {
   const char *description;
 };
 
-//
-// FIXME: the field requires some changes. namely, we always want to have
-//        the length and octets combination available, and each and every
-//        field must be allocated from heap to simplify usage.
-//        we could simply make it easy to dereference some types.
-//        union {
-//          const void *domain;
-//          uint8_t *int8;
-//          uint16_t *int16;
-//          uint32_t *int32;
-//          struct in_addr *ip4;
-//          struct in6_addr *ip6;
-//          struct { uint8_t *octets; size_t length; } wire;
-//        };
-//
 typedef struct zone_field zone_field_t;
 struct zone_field {
   zone_location_t location;
@@ -182,16 +166,21 @@ struct zone_field {
     uint8_t int8;
     uint16_t int16;
     uint32_t int32;
-    struct { uint8_t length; uint8_t *octets; } name;
-    uint8_t *string;
-    struct { size_t length; uint8_t *octets; } svc_param;
-    struct in_addr *ip4;
-    struct in6_addr *ip6;
-    struct { uint16_t length; uint8_t *octets; } b64;
-    struct { size_t length; uint8_t *octets; } wks;
-    struct { size_t length; uint8_t *octets; } nsec;
-    struct { size_t length; uint8_t *octets; } binary;
   };
+  // rdata is NOT stored in heap memory or allocated using a potentially
+  // custom allocator. a scratch buffer specific to the parser is used to
+  // avoid any memory leaks (there are NO allocations) when parsing a string
+  struct {
+    union {
+      const uint8_t *int8;
+      const uint16_t *int16;
+      const uint32_t *int32;
+      const struct in_addr *ip4;
+      const struct in6_addr *ip6;
+      const uint8_t *octets;
+    };
+    uint16_t length;
+  } wire;
 };
 
 typedef struct zone_parser zone_parser_t;
@@ -212,22 +201,22 @@ typedef const void *(*zone_accept_name_t)(
 // callbacks has a positive impact on performance as well
 typedef zone_return_t(*zone_accept_rr_t)(
   const zone_parser_t *,
-  zone_field_t *, // owner
-  zone_field_t *, // ttl
-  zone_field_t *, // class
-  zone_field_t *, // type
+  const zone_field_t *, // owner
+  const zone_field_t *, // ttl
+  const zone_field_t *, // class
+  const zone_field_t *, // type
   void *); // user data
 
 // invoked for each rdata item in a record (network order)
 typedef zone_return_t(*zone_accept_rdata_t)(
   const zone_parser_t *,
-  zone_field_t *, // rdata,
+  const zone_field_t *, // rdata,
   void *); // user data
 
 // invoked to finish each record. i.e. end-of-file and newline
 typedef zone_return_t(*zone_accept_t)(
   const zone_parser_t *,
-  zone_field_t *, // end-of-file or newline
+  const zone_field_t *, // end-of-file or newline
   void *); // user data
 
 typedef void *(*zone_malloc_t)(void *arena, size_t size);
@@ -256,9 +245,9 @@ struct zone_options {
     void *arena;
   } allocator;
   struct {
+    // FIXME: add callback to accept rdlength for generic records?
     zone_accept_name_t name;
     zone_accept_rr_t rr;
-    // FIXME: add callback to accept rdlength for generic records?
     zone_accept_rdata_t rdata;
     zone_accept_t delimiter;
   } accept;
@@ -268,14 +257,13 @@ struct zone_parser {
   zone_options_t options;
   zone_file_t first, *file;
   struct {
-    zone_code_t state;
-  } scanner;
-  struct {
-    // scanner and parser require different state. scanner state indicates
+    // scanner and parser requirde different state. scanner state indicates
     // what to expect next. hence, if a newline is encountered and state is
     // reverted to initial, the parser cannot determine if the line must be
     // considered a blank
-    zone_code_t state;
+    zone_code_t scanner, parser;
+  } state;
+  struct {
     // small backlog to track items before invoking accept_rr. memory for
     // owner, if no accept_name was registered, is allocated just before
     // invoking accept_rr to simplify memory management
@@ -284,55 +272,57 @@ struct zone_parser {
       const zone_type_descriptor_t *type;
       const zone_rdata_descriptor_t *rdata;
     } descriptors;
-    struct {
-      // number of expected octets in rdata. valid if rdata is in generic
-      // presentation. i.e. if "\#" is encountered as per RFC3597
-      size_t expect;
-      size_t count;
-    } rdlength;
+  } rr;
+  struct {
+    // number of expected octets in rdata. valid if rdata is in generic
+    // presentation. i.e. if "\#" is encountered as per RFC3597
+    uint16_t expect;
+    uint16_t count;
+  } rdlength;
+  struct {
+    // some record types require special handling of rdata. e.g.
+    //   WKS: bitmap of services for the given protocol
+    //   NSEC: bitmap of rrtypes available in next secure record
+    //   BASE64: base64 encoded data that may contain spaces
+    //
+    // state information is separated to allow for generic reset
     union {
       struct {
         const void *protocol;
         uint16_t highest_port;
-        uint8_t ports[UINT16_MAX / 8];
       } wks;
       struct {
         uint16_t highest_bit;
-        uint8_t bits[256][256 / 8];
       } nsec;
-      struct {
-        // base64 state can be any of:
-        //   0: parse bits 0-5
-        //   2: parse bits 6-11
-        //   3: parse bits 12-17
-        //   4: parse bits 18-23
-        //   5: parsed 8 bits and have (at least) one '='
-        //   6: parsed 16 bits and have (at least) one '='
-        uint8_t state;
-        uint8_t pad;
-        uint8_t decoded[3]; // << do we even need this?!?!
-        uint16_t length;
-        uint8_t octets[UINT16_MAX];
-      } base64;
-      struct {
-        // 0: parse bits 0-3
-        // 1: parse bits 4-7
-        uint8_t state;
-        uint16_t length;
-        uint8_t octets[UINT16_MAX];
-      } base16;
+      // base16 state can be any of:
+      //   0: parse bits 0-3
+      //   1: parse bits 4-7
+      uint8_t base16;
+      // base64 state can be any of:
+      //   0: parse bits 0-5
+      //   1: parse bits 6-11
+      //   2: parse bits 12-17
+      //   3: parse bits 18-23
+      //   4: parsed 8 bits and have one '='
+      //   5: parsed 8 or 16 bits and have one '='
+      uint8_t base64;
+    } state;
+    size_t length;
+    union {
+      uint8_t int8;
+      uint16_t int16;
+      uint32_t int32;
+      struct in_addr ip4;
+      struct in6_addr ip6;
+      uint8_t name[255];
+      uint8_t string[1 + 255];
+      uint8_t wks[UINT16_MAX / 8];
+      uint8_t nsec[256][2 + 256 / 8];
+      uint8_t svcb[UINT16_MAX];
+      uint8_t base16[UINT16_MAX];
+      uint8_t base64[UINT16_MAX];
     };
-    // FIXME: some record types require special handling of rdata. e.g. WKS,
-    //        where all services are consolidated in a bitmap, and SVCB, where
-    //        all svc_params must be sorted before being handed off and each
-    //        parameter must only occur once.
-    //
-    // SVCB draft section 2.1 states:
-    //   SvcParams in presentation format MAY appear in any order, but keys
-    //   MUST NOT be repeated.
-    // SVCB draft section 2.2 states:
-    //   SvcParamKeys SHALL appear in increasing numeric order.
-  } parser;
+  } rdata;
 };
 
 // return codes

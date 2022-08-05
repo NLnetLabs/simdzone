@@ -109,10 +109,11 @@ parse_mandatory(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   size_t size, keycnt = 0;
-  uint8_t *octs = NULL;
+  uint8_t *octs = par->rdata.svcb;
   uint16_t *keys;
   int32_t key;
 
+  (void)fld;
   (void)ptr;
   assert(tok->svc_param.value.length);
 
@@ -131,9 +132,7 @@ parse_mandatory(
   if (keycnt > UINT16_MAX / sizeof(uint16_t))
     SEMANTIC_ERROR(par, "{l}: Invalid mandatory, too many addresses", tok);
 
-  size = 4 * sizeof(uint8_t) + keycnt * sizeof(uint16_t);
-  if (!(octs = zone_malloc(par, size)))
-    return ZONE_OUT_OF_MEMORY;
+  par->rdata.length = size = 4 * sizeof(uint8_t) + keycnt * sizeof(uint16_t);
   *((uint16_t *)&octs[0]) = htons(0);
   *((uint16_t *)&octs[2]) = htons(keycnt * sizeof(uint16_t));
   keys = (uint16_t *)&octs[4];
@@ -161,12 +160,8 @@ parse_mandatory(
     goto bad_key;
   }
 
-  fld->svc_param.length = size;
-  fld->svc_param.octets = octs;
   return 0;
 bad_key:
-  if (octs)
-    zone_free(par, octs);
   return ZONE_SEMANTIC_ERROR;
 }
 
@@ -175,10 +170,11 @@ parse_alpn(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   size_t size = 0, alpncnt = 0;
-  uint8_t *alpn, *octs = NULL;
+  uint8_t *alpn, *octs = par->rdata.svcb;
   const char *str = tok->string.data;
   const size_t len = tok->string.length;
 
+  (void)fld;
   (void)ptr;
   // determine amount of memory required
   //   >> do a plain count too, require at least 1 identifier!
@@ -198,8 +194,7 @@ parse_alpn(
   if (alpncnt == 0)
     SEMANTIC_ERROR(par, "{l}: Invalid alpn, at least on identifier is required");
 
-  if (!(octs = zone_malloc(par, (size + 4) * sizeof(uint8_t))))
-    return ZONE_OUT_OF_MEMORY;
+  par->rdata.length = size;
   *((uint16_t *)&octs[0]) = htons(1);
   *((uint16_t *)&octs[2]) = htons((uint16_t)size);
   alpn = &octs[4];
@@ -216,8 +211,6 @@ parse_alpn(
     off += 1 + (size_t)cnt;
   }
 
-  fld->svc_param.length = size;
-  fld->svc_param.octets = octs;
   return 0;
 }
 
@@ -225,14 +218,11 @@ static zone_return_t
 parse_no_default_alpn(
   zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
-  //
-  // implement
-  //
   (void)par;
   (void)tok;
   (void)fld;
   (void)ptr;
-  return ZONE_SYNTAX_ERROR;
+  return ZONE_NOT_IMPLEMENTED;
 }
 
 static zone_return_t
@@ -243,8 +233,9 @@ parse_port(
   zone_return_t ret;
   static zone_rdata_descriptor_t dsc = { "port", ZONE_SVC_PARAM, 0, 0, { NULL, 0 }, NULL };
   uint64_t u64;
-  uint8_t *octs;
+  uint8_t *octs = par->rdata.svcb;
 
+  (void)fld;
   (void)ptr;
   assert(tok->svc_param.value.length);
 
@@ -254,13 +245,10 @@ parse_port(
 
   if ((ret = zone_parse_int(par, &dsc, &tmp, UINT16_MAX, &u64)) < 0)
     return ret;
-  if (!(octs = zone_malloc(par, 3 * sizeof(uint16_t))))
-    return ZONE_OUT_OF_MEMORY;
   *((uint16_t *)&octs[0]) = htons(3);
   *((uint16_t *)&octs[2]) = htons(sizeof(uint16_t));
   *((uint16_t *)&octs[4]) = htons((uint16_t)u64);
-  fld->svc_param.length = 3 * sizeof(uint16_t);
-  fld->svc_param.octets = octs;
+  par->rdata.length = 3 * sizeof(uint16_t);
   return 0;
 }
 
@@ -287,7 +275,7 @@ parse_ech(
 //  else if (len > UINT16_MAX)
 //    SEMANTIC_ERROR(par, "{l}: Invalid base64 sequence in ech, "
 //                        "value exceeds maximum", tok);
-  return ZONE_SYNTAX_ERROR;
+  return ZONE_NOT_IMPLEMENTED;
 
 //  size = 4 * sizeof(uint8_t) + (size_t)len;
 //  if (!(octs = zone_malloc(par, size)))
@@ -335,12 +323,13 @@ parse_iphint(
   int af, zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
 {
   size_t size, ipcnt = 0;
-  uint8_t *ips, *octs = NULL;
+  uint8_t *ips, *octs = par->rdata.svcb;
 
   const char *param = af == AF_INET ? "ipv4hint" : "ipv6hint";
   const size_t ipsize = af == AF_INET ? INET_ADDRSIZE : INET6_ADDRSIZE;
   const uint16_t iphint = af == AF_INET ? 4 : 6;
 
+  (void)fld;
   (void)ptr;
   assert(tok->svc_param.value.length);
 
@@ -353,8 +342,6 @@ parse_iphint(
     SEMANTIC_ERROR(par, "{l}: Invalid %s, too many addresses", tok, param);
 
   size = 4 * sizeof(uint8_t) + ipcnt * ipsize;
-  if (!(octs = zone_malloc(par, size)))
-    return ZONE_OUT_OF_MEMORY;
   *((uint16_t *)&octs[0]) = htons(iphint);
   *((uint16_t *)&octs[2]) = htons(ipcnt * ipsize);
   ips = &octs[4];
@@ -365,12 +352,9 @@ parse_iphint(
       goto bad_ip;
   }
 
-  fld->svc_param.length = size;
-  fld->svc_param.octets = octs;
+  par->rdata.length = size;
   return 0;
 bad_ip:
-  if (octs)
-    zone_free(par, octs);
   SEMANTIC_ERROR(par, "{l}: Invalid %s, invalid address(es)", tok, param);
   return ZONE_SEMANTIC_ERROR;
 }
@@ -407,7 +391,7 @@ static inline zone_return_t parse_svc_param(
 {
   int32_t key;
   ssize_t size;
-  uint8_t *octs = NULL;
+  uint8_t *octs = par->rdata.svcb;
 
   assert((tok->code & ZONE_SVC_PARAM) == ZONE_SVC_PARAM);
   assert(tok->svc_param.key.data);
@@ -432,27 +416,18 @@ static inline zone_return_t parse_svc_param(
     SEMANTIC_ERROR(par, "{l}: Invalid SvcParam (%u), value exceeds maximum "
                         "length", tok, (uint16_t)key);
 
-  if (!(octs = zone_malloc(par, 4 * sizeof(uint8_t) + (size_t)size)))
-    return ZONE_OUT_OF_MEMORY;
+  //if (!(octs = zone_malloc(par, 4 * sizeof(uint8_t) + (size_t)size)))
+  //  return ZONE_OUT_OF_MEMORY;
 
   *(uint16_t *)&octs[0] = htons(key);
   *(uint16_t *)&octs[2] = htons((uint16_t)size);
   if (size)
     (void)zone_unescape(str, len, (char *)&octs[4], size, 1);
 
-  fld->svc_param.length = 4 * sizeof(uint8_t) + (size_t)size;
-  fld->svc_param.octets = octs;
+  par->rdata.length = 4 * sizeof(uint8_t) + (size_t)size;
+  //fld->svc_param.length = 4 * sizeof(uint8_t) + (size_t)size;
+  //fld->svc_param.octets = octs;
   return 0;
-}
-
-static inline zone_return_t parse_generic_svc_param(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  (void)par;
-  (void)tok;
-  (void)fld;
-  (void)ptr;
-  return ZONE_SYNTAX_ERROR;
 }
 
 #endif // ZONE_SVCB_H

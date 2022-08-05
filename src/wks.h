@@ -12,23 +12,9 @@
 static inline zone_return_t accept_wks(
   zone_parser_t *par, zone_field_t *fld, void *ptr)
 {
-  size_t size;
-  uint8_t *octs;
-  zone_return_t ret;
-
-  size = sizeof(uint8_t) * (par->parser.wks.highest_port / 8 + 1);
-  if (!(octs = zone_malloc(par, size)))
-    return ZONE_OUT_OF_MEMORY;
-  memcpy(octs, par->parser.wks.ports, size);
-
-  assert(fld->code == (ZONE_RDATA|ZONE_WKS));
-  fld->nsec.length = size;
-  fld->nsec.octets = octs;
-
-  if ((ret = par->options.accept.rdata(par, fld, ptr)) < 0)
-    zone_free(par, octs);
-  par->parser.wks.highest_port = 0;
-  return ret;
+  par->rdata.state.wks.protocol = NULL;
+  par->rdata.state.wks.highest_port = 0;
+  return par->options.accept.rdata(par, fld, ptr);
 }
 
 static inline zone_return_t parse_wks_protocol(
@@ -38,6 +24,7 @@ static inline zone_return_t parse_wks_protocol(
   ssize_t cnt;
   struct protoent *proto;
 
+  (void)fld;
   (void)ptr;
   assert((tok->code & ZONE_STRING) == ZONE_STRING);
 
@@ -63,10 +50,10 @@ static inline zone_return_t parse_wks_protocol(
     SEMANTIC_ERROR(par, "{l}: Unknown protocol", tok);
 
   assert(proto);
-  par->parser.wks.protocol = proto;
-  par->parser.wks.highest_port = 0;
+  par->rdata.state.wks.protocol = proto;
+  par->rdata.state.wks.highest_port = 0;
 
-  fld->int8 = (uint8_t)proto->p_proto;
+  par->rdata.int8 = (uint8_t)proto->p_proto;
   return ZONE_RDATA;
 }
 
@@ -90,7 +77,7 @@ static inline zone_return_t parse_wks(
   const struct servent *serv;
 
   (void)ptr;
-  assert(par->parser.wks.protocol);
+  assert(par->rdata.state.wks.protocol);
   assert((tok->code & ZONE_STRING) == ZONE_STRING);
   assert((fld->code & ZONE_WKS) == ZONE_WKS);
 
@@ -102,7 +89,7 @@ static inline zone_return_t parse_wks(
     SEMANTIC_ERROR(par, "{l}: Invalid service", tok);
 
   buf[(size_t)cnt] = '\0';
-  proto = par->parser.wks.protocol;
+  proto = par->rdata.state.wks.protocol;
   assert(proto);
   if ((serv = getservbyname(buf, proto->p_name))) {
     port = ntohs((uint16_t)serv->s_port);
@@ -119,29 +106,20 @@ static inline zone_return_t parse_wks(
   assert(port >= 0 && port <= 65535);
   const uint16_t octet = (uint16_t)port / 8;
 
-  if (octet > par->parser.wks.highest_port / 8) {
+  if (octet > par->rdata.state.wks.highest_port / 8) {
     // ensure newly used octets are zeroed out before use
     size_t off = 0;
-    if (par->parser.wks.highest_port)
-      off = par->parser.wks.highest_port / 8 + 1;
-    size_t size = ((octet - off) + 1) * sizeof(par->parser.wks.ports[off]);
-    memset(&par->parser.wks.ports[off], 0, size);
-    par->parser.wks.highest_port = port;
+    if (par->rdata.state.wks.highest_port)
+      off = par->rdata.state.wks.highest_port / 8 + 1;
+    size_t size = ((octet - off) + 1) * sizeof(par->rdata.wks[off]);
+    memset(&par->rdata.wks[off], 0, size);
+    par->rdata.state.wks.highest_port = port;
+    par->rdata.length = par->rdata.state.wks.highest_port / 8 + 1;
   }
 
-  par->parser.wks.ports[octet] |= (1 << (7 - port % 8));
+  par->rdata.wks[octet] |= (1 << (7 - port % 8));
 
   return ZONE_DEFER_ACCEPT;
-}
-
-static inline zone_return_t parse_generic_wks(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
-{
-  (void)par;
-  (void)tok;
-  (void)fld;
-  (void)ptr;
-  return ZONE_NOT_IMPLEMENTED;
 }
 
 #endif // ZONE_WKS_H

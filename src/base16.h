@@ -11,24 +11,10 @@
 static inline zone_return_t accept_base16(
   zone_parser_t *par, zone_field_t *fld, void *ptr)
 {
-  if (par->parser.base16.state != 0)
+  if (par->rdata.state.base16 != 0)
     SEMANTIC_ERROR(par, "Invalid base16 sequence");
-
-  uint8_t *octs;
-  if (!(octs = zone_malloc(par, par->parser.base16.length)))
-    return ZONE_OUT_OF_MEMORY;
-  memcpy(octs, par->parser.base16.octets, par->parser.base16.length);
-  fld->binary.length = par->parser.base16.length;
-  fld->binary.octets = octs;
-
-  zone_return_t ret;
-  if ((ret = par->options.accept.rdata(par, fld, ptr)) < 0)
-    zone_free(par, octs);
-  par->parser.base16.length = 0;
-  par->parser.base16.state = 0;
-  // FIXME: improve, quick hack
-  par->parser.wks.protocol = NULL;
-  return 0;
+  par->rdata.state.base16 = 0;
+  return par->options.accept.rdata(par, fld, ptr);
 }
 
 static const uint8_t b16rmap[256] = {
@@ -95,15 +81,15 @@ static inline zone_return_t parse_base16(
       SEMANTIC_ERROR(par, "Invalid character in base16 encoding");
     }
 
-    if (par->parser.base16.state == 0) {
-      par->parser.base16.octets[par->parser.base16.length]  = ofs << 4;
-      par->parser.base16.state = 1;
-    } else if (par->parser.base16.state == 1) {
-      par->parser.base16.octets[par->parser.base16.length] |= ofs;
-      par->parser.base16.state = 0;
-      if (par->parser.base16.length == UINT16_MAX - 1)
+    if (par->rdata.state.base16 == 0) {
+      par->rdata.base16[par->rdata.length]  = ofs << 4;
+      par->rdata.state.base16 = 1;
+    } else if (par->rdata.state.base16 == 1) {
+      par->rdata.base16[par->rdata.length] |= ofs;
+      par->rdata.state.base16 = 0;
+      if (par->rdata.length == UINT16_MAX - 1)
         SEMANTIC_ERROR(par, "Base16 sequence is too big");
-      par->parser.base16.length++;
+      par->rdata.length++;
     }
   }
 
