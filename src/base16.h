@@ -101,11 +101,10 @@ static inline zone_return_t accept_base16(
 static inline zone_return_t parse_salt(
   zone_parser_t *par, zone_token_t *tok)
 {
-  size_t quot = (tok->code & ZONE_QUOTED) != 0;
   zone_return_t ret;
 
   par->rdata.length = 1;
-  if ((ret = zone_quick_peek(par, quot)) < 0)
+  if ((ret = zone_quick_peek(par, tok->cursor)) < 0)
     return ret;
   else if ((ret & 0xff) == '-')
     (void)zone_get(par, tok);

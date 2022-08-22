@@ -135,6 +135,7 @@ static inline int zone_compare(
 typedef struct zone_token zone_token_t;
 struct zone_token {
   zone_location_t location;
+  size_t cursor;
   union {
     zone_code_t code;
     zone_string_t string;
@@ -166,19 +167,16 @@ struct zone_token {
 static inline void zone_flush(zone_parser_t *par, const zone_token_t *tok)
 {
   assert(par && tok);
-  assert(tok->string.length < SIZE_MAX - par->file->buffer.offset);
-  if (par->file->buffer.data[par->file->buffer.offset] == '"')
-    par->file->buffer.offset += 2;
-  par->file->buffer.offset += tok->string.length;
+  assert(tok->cursor <= par->file->buffer.length);
+  assert(tok->cursor == par->file->buffer.offset + tok->string.length + ((tok->code & ZONE_QUOTED) != 0));
+  par->file->buffer.offset = tok->cursor + ((tok->code & ZONE_QUOTED) != 0);
   par->file->position = tok->location.end;
 }
 
 static inline zone_char_t zone_quick_peek(zone_parser_t *par, size_t cur)
 {
-  assert(par);
-
-  if (cur < par->file->buffer.length - par->file->buffer.offset)
-    return par->file->buffer.data[ par->file->buffer.offset + cur ];
+  if (cur < par->file->buffer.length)
+    return par->file->buffer.data[ cur ];
   return '\0'; // end-of-file
 }
 
@@ -187,7 +185,7 @@ static inline zone_return_t zone_skip_space(zone_parser_t *par)
   assert(par);
 
   for (zone_char_t chr; ;) {
-    switch ((chr = zone_quick_peek(par, 0))) {
+    switch ((chr = zone_quick_peek(par, par->file->buffer.offset))) {
       case ' ':
       case '\t':
         par->file->position.column += 1;
@@ -200,7 +198,7 @@ static inline zone_return_t zone_skip_space(zone_parser_t *par)
         par->file->position.column = 1;
         par->file->buffer.offset += 1;
         // handle lf, cr and cr+lf consistently
-        if (zone_quick_peek(par, 1) != '\n')
+        if (zone_quick_peek(par, par->file->buffer.offset + 1) != '\n')
           break;
         par->file->buffer.offset += 1;
         break;
@@ -222,7 +220,7 @@ static inline zone_return_t zone_skip_comment(zone_parser_t *par)
   assert(par);
 
   for (zone_char_t chr;;) {
-    switch ((chr = zone_quick_peek(par, 0))) {
+    switch ((chr = zone_quick_peek(par, par->file->buffer.offset))) {
       case '\r':
       case '\n':
       case '\0':
@@ -235,8 +233,7 @@ static inline zone_return_t zone_skip_comment(zone_parser_t *par)
   }
 }
 
-static inline zone_char_t zone_scan(
-  zone_parser_t *par, zone_token_t *tok)
+static inline zone_char_t zone_scan(zone_parser_t *par, zone_token_t *tok)
 {
   assert(par && tok);
 
@@ -248,16 +245,18 @@ static inline zone_char_t zone_scan(
         assert(chr == '\r' || chr == '\n' || chr == '\0');
         break;
       case '\r':
-        if ((chr = zone_quick_peek(par, 1)) < 0)
+        if ((chr = zone_quick_peek(par, par->file->buffer.offset + 1)) < 0)
           return chr;
         tok->code = '\n'; // handle lf, cr and cr+lf consistently
         tok->string.data = par->file->buffer.data + par->file->buffer.offset;
         tok->string.length = 1 + (chr == '\n');
+        tok->cursor = par->file->buffer.offset + tok->string.length;
         goto token;
       case '\n':
         tok->code = '\n';
         tok->string.data = par->file->buffer.data + par->file->buffer.offset;
         tok->string.length = 1;
+        tok->cursor = par->file->buffer.offset + tok->string.length;
         goto token;
       case '(':
         if (par->state.scanner & ZONE_GROUPED)
@@ -277,11 +276,13 @@ static inline zone_char_t zone_scan(
         tok->code = '\0';
         tok->string.data = NULL;
         tok->string.length = 0;
+        tok->cursor = par->file->buffer.offset;
         goto token;
       case '"':
         tok->code = ZONE_STRING | ZONE_QUOTED;
         tok->string.data = par->file->buffer.data + par->file->buffer.offset + 1;
         tok->string.length = 0;
+        tok->cursor = par->file->buffer.offset + 1;
         goto token;
       default:
         if (chr < 0)
@@ -289,6 +290,7 @@ static inline zone_char_t zone_scan(
         tok->code = ZONE_STRING;
         tok->string.data = par->file->buffer.data + par->file->buffer.offset;
         tok->string.length = 0;
+        tok->cursor = par->file->buffer.offset;
         goto token;
     }
   }
@@ -298,36 +300,42 @@ token:
   return tok->code;
 }
 
+static inline zone_return_t zone_end_of_string(
+  const zone_parser_t *par, zone_token_t *tok)
+{
+  tok->string.length = (tok->cursor - ((tok->code & ZONE_QUOTED) != 0)) - par->file->buffer.offset;
+  return 0;
+}
+
 static inline zone_return_t zone_get(
   zone_parser_t *par, zone_token_t *tok)
 {
   assert(par && tok && (tok->code & ZONE_STRING));
 
   zone_char_t chr;
-  const size_t quot = (tok->code & ZONE_QUOTED) != 0;
 
-  switch ((chr = zone_quick_peek(par, quot + tok->string.length))) {
+  switch ((chr = zone_quick_peek(par, tok->cursor))) {
     case ';':
     case '(':
     case ')':
     case ' ':
     case '\t':
-      if (!quot)
-        return 0;
-      tok->string.length++;
+      if (!(tok->code & ZONE_QUOTED))
+        return zone_end_of_string(par, tok);
+      tok->cursor++;
       tok->location.end.column++;
       return chr;
     case '"':
-      if (!quot)
-        return 0;
+      if (!(tok->code & ZONE_QUOTED))
+        return zone_end_of_string(par, tok);
       tok->location.end.column++;
-      return 0;
+      return zone_end_of_string(par, tok);
     case '\r': // handle cr+lf consistently, but return separately in string
-      if (!quot)
-        return 0;
-      if ((chr = zone_quick_peek(par, quot + tok->string.length)) < 0)
+      if (!(tok->code & ZONE_QUOTED))
+        return zone_end_of_string(par, tok);
+      if ((chr = zone_quick_peek(par, tok->cursor + 1)) < 0)
         return chr;
-      tok->string.length++;
+      tok->cursor++;
       if (chr == '\n') {
         tok->location.end.column++;
       } else {
@@ -336,28 +344,28 @@ static inline zone_return_t zone_get(
       }
       return '\r';
     case '\n':
-      if (!quot)
-        return 0;
-      tok->string.length++;
+      if (!(tok->code & ZONE_QUOTED))
+        return zone_end_of_string(par, tok);
+      tok->cursor++;
       tok->location.end.line++;
       tok->location.end.column = 1;
       return chr;
     case '\0':
-      return chr;
+      return zone_end_of_string(par, tok);
     case '\\':
       break; // escaped character, slow path
     default:
-      tok->string.length++;
+      tok->cursor++;
       tok->location.end.column++;
       return chr;
   }
 
   tok->code |= ZONE_QUOTED;
 
-  switch ((chr = zone_quick_peek(par, quot + tok->string.length + 1))) {
+  switch ((chr = zone_quick_peek(par, tok->cursor + 1))) {
     case '\r': // handle cr+lf consistently, but return separately in string
-      tok->string.length += 2;
-      if (zone_quick_peek(par, quot + tok->string.length + 2) == '\n') {
+      tok->cursor += 2;
+      if (zone_quick_peek(par, tok->cursor + 2) == '\n') {
         tok->location.end.column++;
       } else {
         tok->location.end.line++;
@@ -365,7 +373,7 @@ static inline zone_return_t zone_get(
       }
       return chr | ZONE_ESCAPED;
     case '\n':
-      tok->string.length += 2;
+      tok->cursor += 2;
       tok->location.end.line++;
       tok->location.end.column = 1;
       return chr | ZONE_QUOTED;
@@ -383,14 +391,14 @@ static inline zone_return_t zone_get(
     case '\0':
       goto bad_escape;
     default:
-      tok->string.length += 2;
+      tok->cursor += 2;
       tok->location.end.column += 2;
       return chr | ZONE_ESCAPED;
   }
 
   zone_char_t esc, unesc = chr - '0';
   for (size_t cnt = 2; cnt < 4; cnt++) {
-    switch ((esc = zone_quick_peek(par, quot + tok->string.length + cnt))) {
+    switch ((esc = zone_quick_peek(par, tok->cursor + cnt))) {
       case '0':
       case '1':
       case '2':
@@ -405,13 +413,13 @@ static inline zone_return_t zone_get(
     }
   }
 
-  tok->string.length += 4;
+  tok->cursor += 4;
   tok->location.end.column += 4;
   return unesc | ZONE_DECIMAL;
 bad_escape:
   if (!(par->options.flags & ZONE_LENIENT))
     SYNTAX_ERROR(par, "Invalid escape sequence");
-  tok->string.length += 2;
+  tok->cursor += 2;
   tok->location.end.column += 2;
   return chr | ZONE_QUOTED;
 }

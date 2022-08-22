@@ -822,7 +822,7 @@ static inline zone_return_t parse_rr(
   zone_return_t ret;
 
   par->state.scanner = ZONE_OWNER;
-  switch ((ret = zone_quick_peek(par, 0))) {
+  switch ((ret = zone_quick_peek(par, par->file->buffer.offset))) {
     case ' ':
     case '\t':
       break;
@@ -1028,7 +1028,7 @@ zone_return_t zone_parse(
   zone_token_t tok;
   zone_return_t ret = 0;
 
-  for (zone_char_t chr; ret == 0 && (chr = zone_quick_peek(par, 0)); ) {
+  for (zone_char_t chr; ret == 0 && (chr = zone_quick_peek(par, par->file->buffer.offset)); ) {
     // control directives must start at the beginning of the line
     if (chr != '$')
       ret = parse_rr(par, &tok, ptr);
