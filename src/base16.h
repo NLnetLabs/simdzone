@@ -57,10 +57,11 @@ static inline zone_return_t parse_base16(
   uint8_t ofs;
 
   for (;;) {
-    ch = zone_get(par, tok);
-    ofs = b16rmap[(uint8_t)ch & 0xff];
+    ofs = b16rmap[(uint8_t)(ch = zone_quick_peek(par, tok->cursor)) & 0xff];
 
     if (ofs >= b16rmap_special) {
+      ch = zone_get(par, tok);
+      ofs = b16rmap[(uint8_t)ch & 0xff];
       // ignore whitespace
       if (ofs == b16rmap_space)
         continue;
@@ -71,6 +72,9 @@ static inline zone_return_t parse_base16(
       if (ch < 0)
         return ch;
       SEMANTIC_ERROR(par, "Invalid character in base16 encoding");
+    } else {
+      tok->cursor++;
+      tok->location.end.column++;
     }
 
     if (par->state.base16 == 0) {
