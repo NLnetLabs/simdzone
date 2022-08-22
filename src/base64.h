@@ -57,10 +57,11 @@ static inline zone_return_t parse_base64(
   uint8_t ofs;
 
   for (;;) {
-    ch = zone_get(par, tok);
-    ofs = b64rmap[(uint8_t)ch & 0xff];
+    ofs = b64rmap[(ch = zone_quick_peek(par, tok->cursor)) & 0xff];
 
     if (ofs >= b64rmap_special) {
+      ch = zone_get(par, tok);
+      ofs = b64rmap[(uint8_t)ch & 0xff];
       // ignore whitespaces
       if (ofs == b64rmap_space)
         continue;
@@ -72,6 +73,9 @@ static inline zone_return_t parse_base64(
         return ch;
       // non-base64 character
       goto bad_char;
+    } else {
+      tok->cursor++;
+      tok->location.end.column++;
     }
 
     switch (par->state.base64) {
