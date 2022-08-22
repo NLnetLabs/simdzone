@@ -848,27 +848,26 @@ static inline zone_return_t parse_rr(
       return ret;
 
     if (tok->code & ZONE_STRING) {
-//      goto bail;
-    
-    if ((par->state.scanner & ZONE_TTL) && (got_this = have_ttl(par, tok))) {
-      par->state.scanner &= ~ZONE_TTL;
-
-    } else if ((par->state.scanner & ZONE_TYPE) && (got_this = have_type(par, tok))) {
-      par->state.scanner &= ~ZONE_TYPE;
-      par->rr.descriptors.type = par->rr.fields[TYPE].descriptor.type;
-      par->rr.descriptors.rdata = (const void *)&((const struct type_descriptor *)par->rr.descriptors.type)->rdata[0];
-      assert(par->options.accept.rr);
-      if ((ret = accept_rr(
-        par,
-       &par->rr.fields[OWNER],
-       &par->rr.fields[TTL],
-       &par->rr.fields[CLASS],
-       &par->rr.fields[TYPE],
-        ptr)) < 0)
-        return ret;
-    } else if ((par->state.scanner & ZONE_CLASS) && (got_this = have_class(par, tok))) {
-      par->state.scanner &= ~ZONE_CLASS;
-    }
+      if ((zone_quick_peek(par, tok->cursor) & 0xff) > '9') {
+        if ((par->state.scanner & ZONE_TYPE) && (got_this = have_type(par, tok))) {
+          par->state.scanner &= ~ZONE_TYPE;
+          par->rr.descriptors.type = par->rr.fields[TYPE].descriptor.type;
+          par->rr.descriptors.rdata = (const void *)&((const struct type_descriptor *)par->rr.descriptors.type)->rdata[0];
+          assert(par->options.accept.rr);
+          if ((ret = accept_rr(
+            par,
+           &par->rr.fields[OWNER],
+           &par->rr.fields[TTL],
+           &par->rr.fields[CLASS],
+           &par->rr.fields[TYPE],
+            ptr)) < 0)
+            return ret;
+        } else if ((par->state.scanner & ZONE_CLASS) && (got_this = have_class(par, tok))) {
+          par->state.scanner &= ~ZONE_CLASS;
+        }
+      } else if ((par->state.scanner & ZONE_TTL) && (got_this = have_ttl(par, tok))) {
+        par->state.scanner &= ~ZONE_TTL;
+      }
     }
 
     if (!got_this) {
