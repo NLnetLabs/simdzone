@@ -16,6 +16,42 @@
 #include <stddef.h>
 #include <netinet/in.h>
 
+// compiler attributes
+#if __clang__
+# define ZONE_CLANG \
+    (__clang_major__ * 100000 + __clang_minor__ * 100 + __clang_patchlevel__)
+#elif __GNUC__
+# define ZONE_GCC \
+    (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#else
+#endif
+
+#if defined __has_attribute
+# define zone_has_attribute(x) __has_attribute(x)
+# define zone_attribute(x) __attribute__(x)
+#elif zone_gnuc
+# define zone_has_attribute(x) __has_attribute(x)
+# define zone_attribute(x) __attribute__(x)
+#else
+# define zone_has_attribute(x)
+# define zone_attribute(x)
+#endif
+
+#define zone_nonnull(x) zone_attribute((__nonnull__ x))
+#define zone_nonnull_all() zone_attribute((__nonnull__))
+
+#if zone_has_attribute(returns_nonnull) && (zone_clang || zone_gnuc >= 40900)
+# define zone_returns_nonnull zone_attribute((__returns_nonnull__))
+#else
+# define zone_returns_nonnull
+#endif
+
+#if !zone_has_attribute(alloc_size) || zone_gnuc <= 40204
+# define zone_alloc_size(x)
+#else
+# define zone_alloc_size(x) __attribute__((__alloc_size__ x))
+#endif
+
 typedef int32_t zone_return_t;
 
 typedef struct zone_position zone_position_t;
@@ -29,27 +65,32 @@ struct zone_location {
   zone_position_t begin, end;
 };
 
+typedef struct zone_name zone_name_t;
+struct zone_name {
+  size_t length;
+  uint8_t octets[255];
+};
+
 typedef struct zone_file zone_file_t;
 struct zone_file {
   zone_file_t *includer;
   struct {
     const void *domain; // reference received by accept_name if applicable
-    struct { size_t length; uint8_t octets[255]; } name;
-  } origin; // current origin
+    zone_name_t name;
+    zone_location_t location;
+  } origin, owner; // current origin and owner
   struct {
-    const void *domain; // reference received by accept_name if applicable
-    struct { size_t length; uint8_t octets[255]; } name;
-  } owner; // current owner
+    uint32_t seconds;
+    zone_location_t location;
+  } ttl;
   zone_position_t position;
   const char *name; // file name in include directive
   const char *path; // fully-qualified path to include file
   int handle;
-  bool empty;
   struct {
-    size_t cursor;
-    size_t used;
-    size_t size;
-    union { const char *read; char *write; } data;
+    size_t offset;
+    size_t length;
+    const char *data;
   } buffer;
 };
 
@@ -58,49 +99,49 @@ struct zone_file {
 // and line feed delimiters are simply encoded as '\0' and '\n' by the
 // scanner. the 8 least significant bits must only be considered valid ascii
 // if no other bits are set as they are reserved for private state if there
-// are. bits 8 - 15 encode the the value type, bits 16-23 are reserved for the
+// are. bits 8 - 15 encode the the value type, bits 16-27 are reserved for the
 // field type. negative values indicate an error condition
 typedef zone_return_t zone_code_t;
 
 typedef enum {
-  ZONE_DOMAIN = (1 << 8), // special case
-  ZONE_INT8 = (2 << 8),
-  ZONE_INT16 = (3 << 8),
-  ZONE_INT32 = (4 << 8),
-  ZONE_IP4 = (5 << 8),
-  ZONE_IP6 = (6 << 8),
-  ZONE_NAME = (7 << 8),
-  ZONE_STRING = (8 << 8),
-  ZONE_BASE16 = (9 << 8),
-  ZONE_BASE32 = (10 << 8),
-  ZONE_BASE64 = (11 << 8),
-  // hex fields
-  // ZONE_EUI48 (ZONE_HEX6?) - 12
-  // ZONE_EUI64 (ZONE_HEX8?) - 13
-  // miscellaneous fields
-  ZONE_SVC_PARAM = (15 << 8),
-  ZONE_WKS = (16 << 8),
-  ZONE_NSEC = (17 << 8)
-} zone_type_t;
-
-inline zone_type_t zone_type(const zone_code_t code)
-{
-  return code & 0xff00;
-}
-
-typedef enum {
-  ZONE_DELIMITER = 0,
-  ZONE_TTL = (1 << 16), // may be used as qualifier for int32 rdata
-  ZONE_CLASS = (1 << 17),
-  ZONE_TYPE = (1 << 18), // may be used as qualifier for int32 rdata
-  ZONE_OWNER = (1 << 19),
-  ZONE_RDATA = (2 << 19)
-  // NOTE: additional (private) scanner states start from (3 << 19)
+  ZONE_TTL = (1 << 0), // may be used as qualifier for int32 rdata
+  ZONE_CLASS = (1 << 1),
+  ZONE_TYPE = (1 << 2), // may be used as qualifier for int16 rdata
+  ZONE_DELIMITER = (1 << 3),
+  ZONE_OWNER = (2 << 3),
+  ZONE_RDATA = (3 << 3)
 } zone_item_t;
 
 inline zone_item_t zone_item(const zone_code_t code)
 {
-  return code & 0xff0000;
+  return code & 0xff;
+}
+
+typedef enum {
+  ZONE_INT8 = (1 << 14),
+  ZONE_INT16 = (2 << 14),
+  ZONE_INT32 = (3 << 14),
+  ZONE_IP4 = (4 << 14),
+  ZONE_IP6 = (5 << 14),
+  ZONE_NAME = (6 << 14),
+  ZONE_STRING = (1 << 8), // (used by scanner)
+  // (B)inary (L)arge (Ob)ject. Inspired by relation database terminology.
+  // Must be last.
+  ZONE_BLOB = (7 << 14),
+  // hex fields
+  // ZONE_EUI48 (ZONE_HEX6?)
+  // ZONE_EUI64 (ZONE_HEX8?)
+  // miscellaneous fields
+  ZONE_SVC_PARAM = (1 << 9), // (used by scanner)
+  ZONE_WKS = (8 << 14),
+  ZONE_NSEC = (9 << 14)
+} zone_type_t;
+
+inline zone_type_t zone_type(const zone_code_t code)
+{
+  // bits for ZONE_ESCAPED + ZONE_DECIMAL come after ZONE_STRING so width can
+  // be determined using a simple shift operation
+  return code & 0xfcf00;
 }
 
 // qualifiers (can be combined in various ways, hence not an enumeration)
@@ -110,31 +151,42 @@ inline zone_item_t zone_item(const zone_code_t code)
 //       be presented as numeric values, by the name of the record, or by the
 //       correspondig generic notation, i.e. TYPExx. Time-to-live values may
 //       be presented as numeric value or in the "1h2m3s" notation.
-#define ZONE_COMPRESSED (1<<0)
-#define ZONE_MAILBOX (1<<1)
-#define ZONE_LOWER_CASE (1<<2)
-#define ZONE_OPTIONAL (1<<3)
+#define ZONE_COMPRESSED (1 << 8)
+#define ZONE_MAILBOX (1 << 9)
+#define ZONE_LOWER_CASE (1 << 10)
+#define ZONE_OPTIONAL (1 << 11)
 // string fields may occur in a sequence. must be last
-#define ZONE_SEQUENCE (1<<4)
-// string and binary fields may omit a length octet. must be last
-#define ZONE_UNBOUNDED (1<<5)
+#define ZONE_SEQUENCE (1 << 12)
 // int32 fields, require "YYYYMMDDHHmmSS" format
-#define ZONE_TIME (1<<6)
+#define ZONE_TIME (1 << 13)
+// string and blob fields, require base16, may span presentation fields
+#define ZONE_BASE16 (1 << 14)
+// blob fields, require base32 format, may span presentation fields
+#define ZONE_BASE32 (1 << 15)
+// blob fields, require base64 format, may span presentation fields
+#define ZONE_BASE64 (1 << 16)
+
+
+typedef struct zone_key_value zone_key_value_t;
+struct zone_key_value {
+  const char *name;
+  const size_t length;
+  uint32_t value;
+};
 
 typedef struct zone_map zone_map_t;
 struct zone_map {
-  const char *name;
-  const size_t length;
-  uint32_t id;
+  const zone_key_value_t *sorted;
+  size_t length;
 };
 
-typedef struct zone_rdata_descriptor zone_rdata_descriptor_t;
-struct zone_rdata_descriptor {
+typedef struct zone_field_descriptor zone_field_descriptor_t;
+struct zone_field_descriptor {
   const char *name;
   const size_t length;
   zone_type_t type;
   uint32_t qualifiers;
-  struct { zone_map_t *map; size_t count; } labels;
+  zone_map_t labels;
   const char *description;
 };
 
@@ -147,7 +199,7 @@ struct zone_rdata_descriptor {
 typedef struct zone_type_descriptor zone_type_descriptor_t;
 struct zone_type_descriptor {
   const char *name;
-  const size_t length; // length of the name...
+  const size_t length;
   uint16_t type;
   uint32_t options;
   const char *description;
@@ -159,7 +211,7 @@ struct zone_field {
   zone_code_t code; // OR'ed combination of type and item
   union {
     const zone_type_descriptor_t *type; // type field
-    const zone_rdata_descriptor_t *rdata; // rdata fields
+    const zone_field_descriptor_t *rdata; // rdata fields
   } descriptor;
   union {
     const void *domain;
@@ -227,7 +279,7 @@ typedef void(*zone_free_t)(void *arena, void *ptr);
 // servers may interpret fields differently, but can be useful in sitations
 // where provisioning software or the primary name server outputs slightly
 // malformed zone files
-#define ZONE_LEANIENT (1<<0)
+#define ZONE_LENIENT (1<<0)
 
 typedef struct zone_options zone_options_t;
 struct zone_options {
@@ -235,8 +287,9 @@ struct zone_options {
   //        with static buffers, signal ownership of allocated memory, etc
   // FIXME: a compiler flag indicating host or network order might be useful
   uint32_t flags;
-  uint16_t default_class;
-  uint32_t default_ttl;
+  const char *origin;
+  uint16_t default_class; // << don't think we need this, right?!?!
+  uint32_t ttl;
   size_t block_size;
   struct {
     zone_malloc_t malloc;
@@ -257,11 +310,34 @@ struct zone_parser {
   zone_options_t options;
   zone_file_t first, *file;
   struct {
-    // scanner and parser requirde different state. scanner state indicates
-    // what to expect next. hence, if a newline is encountered and state is
-    // reverted to initial, the parser cannot determine if the line must be
-    // considered a blank
-    zone_code_t scanner, parser;
+    zone_code_t scanner;
+    // some record types require special handling of rdata. e.g.
+    //   WKS: bitmap of services for the given protocol
+    //   NSEC: bitmap of rrtypes available in next secure record
+    //   BASE64: base64 encoded data that may contain spaces
+    //
+    // state information is separated to allow for generic reset
+    struct {
+      const void *protocol;
+      uint16_t highest_port;
+    } wks;
+    struct {
+      uint16_t highest_bit;
+    } nsec;
+    uint8_t salt;
+    // base16 state can be any of:
+    //   0: parse bits 0-3
+    //   1: parse bits 4-7
+    uint8_t base16;
+    uint8_t base32;
+    // base64 state can be any of:
+    //   0: parse bits 0-5
+    //   1: parse bits 6-11
+    //   2: parse bits 12-17
+    //   3: parse bits 18-23
+    //   4: parsed 8 bits and have one '='
+    //   5: parsed 8 or 16 bits and have one '='
+    uint8_t base64;
   } state;
   struct {
     // small backlog to track items before invoking accept_rr. memory for
@@ -270,43 +346,10 @@ struct zone_parser {
     zone_field_t fields[5]; // { owner, ttl, class, type, rdata }
     struct {
       const zone_type_descriptor_t *type;
-      const zone_rdata_descriptor_t *rdata;
+      const zone_field_descriptor_t *rdata;
     } descriptors;
   } rr;
   struct {
-    // number of expected octets in rdata. valid if rdata is in generic
-    // presentation. i.e. if "\#" is encountered as per RFC3597
-    uint16_t expect;
-    uint16_t count;
-  } rdlength;
-  struct {
-    // some record types require special handling of rdata. e.g.
-    //   WKS: bitmap of services for the given protocol
-    //   NSEC: bitmap of rrtypes available in next secure record
-    //   BASE64: base64 encoded data that may contain spaces
-    //
-    // state information is separated to allow for generic reset
-    union {
-      struct {
-        const void *protocol;
-        uint16_t highest_port;
-      } wks;
-      struct {
-        uint16_t highest_bit;
-      } nsec;
-      // base16 state can be any of:
-      //   0: parse bits 0-3
-      //   1: parse bits 4-7
-      uint8_t base16;
-      // base64 state can be any of:
-      //   0: parse bits 0-5
-      //   1: parse bits 6-11
-      //   2: parse bits 12-17
-      //   3: parse bits 18-23
-      //   4: parsed 8 bits and have one '='
-      //   5: parsed 8 or 16 bits and have one '='
-      uint8_t base64;
-    } state;
     size_t length;
     union {
       uint8_t int8;
@@ -320,6 +363,7 @@ struct zone_parser {
       uint8_t nsec[256][2 + 256 / 8];
       uint8_t svcb[UINT16_MAX];
       uint8_t base16[UINT16_MAX];
+      uint8_t base32[UINT16_MAX];
       uint8_t base64[UINT16_MAX];
     };
   } rdata;
@@ -353,12 +397,5 @@ zone_return_t zone_parse(zone_parser_t *parser, void *user_data);
 // convenience function for reporting parser errors. supports custom flags
 // for easy printing of location. more flags may follow later
 void zone_error(const zone_parser_t *parser, const char *fmt, ...);
-
-#define ZONE_ESCAPED (1u<<0)
-#define ZONE_GENERIC (1u<<1)
-#define ZONE_STRICT (1u<<2)
-
-int32_t zone_is_class(const char *str, size_t len, uint32_t flags);
-int32_t zone_is_type(const char *str, size_t len, uint32_t flags);
 
 #endif // ZONE_H

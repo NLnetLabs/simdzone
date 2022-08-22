@@ -1,8 +1,17 @@
+/*
+ * types.h.in -- useful comment
+ *
+ * Copyright (c) 2022, NLnet Labs. All rights reserved.
+ *
+ * See LICENSE for the license.
+ *
+ */
 #ifndef ZONE_TYPES_H
 #define ZONE_TYPES_H
+
 #include "zone.h"
 
-static const zone_map_t types[] = {
+static const zone_key_value_t types[] = {
 @NAMES@
 };
 

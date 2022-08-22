@@ -90,7 +90,7 @@ static zone_return_t accept_rdata(
         eq = !memcmp(test->fields[test->count].name.octets,
                      rdata->wire.octets, rdata->wire.length);
       break;
-    case ZONE_BASE64:
+    case ZONE_BLOB:
       if (test->fields[test->count].b64.length == rdata->wire.length)
         eq = !memcmp(test->fields[test->count].b64.octets,
                      rdata->wire.octets, rdata->wire.length);
@@ -103,10 +103,12 @@ static zone_return_t accept_rdata(
         eq = !memcmp(test->fields[test->count].string.octets, str, len);
     }
       break;
-    case ZONE_BASE16:
-      if (test->fields[test->count].binary.length == rdata->wire.length)
-        eq = !memcmp(test->fields[test->count].binary.octets,
-                     rdata->wire.octets, rdata->wire.length);
+    case ZONE_NSEC:
+    {
+      eq = !memcmp(test->fields[test->count].string.octets,
+                   rdata->wire.octets,
+                   rdata->wire.length);
+    }
       break;
     default:
       break;
@@ -133,9 +135,15 @@ static zone_return_t accept_delimiter(
 #define A(x) { .code = ZONE_IP4, .options = 0, .ip4 = { .s_addr = x } }
 #define AAAA(...) { .code = ZONE_IP6, .options = 0, .ip6 = { .s6_addr = { __VA_ARGS__ } } }
 #define N(o, ...) { .code = ZONE_NAME, .options = o, .name = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
-#define B64(...) { .code = ZONE_BASE64, .options = 0, .b64 = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
+#define B32(...) { .code = ZONE_BLOB, .options = 0, .b64 = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
+#define B64(...) { .code = ZONE_BLOB, .options = 0, .b64 = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
 #define S(x) { .code = ZONE_STRING, .options = 0, .string = { .length = sizeof(x) - 1, .octets = (uint8_t *)x } }
-#define X(...) { .code = ZONE_BASE16, .options = 0, .binary = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
+#define X(...) { .code = ZONE_BLOB, .options = 0, .binary = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
+#define XC(...) { .code = ZONE_STRING, .options = 0, .binary = \
+                  { .length = sizeof((uint8_t[]){__VA_ARGS__}), \
+                    .octets = (uint8_t[]){ __VA_ARGS__ } } }
+
+#define RL(...) { .code = ZONE_NSEC, .options = 0, .binary = { .length = sizeof((uint8_t[]){__VA_ARGS__}), .octets = (uint8_t[]){__VA_ARGS__} } }
 
 static const field_t a[] = {
   A(16908480)
@@ -231,6 +239,27 @@ static const field_t dnskey[] = {
   )
 };
 
+static const field_t nsec3[] = {
+  I1(1),
+  I1(1),
+  I2(12),
+  XC(0xaa, 0xbb, 0xcc, 0xdd),
+  B32(
+    0x2f, 0x48, 0xb0, 0xac, 0xf9, 0x51, 0x03, 0x61, 0x2f, 0x5f, 0xfe, 0xb5,
+    0x33, 0xfd, 0x04, 0xff, 0x93, 0x2d, 0xbb, 0x3f
+  ),
+  RL(
+    0x00, 0x06, 0x40, 0x00, 0x00, 0x00, 0x00, 0x01
+  )
+};
+
+static const field_t nsec3param[] = {
+  I1(1),
+  I1(0),
+  I2(12),
+  XC(0xaa, 0xbb, 0xcc, 0xdd)
+};
+
 #define RDATA(x) x, sizeof(x)/sizeof(x[0])
 
 struct {
@@ -275,7 +304,14 @@ struct {
         "nOf+EPbtG9DMBmADjFDc2w/r\n"
         "ljwvFw==\n"
         ") ;  key id = 60485",
-        RDATA(dnskey) }
+        RDATA(dnskey) },
+  { 50, "example.com. 1 IN NSEC3 "
+        "1 1 12 aabbccdd (\n"
+        "5t4b1b7pa41m2bqvvqqj7v84vu9irepv A NSEC )",
+        RDATA(nsec3) },
+  { 51, "example.com. 1 IN NSEC3PARAM "
+        "1 0 12 aabbccdd",
+        RDATA(nsec3param) },
 };
 
 /*!cmocka */

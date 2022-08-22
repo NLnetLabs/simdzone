@@ -31,27 +31,6 @@ set(ldh "${__ALPHA}[a-zA-Z0-9-]*")
 # field types as defined in section 3.1 (R mentioned in section 3.5.1)
 set(ftype "(I1|I2|I4|A|AA|AAAA|N|S|B32|B64|X|EUI48|EUI64|T|Z|R)")
 
-# Some fields require overrides. e.g. the protocol field in the WKS record
-# must retain context information and fields representing a time-to-live are
-# generally expected to accept values like "1h2m3s"
-set(overrides "11:1:typed:parse_wks_protocol"
-              "11:1:generic:parse_generic_wks_protocol")
-
-set(I1_type_print "ZONE_INT8")
-set(I2_type_print "ZONE_INT16")
-set(I4_type_print "ZONE_INT32")
-set(A_type_print "ZONE_IP4")
-set(AAAA_type_print "ZONE_IP6")
-set(N_type_print "ZONE_NAME")
-set(S_type_print "ZONE_STRING")
-set(B32_type_print "ZONE_BASE32")
-set(B64_type_print "ZONE_BASE64")
-set(T_type_print "ZONE_INT32")
-set(X_type_print "ZONE_BASE16")
-set(Z_SVCB_type_print "ZONE_SVC_PARAM")
-set(Z_WKS_type_print "ZONE_WKS")
-set(Z_NXT_type_print "ZONE_NXT")
-
 # Options (record types)
 #   X: Implementing the RRTYPE requires extra processing
 set(X_opt_print "ZONE_COMPLEX")
@@ -64,6 +43,44 @@ set(O_opt_print "ZONE_OBSOLETE")
 #   E: Type is experimental
 set(E_opt_print "ZONE_EXPERIMENTAL")
 
+# Some fields require overrides. e.g. the protocol field in the WKS record
+# must retain context information and fields representing a time-to-live are
+# generally expected to accept values like "1h2m3s"
+set(overrides "11:1:typed:parse_wks_protocol")
+
+# dnsextlang defines a simple language to define DNS records. Field types and
+# qualifiers specified are very much inspired by the textual representation.
+# e.g. X, B32 and B64 types are derived from the way rdata fields are
+# represented in zone files. The aforementioned rdata fields all appear on
+# the wire as binary data with the length, in all cases, being the rdlength
+# minus the length of all preceding rdata. The zone parser aims to abstract
+# the presentation format, therefore types are derived from how rdata appears
+# on the wire.
+#
+# The zone parser defines, among others, STRING and BLOB types (inspired by
+# relational database terminology). STRING types consist of a length octet
+# followed by a maximum of 255 octets containing the data. BLOB types
+# consist solely of the data with their length being the rdlength minus the
+# length of all preceding rdata. As a result, BLOB types are required to be
+# last.
+#
+# Examples:
+#   X, B32, B64 and S[X] are presented as BLOBs with BASE16, BASE32, BASE64
+#   and <no-qualifier> qualifiers to describe their textual representation.
+#
+#   X[C] and S are presented as STRINGs with BASE16 and <no-qualifier> to
+#   define their textual representation. STRINGs with a BASE16 qualifiers
+#   actually require two fields for textual representation. One for the
+#   length of the rdata and one for the rdata itself.
+#
+# As the wire type depends on the textual type plus qualifiers, no
+# straightforward mapping is possible. <type>_<qual>_type_print mappings are
+# preferred. If no such mapping exists, <type>_type_print is used.
+# <type>_<qual>_type_print require qualifiers to be specified in
+# <type>_<qual>_qual_print. <type>_qual_print specifies qualifiers for
+# <type>_type_print. Qualifiers in <type>_<qual>_qual_print with a qualifier
+# different from the qualifier used to map the type are always communicated.
+
 # Qualifiers (rdata fields)
 #
 # Integer fields
@@ -71,13 +88,19 @@ set(E_opt_print "ZONE_EXPERIMENTAL")
 set(I1_qual "(${ldh}=${DIGIT}+)")
 set(I2_qual "(${ldh}=${DIGIT}+)")
 set(I4_qual "(${ldb}=${DIGIT}+)")
-set(R_qual "[L]") # R[L] only mentioned in section 3.5.1
+set(I1_type_print "ZONE_INT8:parse_int8:0:0")
+set(I2_type_print "ZONE_INT16:parse_int16:0:0")
+set(I4_type_print "ZONE_INT32:parse_int32:0:0")
 # IP address and partial address fields
 set(A_qual)
+set(A_type_print "ZONE_IP4:parse_ip4:0:0")
 set(AA_qual)
 set(AAAA_qual)
+set(AAAA_type_print "ZONE_IP6:parse_ip6:0:0")
 # Domain name fields, section 3.5.3
 #   C: Domain name is compressed
+set(N_qual "[CALO]")
+set(N_type_print "ZONE_NAME:parse_name:0:0")
 set(N_C_qual_print "ZONE_COMPRESSED")
 #   A: Domain name represents a mailbox
 set(N_A_qual_print "ZONE_MAILBOX")
@@ -85,29 +108,44 @@ set(N_A_qual_print "ZONE_MAILBOX")
 set(N_L_qual_print "ZONE_LOWER_CASE")
 #   O: Domain name is optional and can only appear as the last field
 set(N_L_qual_print "ZONE_OPTIONAL")
-set(N_qual "[CALO]")
 # Type fields
-set(R_L_qual_print "ZONE_TYPE")
-set(R_qual "[L]")
+set(R_qual "[L]") # R[L] only mentioned in section 3.5.1
+set(R_type_print "ZONE_INT16:parse_type:0:0")
+set(R_qual_print "ZONE_TYPE")
+set(R_L_type_print "ZONE_NSEC:parse_nsec:0:accept_nsec")
+set(R_L_qual_print "0")
 # String fields
+set(S_qual "[MX]")
+set(S_type_print "ZONE_STRING:parse_string:0:0")
 #   S: Single string preceded by a one-octet length.
 #   S[M]: Multiple strings, each stored as a length and string. Must be last!
 set(S_M_qual_print "ZONE_SEQUENCE")
 #   S[X]: Raw string, without any length bytes. Must be last!
-set(S_X_qual_print "ZONE_UNBOUNDED")
-set(S_qual "[MX]")
-# Base-32 and Base-64 fields
+set(S_X_type_print "ZONE_BLOB:parse_text:0:0")
+# Base-32 fields
 set(B32_qual)
+set(B32_type_print "ZONE_BLOB:parse_base32:0:accept_base32")
+set(B32_qual_print "ZONE_BASE32")
+# Base-64 fields
 set(B64_qual)
+set(B64_type_print "ZONE_BLOB:parse_base64:0:accept_base64")
+set(B64_qual_print "ZONE_BASE64")
 # Hex fields
 #   X: Binary data. Must be last. May include spaces for readability.
 #   X[C]: Stored as a string with a preceding one-octet length.
 set(X_qual "[C]")
+set(X_type_print "ZONE_BLOB:parse_base16:0:accept_base16")
+set(X_qual_print "ZONE_BASE16")
+set(X_C_type_print "ZONE_STRING:parse_salt:0:0")
+set(X_C_qual_print "ZONE_BASE16")
 # Time stamp fields
 #   T: Time. Require "YYYYMMDDHHmmSS" notation.
 #   T[L]: Time-to-live. Allow for "1h2m3s" notation and disallow use of MSB.
-set(T_L_qual_print "ZONE_TTL")
 set(T_qual "[L]")
+set(T_type_print "ZONE_INT32:parse_time:0:0")
+set(T_qual_print "ZONE_TIME")
+set(T_L_type_print "ZONE_INT32:parse_ttl:0:0")
+set(T_L_qual_print "ZONE_TTL")
 # Miscellaneous fields
 #   Z[WKS]: Bitmap of port numbers in the WKS RRTYPE.
 #   Z[NSAP]: Special hex syntax for the address in the NSAP RRTYPE.
@@ -118,6 +156,10 @@ set(T_qual "[L]")
 #   Z[HIPHIT] + Z[HIPKK]: Hex HIT and base64 PK fields with detached implicit lengths in the HIP RRTYPE.
 #   Z[SVCB]: Service parameters in the SVCB and HTTPS RRTYPEs.
 set(Z_qual "(WKS|NSAP|NXT|A6P|A6S|APL|IPSECKEY|HIPHIT|SVCB)")
+set(Z_WKS_type_print "ZONE_WKS:parse_wks:0:accept_wks")
+set(Z_WKS_qual_print "0")
+#set(Z_SVCB_type_print "ZONE_SVC_PARAM")
+#set(Z_NXT_type_print "ZONE_NXT")
 
 if(NOT STANZAS)
   message(FATAL_ERROR "STANZAS file to read not specified")
@@ -259,7 +301,7 @@ foreach(name ${names})
   endforeach()
 endforeach()
 
-# generate descriptor map, indexed by type id
+# Generate descriptor map, indexed by type id
 set(gap 0)
 set(sparse 0)
 
@@ -276,35 +318,13 @@ foreach(id RANGE ${maxid})
     endif()
   endif()
 
-  set(descr)
+  set(desc)
   foreach(type ${types})
     if(NOT type MATCHES "^[^:]+:${id}$")
       continue()
     endif()
 
     string(REGEX REPLACE ":.*$" "" name "${type}")
-
-    # options
-    set(opts)
-    if(_${id}_opts)
-      set(optsep "")
-      foreach(opt ${_${id}_opts})
-        if(DEFINED ${opt}_opt_print)
-          set(opts "${opts}${optsep}${${opt}_opt_print}")
-          set(optsep" | ")
-        endif()
-      endforeach()
-    else()
-      set(opts "0")
-    endif()
-
-    # description
-    set(desc "")
-    if(_${id}_desc)
-      set(desc "${_${id}_desc}")
-      # FIXME: can be implemented in more robust fashion...
-      string(REPLACE "\"" "\\\"" desc "${desc}")
-    endif()
 
     set(fid "0")
     set(fsep "")
@@ -314,11 +334,13 @@ foreach(id RANGE ${maxid})
       string(REGEX REPLACE ":.*$" "" ftype "${field}")
       string(REGEX REPLACE "^[^:]+:" "" fname "${field}")
 
+      unset(fmap)
       set(fquals "0")
-      set(flabels "{ .map = NULL, .count = 0 }")
+      set(flabels "{ .sorted = NULL, .length = 0 }")
       if(ftype MATCHES "I[0-9]+") # labels
+        set(fmap "${${ftype}_type_print}")
         if(_${id}_${fid}_quals)
-          set(flabels "{ .map = (zone_map_t[]){ ")
+          set(flabels "{ .sorted = (zone_key_value_t[]){ ")
           set(flabelid "")
           set(flabellen 0)
           set(flabelsep "")
@@ -331,64 +353,54 @@ foreach(id RANGE ${maxid})
             set(flabelsep ", ")
             math(EXPR flabellen "${flabellen} + 1")
           endforeach()
-          set(flabels "${flabels}${flabelsep} }, .count = ${flabellen} }")
+          set(flabels "${flabels}${flabelsep} }, .length = ${flabellen} }")
         endif()
       elseif(_${id}_${fid}_quals) # qualifiers
         set(fquals "")
         set(fqualsep "")
         foreach(fqual ${_${id}_${fid}_quals})
-          if(NOT ${ftype}_${fqual}_qual_print)
-            continue()
+          # Allow custom type based on type+qualifier
+          if(${ftype}_${fqual}_type_print AND NOT fmap)
+            set(fmap ${${ftype}_${fqual}_type_print})
           endif()
-          set(fquals "${fquals}${fqualsep}${${ftype}_${fqual}_qual_print}")
-          set(fqualsep " | ")
+          if(DEFINED ${ftype}_${fqual}_qual_print)
+            set(fquals "${fquals}${fqualsep}${${ftype}_${fqual}_qual_print}")
+            set(fqualsep " | ")
+          endif()
         endforeach()
+
+        # Use generic qualifiers if no type+qualifier map exists
+        if(NOT fmap)
+          set(fmap "${${ftype}_type_print}")
+          if(${ftype}_qual_print)
+            set(fquals "${fquals}${fqualsep}${${ftype}_qual_print}")
+          endif()
+        endif()
+      else()
+        set(fmap "${${ftype}_type_print}")
+        if(DEFINED ${ftype}_qual_print)
+          set(fquals "${${ftype}_qual_print}")
+        endif()
       endif()
 
+      set(fdesc "NULL")
       if(_${id}_${fid}_desc)
         set(fdesc "${_${id}_${fid}_desc}")
         # FIXME: implement in more robust fashion
         string(REPLACE "\"" "\\\"" fdesc "${fdesc}")
         set(fdesc "\"${fdesc}\"")
-      else()
-        set(fdesc "NULL")
       endif()
 
-      set(typed "0")
-      set(generic "0")
-      set(accept "0")
-      if(ftype STREQUAL "T")
-        set(typename "ZONE_INT32")
-        if(_${id}_${fid}_quals STREQUAL "L")
-          set(fquals "ZONE_TTL")
-          set(typed "parse_ttl")
-        else()
-          set(fquals "ZONE_TIME")
-          set(typed "parse_time")
-        endif()
-      elseif(ftype STREQUAL "R")
-        if(_${id}_${fid}_quals STREQUAL "L")
-          set(typename "ZONE_NSEC")
-          set(fquals "0")
-        else()
-          set(typename "ZONE_INT16")
-          set(fquals "ZONE_TYPE")
-          set(typed "parse_type")
-        endif()
-      elseif(ftype STREQUAL "X")
-        set(typename "ZONE_BASE16")
-        if(_${id}_${fid}_quals STREQUAL "C")
-          set(fquals "0")
-        else()
-          set(fquals "ZONE_UNBOUNDED")
-        endif()
-      elseif(ftype STREQUAL "Z")
-        set(typename "${${ftype}_${_${id}_${fid}_quals}_type_print}")
-        set(fquals "0")
+      if(fmap MATCHES "^([^:]+):([^:]+):([^:]+):([^:]+)$")
+        set(ptype "${CMAKE_MATCH_1}")
+        set(typed "${CMAKE_MATCH_2}")
+        set(generic "${CMAKE_MATCH_3}")
+        set(accept "${CMAKE_MATCH_4}")
       else()
-        set(typename "${${ftype}_type_print}")
+        message(FATAL_ERROR "Invalid type mapping for ${ftype} '${fmap}', script error")
       endif()
 
+      # Allow for function overrides
       foreach(func "typed" "generic" "accept")
         foreach(override ${overrides})
           if(override MATCHES "^${id}:${fid}:${func}:([^ \t]+)")
@@ -400,10 +412,10 @@ foreach(id RANGE ${maxid})
 
       string(CONCAT rdata
         "${rdata}" "${fsep}" "{ "
-        ".public = { "
+        ".base = { "
           ".name = \"${fname}\", "
           ".length = sizeof(\"${fname}\") - 1, "
-          ".type = ${typename}, "
+          ".type = ${ptype}, "
           ".qualifiers = ${fquals}, "
           ".labels = ${flabels}, "
           ".description = ${fdesc} "
@@ -417,31 +429,53 @@ foreach(id RANGE ${maxid})
       set(fsep ",\n")
     endforeach()
 
+    # options
+    set(topts)
+    if(_${id}_opts)
+      set(toptsep "")
+      foreach(topt ${_${id}_opts})
+        if(DEFINED ${topt}_opt_print)
+          set(topts "${topts}${toptsep}${${topt}_opt_print}")
+          set(toptsep" | ")
+        endif()
+      endforeach()
+    else()
+      set(topts "0")
+    endif()
+
+    # description
+    set(tdesc "")
+    if(_${id}_desc)
+      set(tdesc "${_${id}_desc}")
+      # FIXME: implement in more robust fashion...
+      string(REPLACE "\"" "\\\"" tdesc "${tdesc}")
+    endif()
+
     if(rdata)
       set(rdatas "(struct rdata_descriptor[]){ ${rdata}, { { NULL, 0, 0, 0, { NULL, 0 }, NULL } } }")
     else()
       set(rdatas "(struct rdata_descriptor[]){ { { NULL, 0, 0, 0, { NULL, 0 }, NULL } } }")
     endif()
 
-    string(CONCAT descr
+    string(CONCAT desc
       "{ "
-      ".public = { "
+      ".base = { "
         ".name = \"${name}\", "
         ".length = sizeof(\"${name}\") - 1, "
         ".type = ${id}, "
-        ".options = ${opts}, "
-        ".description = \"${desc}\" "
+        ".options = ${topts}, "
+        ".description = \"${tdesc}\" "
       "}, "
       ".rdata = ${rdatas} }")
     break()
   endforeach()
 
-  if(NOT descr)
+  if(NOT desc)
     math(EXPR gap "${gap} + 1")
-    set(descr "{ .public = { .name = NULL, .length = 0, .options = 0, .description = NULL }, .rdata = NULL }")
+    set(desc "{ .base = { .name = NULL, .length = 0, .options = 0, .description = NULL }, .rdata = NULL }")
   endif()
 
-  set(DESCRIPTORS "${DESCRIPTORS}${sep}${descr}")
+  set(DESCRIPTORS "${DESCRIPTORS}${sep}${desc}")
   set(sep ",\n")
 endforeach()
 

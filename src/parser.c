@@ -1,84 +1,18 @@
 /*
- * parser.c -- parser for (DNS) zone files
+ * parser.c -- recursive descent parser for (DNS) zone files
  *
- * Copyright (c) 2001-2022, NLnet Labs. All rights reserved.
+ * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
  * See LICENSE for the license.
  *
  */
 #define _XOPEN_SOURCE
-#include <assert.h>
-#include <stdarg.h>
+#include <time.h>
 #include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <inttypes.h>
 #include <arpa/inet.h>
-#include <netinet/in.h>
 
 #include "parser.h"
-
-#include "base.h"
-#include "nsec.h"
-#include "wks.h"
-#include "svcb.h"
-#include "base64.h"
-#include "base16.h"
-
-#define TYPES(...) \
-  static const struct type_descriptor types[] = { __VA_ARGS__ };
-
-#define TYPE(n, t, o, r) \
-  { { .type = t, .name = n, .options = o }, .rdata = r }
-
-#define RDATA(...) \
-  (struct rdata_descriptor[]){ __VA_ARGS__, { { 0 }, 0, 0 } }
-
-#define FUNCTIONS(t, g) .typed = t, .generic = g
-
-#define RDATA__(t, n, q, ...) \
-  { { n, t, q }, __VA_ARGS__ }
-
-#define INT8(n, q, ...) RDATA__(ZONE_INT8, n, q, __VA_ARGS__)
-#define INT16(n, q, ...) RDATA__(ZONE_INT16, n, q, __VA_ARGS__)
-#define INT32(n, q, ...) RDATA__(ZONE_INT32, n, q, __VA_ARGS__)
-#define IP4(n, q, ...) RDATA__(ZONE_IP4, n, q, __VA_ARGS__)
-#define IP6(n, q, ...) RDATA__(ZONE_IP6, n, q, __VA_ARGS__)
-#define NAME(n, q, ...) RDATA__(ZONE_NAME, n, q, __VA_ARGS__)
-#define STRING(n, q, ...) RDATA__(ZONE_STRING, n, q, __VA_ARGS__)
-#define BASE64(n, q, ...) RDATA__(ZONE_BASE64, n, q, __VA_ARGS__)
-#define WKS(n, q, ...) RDATA__(ZONE_WKS, n, q, __VA_ARGS__)
-#define SVC_PARAM(n, q, ...) RDATA__(ZONE_SVC_PARAM, n, q, __VA_ARGS__)
-
-#define TYPED(f) .typed = f
-#define GENERIC(f) .generic = f
-
-#define ANY (1<<0)
-#define EXPERIMENTAL (1<<1)
-#define OBSOLETE (1<<2)
-
-#define MAILBOX (ZONE_MAILBOX)
-#define COMPRESSED (ZONE_COMPRESSED)
-#define OPTIONAL (ZONE_OPTIONAL)
-
-#include "grammar.h"
-
-#undef NAME
-#undef IP6
-#undef IP4
-#undef INT32
-#undef INT16
-#undef INT8
-#undef RDATA__
-#undef RDATA
-#undef TYPE
-#undef TYPES
-
-static const struct type_descriptor unknown_type = { 0 };
-
-extern inline void *zone_malloc(void *opts, size_t size);
-extern inline void *zone_realloc(void *opts, void *ptr, size_t size);
-extern inline void zone_free(void *opts, void *ptr);
+#include "lookup.h"
 
 static inline uint64_t multiply(uint64_t lhs, uint64_t rhs, uint64_t max)
 {
@@ -115,69 +49,76 @@ static inline uint32_t is_unit(char c)
   return 0;
 }
 
-zone_return_t
-zone_parse_ttl(zone_parser_t *par, const zone_token_t *tok, uint32_t *ttl)
+static inline zone_return_t lex_ttl(
+  zone_parser_t *__restrict par,
+  const zone_field_descriptor_t *__restrict dsc,
+  zone_token_t *__restrict tok,
+  uint32_t *__restrict ttl)
 {
   uint64_t num = 0, sum = 0, fact = 0;
   enum { INITIAL, NUMBER, UNIT } state = INITIAL;
 
-  const char *s = tok->string.data;
-  const size_t n = tok->string.length;
-  for (size_t i = 0; i < n; ) {
-    uint8_t c;
-    uint64_t u;
+  assert((tok->code & ZONE_STRING) == ZONE_STRING);
 
-    // unescape
-    if (s[i] != '\\') {
-      c = s[i];
-      i += 1;
-    } else if ((i < n - 1) && (s[i+1] >= '0' && s[i+1] <= '2') &&
-               (i < n - 2) && (s[i+2] >= '0' && s[i+2] <= '5') &&
-               (i < n - 3) && (s[i+3] >= '0' && s[i+3] <= '5'))
-    {
-      c = (s[i+1]-'0') * 100 + (s[i+2]-'0') * 10 + (s[i+3]-'0');
-      i += 4;
-    } else if (i < n - 1) {
-      c = s[i+1];
-      i += 2;
-    } else {
-      assert(i == n - 1);
-      c = s[i];
-      i += 1;
-    }
+  // FIXME: assert dsc refers to TTL!
+
+  for (zone_char_t c; ; ) {
+    if ((c = zone_get(par, tok)) < 0)
+      return c;
+    if (!c)
+      break;
+    c &= 0xff;
+    uint64_t u;
 
     switch (state) {
       case INITIAL:
         // ttls must start with a number
-        if (c < '0' || c > '9')
-          return 0;
+        if (c < '0' || c > '9') {
+          if (par->state.scanner & ZONE_RR)
+            return ZONE_SEMANTIC_ERROR;
+          SEMANTIC_ERROR(par, "Invalid ttl in %s", dsc->name);
+        }
         state = NUMBER;
-        num = c - '0';
+        num = (c & 0xff) - '0';
         break;
       case NUMBER:
         if (c >= '0' && c <= '9') {
           num = add(multiply(num, 10, INT32_MAX), c - '0', INT32_MAX);
         } else if ((u = is_unit(c))) {
           // units must not be repeated e.g. 1m1m
-          if (fact == u)
-            SYNTAX_ERROR(par, "Invalid ttl at {l}, reuse of unit %c", c);
+          if (fact == u) {
+            if (par->state.scanner & ZONE_RR)
+              return ZONE_SEMANTIC_ERROR;
+            SYNTAX_ERROR(par, "Invalid ttl in %s, reuse of unit %c", dsc->name, c);
+          }
           // greater units must precede smaller units. e.g. 1m1s, not 1s1m
-          if (fact && fact < u)
-            SYNTAX_ERROR(par, "Invalid ttl at {l}, unit %c follows smaller unit", c);
+          if (fact && fact < u) {
+            if (par->state.scanner & ZONE_RR)
+              return ZONE_SEMANTIC_ERROR;
+            SYNTAX_ERROR(par, "Invalid ttl in %s, unit %c follows smaller unit", dsc->name, c);
+          }
           num = multiply(num, (fact = u), INT32_MAX);
           state = UNIT;
         } else {
-          SYNTAX_ERROR(par, "Invalid ttl at {l}, invalid unit %c", c);
+          if (par->state.scanner & ZONE_RR)
+            return ZONE_SEMANTIC_ERROR;
+          SYNTAX_ERROR(par, "Invalid ttl in %s, invalid unit %c", dsc->name, c);
         }
         break;
       case UNIT:
         // units must be followed by a number. e.g. 1h30m, not 1hh
-        if (c < '0' || c > '9')
-          SYNTAX_ERROR(par, "Invalid ttl at {l}, non-digit follows unit");
+        if (c < '0' || c > '9') {
+          if (par->state.scanner & ZONE_RR)
+            return ZONE_SEMANTIC_ERROR;
+          SYNTAX_ERROR(par, "Invalid ttl in %s, non-digit follows unit", dsc->name);
+        }
         // units must not be followed by a number if smallest unit,
         // i.e. seconds, was previously specified
-        if (fact == 1)
-          SYNTAX_ERROR(par, "Invalid ttl at {l}, seconds already specified");
+        if (fact == 1) {
+          if (par->state.scanner & ZONE_RR)
+            return ZONE_SEMANTIC_ERROR;
+          SYNTAX_ERROR(par, "Invalid ttl in %s, seconds already specified", dsc->name);
+        }
         sum = add(sum, num, INT32_MAX);
         num = c - '0';
         state = NUMBER;
@@ -187,142 +128,419 @@ zone_parse_ttl(zone_parser_t *par, const zone_token_t *tok, uint32_t *ttl)
 
   sum = add(sum, num, (uint64_t)INT32_MAX);
   // FIXME: comment RFC2308 msb
-  if (sum > (uint64_t)INT32_MAX)
+  if (sum > (uint64_t)INT32_MAX) {
+    if (par->state.scanner & ZONE_RR)
+      return ZONE_SEMANTIC_ERROR;
     SEMANTIC_ERROR(par, "Invalid ttl at {l}, most significant bit set");
+  }
   *ttl = sum;
   return 0;
 }
 
-static int mapcmp(const void *p1, const void *p2)
+static inline zone_return_t lex_int(
+  zone_parser_t *__restrict par,
+  const zone_field_descriptor_t *__restrict dsc,
+  zone_token_t *__restrict tok,
+  uint64_t *__restrict num)
 {
-  const zone_map_t *m1 = p1, *m2 = p2;
-  assert(m1 && m1->name && m1->length);
-  assert(m2 && m2->name && m2->length);
-  return zone_stresccasecmp(m1->name, m1->length, m2->name, m2->length);
-}
+  uint64_t sum = 0u, max;
 
-zone_return_t
-zone_parse_int(
-  zone_parser_t *par,
-  const zone_rdata_descriptor_t *desc,
-  const zone_token_t *tok,
-  uint64_t max,
-  uint64_t *num)
-{
-  char buf[32];
-  ssize_t len;
-  const char *str, *fld = "integer";
-  uint64_t sum = 0u;
+  assert((tok->code & ZONE_STRING) == ZONE_STRING);
+  assert(!dsc->labels.sorted || dsc->labels.length);
 
-  if (desc) {
-    fld = desc->name;
-    assert(!desc->labels.map || desc->labels.count);
-    if (desc->labels.count) {
-      const zone_map_t *map, key = { tok->string.data, tok->string.length, 0 };
-      const size_t size = sizeof(desc->labels.map[0]);
-      const size_t nmemb = desc->labels.count;
+  switch (zone_type(dsc->type)) {
+    case ZONE_STRING:
+      assert(dsc->qualifiers & ZONE_BASE16);
+      // fall through
+    case ZONE_INT8:
+      max = UINT8_MAX;
+      break;
+    case ZONE_INT16:
+      max = UINT16_MAX;
+      break;
+    default:
+      assert(zone_type(dsc->type) == ZONE_INT32);
+      max = UINT32_MAX;
+      break;
+  }
 
-      if ((map = bsearch(&key, desc->labels.map, nmemb, size, mapcmp))) {
-        if (map->id > max)
-          SYNTAX_ERROR(par, "Invalid %s at {l}, value exceeds maximum", fld, tok);
-        *num = map->id;
+  for (;;) {
+    zone_char_t chr = zone_get(par, tok);
+    switch (chr & 0xff) {
+      case '0':
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+      case '5':
+      case '6':
+      case '7':
+      case '8':
+      case '9':
+        sum *= 10;
+        sum += (chr & 0xff) - '0';
+        if (sum > max)
+          SEMANTIC_ERROR(par, "Value for %s exceeds maximum", dsc->name);
+        break;
+      case '\0':
+        *num = sum;
+        return 0;
+      default:
+        if (chr < 0)
+          return chr;
+        if (!dsc->labels.sorted)
+          SEMANTIC_ERROR(par, "Invalid integer in %s", dsc->name);
+        
+      {
+        zone_return_t ret;
+        zone_key_value_t *lab;
+
+        if ((ret = zone_lex(par, tok)) < 0)
+          return ret;
+        if (!(lab = zone_lookup(&dsc->labels, &tok->string)))
+          SEMANTIC_ERROR(par, "Expected an integer value for %s", dsc->name);
+        if (lab->value > max)
+          SEMANTIC_ERROR(par, "Value for %s exceeds maximum", dsc->name);
+        *num = lab->value;
         return 0;
       }
     }
   }
 
-  assert(max < UINT64_MAX);
-  if (tok->string.length == 0 || tok->string.length > sizeof(buf) * 4)
-    SYNTAX_ERROR(par, "Invalid %s at {l}", fld, tok);
-
-  str = tok->string.data;
-  len = (ssize_t)tok->string.length;
-  if (tok->string.escaped) {
-    if ((len = zone_unescape(str, (size_t)len, buf, sizeof(buf), 1)) < 0)
-      SYNTAX_ERROR(par, "Invalid %s at {l}", fld, tok);
-  }
-
-  if (len > (ssize_t)sizeof(buf))
-    SYNTAX_ERROR(par, "Invalid %s at {l}", fld, tok);
-
-  for (ssize_t i = 0; i < len; i++) {
-    if (str[i] < '0' || str[i] > '9')
-      SYNTAX_ERROR(par, "Invalid %s at {l}, value contains non-digit", fld, tok);
-    sum = add(multiply(sum, 10, max), str[i] - '0', max);
-    if (sum > max)
-      SYNTAX_ERROR(par, "Invalid %s at {l}, value exceeds maximum", fld, tok);
-  }
-
-  *num = sum;
-  return 0;
+  abort();
 }
 
-zone_return_t
-zone_parse_name(
-  zone_parser_t *par,
-  const zone_rdata_descriptor_t *desc,
-  const zone_token_t *tok,
-  uint8_t name[255],
+static zone_return_t lex_name(
+  zone_parser_t *__restrict par,
+  const zone_field_descriptor_t *__restrict dsc,
+  zone_token_t *__restrict tok,
+  const void **ref,
+  uint8_t str[255],
   size_t *len)
 {
   size_t lab = 0, oct = 1;
-  const char *s = tok->string.data, *fld = desc ? desc->name : "name";
-  const size_t n = tok->string.length;
-
-  assert((tok->code & ZONE_STRING) == ZONE_STRING);
+  zone_token_t at = *tok;
 
   // a freestanding "@" denotes the current origin
-  if (tok->string.length == 1 && tok->string.data[0] == '@') {
-    memcpy(name, par->file->origin.name.octets, par->file->origin.name.length);
+  if (zone_get(par, &at) == '@' && !zone_get(par, &at)) {
+    memcpy(str, par->file->origin.name.octets, *len);
     *len = par->file->origin.name.length;
+    *ref = par->file->origin.domain;
+    *tok = at;
     return 0;
   }
 
-  for (size_t i=0; i < n; ) {
+  for (zone_char_t chr; (chr = zone_get(par, tok)) >= 0;) {
     if (oct >= 255)
-      SYNTAX_ERROR(par, "Invalid name in %s at {l}, length exceeds maximum", fld, tok);
+      SYNTAX_ERROR(par, "Invalid name in %s, length exceeds maximum", dsc->name);
 
-    if (s[i] == '.' || i == n - 1) {
-      if (oct - 1 == lab && lab > 0)
-        SYNTAX_ERROR(par, "Invalid name in %s at {l}, empty label", fld, tok);
+    if (chr == '.' || chr == '\0') { // << not based on length anymore, so don't need the == '\0'
+      if (oct - 1 == lab && chr == '.')
+        SYNTAX_ERROR(par, "Invalid name in %s, empty label", dsc->name);
       else if ((oct - lab) - 1 > 63)
-        SYNTAX_ERROR(par, "Invalid name in %s at {l}, label length exceeds maximum", fld, tok);
-      name[lab] = (oct - lab) - 1;
-      if (s[i] != '.')
+        SYNTAX_ERROR(par, "Invalid name in %s, label length exceeds maximum", dsc->name);
+      str[lab] = (oct - lab) - 1;
+      if (chr != '.')
         break;
       lab = oct++;
-      name[lab] = 0;
-      i += 1;
-    } else if (s[i] == '\\') {
-      // escape characters (rfc1035 5.1)
-      if ((i < n - 1) && (s[i+1] >= '0' && s[i+1] <= '2') &&
-          (i < n - 2) && (s[i+2] >= '0' && s[i+2] <= '5') &&
-          (i < n - 3) && (s[i+3] >= '0' && s[i+3] <= '5'))
-      {
-        name[oct++] = (s[i+1]-'0') * 100 + (s[i+2]-'0') * 10 + (s[i+3]-'0');
-        i += 4;
-      } else if (i < n - 1) {
-        name[oct++] = s[i+1];
-        i += 2;
-      } else {
-        // FIXME: can be considered a syntax error, let's judge based on
-        //        on a parser setting...
-        i += 1;
-      }
+      str[lab] = 0;
     } else {
-      name[oct++] = s[i++];
+      str[oct++] = chr & 0xff;
     }
   }
 
-  if (name[lab] != 0) {
+  if (str[lab] != 0) {
     if (oct >= 255 - par->file->origin.name.length)
-      SYNTAX_ERROR(par, "Invalid name in %s at {l}, name length exceeds maximum", fld, tok);
-    memcpy(&name[oct], par->file->origin.name.octets, par->file->origin.name.length);
+      SYNTAX_ERROR(par, "Invalid name in %s, name length exceeds maximum", dsc->name);
+    memcpy(&str[oct], par->file->origin.name.octets, par->file->origin.name.length);
     oct += par->file->origin.name.length;
   }
 
+  *ref = NULL;
   *len = oct;
   return 0;
+}
+
+#include "types.h"
+
+static inline zone_return_t lex_type(
+  zone_parser_t *__restrict par,
+  const zone_field_descriptor_t *__restrict dsc,
+  zone_token_t *__restrict tok,
+  uint16_t *type)
+{
+  zone_return_t ret;
+  const zone_key_value_t *ent;
+  static const zone_map_t map = { types, sizeof(types)/sizeof(types[0]) };
+
+  if ((ret = zone_lex(par, tok)) < 0)
+    return ret;
+
+  assert((tok->code & ZONE_STRING) == ZONE_STRING);
+
+  if ((ent = zone_lookup(&map, &tok->string)) && (*type = (uint16_t)ent->value))
+    return 0;
+
+  // support unknown DNS record types (rfc3597)
+  char buf[32];
+  size_t len;
+  uint32_t num = 0;
+  len = zone_unescape(&tok->string, buf, sizeof(buf));
+
+  if (len <= 4 || strncasecmp(buf, "TYPE", 4) != 0)
+    goto bad_type;
+
+  for (size_t cnt=0; cnt < len; cnt++) {
+    if (buf[cnt] < '0' || buf[cnt] > '9')
+      goto bad_type;
+    num *= 10;
+    num += (uint32_t)buf[cnt] - '0';
+    if (num > UINT16_MAX)
+      goto bad_type;
+  }
+
+  *type = (uint16_t)num;
+  return 0;
+bad_type:
+  if (par->state.scanner & ZONE_RR)
+    return ZONE_SEMANTIC_ERROR;
+  SEMANTIC_ERROR(par, "Invalid type in %s", dsc->name);
+}
+
+static inline zone_return_t lex_class(
+  zone_parser_t *__restrict par,
+  const zone_field_descriptor_t *__restrict dsc,
+  zone_token_t *__restrict tok,
+  uint16_t *class)
+{
+  char buf[32];
+  ssize_t len;
+  zone_return_t ret;
+
+  if ((ret = zone_lex(par, tok)) < 0)
+    return ret;
+
+  len = zone_unescape(&tok->string, buf, sizeof(buf));
+  if (len < 2)
+    goto bad_class;
+  else if (len > 2)
+    goto generic_class;
+  else if (strncasecmp(buf, "IN", 2) == 0)
+    *class = 1;
+  else if (strncasecmp(buf, "CH", 2) == 0)
+    *class = 2;
+  else if (strncasecmp(buf, "CS", 2) == 0)
+    *class = 3;
+  else if (strncasecmp(buf, "HS", 2) == 0)
+    *class = 4;
+  else
+    goto bad_class;
+
+  return ZONE_INT32;
+generic_class:
+  // support unknown DNS class (rfc 3597)
+  if (len <= 5 || strncasecmp(buf, "CLASS", 5) != 0)
+    goto bad_class;
+
+  uint32_t num = 0;
+  for (size_t cnt = 5; cnt < (size_t)len; cnt++) {
+    if (buf[cnt] < '0' || buf[cnt] > '9')
+      goto bad_class;
+    num *= 10;
+    num += (uint32_t)(buf[cnt] - '0');
+    if (num >= UINT16_MAX)
+      goto bad_class;
+  }
+
+  *class = (uint16_t)num;
+  return ZONE_INT32;
+bad_class:
+  if (par->state.scanner & ZONE_CLASS)
+    return ZONE_SEMANTIC_ERROR;
+  SEMANTIC_ERROR(par, "Invalid class in %s", dsc->name);
+}
+
+static zone_return_t parse_ttl(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  uint32_t ttl = 0;
+  zone_return_t ret;
+
+  if ((ret = lex_ttl(par, par->rr.descriptors.rdata, tok, &ttl)) < 0)
+    return ret;
+  assert(ttl <= INT32_MAX);
+  par->rdata.int32 = htonl(ttl);
+  par->rdata.length = sizeof(par->rdata.int32);
+  return 0;
+}
+
+static zone_return_t parse_type(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  uint16_t type;
+  zone_return_t ret;
+
+  if ((ret = lex_type(par, par->rr.descriptors.rdata, tok, &type)) < 0)
+    return ret;
+  par->rdata.int16 = htons((uint16_t)type);
+  par->rdata.length = sizeof(par->rdata.int16);
+  return 0;
+}
+
+/* Number of days per month (except for February in leap years). */
+static const int mdays[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+static int is_leap_year(int year)
+{
+  return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+}
+
+static int leap_days(int y1, int y2)
+{
+  --y1;
+  --y2;
+  return (y2/4 - y1/4) - (y2/100 - y1/100) + (y2/400 - y1/400);
+}
+
+/*
+ * Code adapted from Python 2.4.1 sources (Lib/calendar.py).
+ */
+static time_t mktime_from_utc(const struct tm *tm)
+{
+  int year = 1900 + tm->tm_year;
+  time_t days = 365 * (year - 1970) + leap_days(1970, year);
+  time_t hours;
+  time_t minutes;
+  time_t seconds;
+  int i;
+
+  for (i = 0; i < tm->tm_mon; ++i) {
+      days += mdays[i];
+  }
+  if (tm->tm_mon > 1 && is_leap_year(year)) {
+      ++days;
+  }
+  days += tm->tm_mday - 1;
+
+  hours = days * 24 + tm->tm_hour;
+  minutes = hours * 60 + tm->tm_min;
+  seconds = minutes * 60 + tm->tm_sec;
+
+  return seconds;
+}
+
+static zone_return_t parse_time(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  char buf[] = "YYYYmmddHHMMSS";
+  size_t len = 0;
+  zone_char_t chr;
+
+  while ((chr = zone_get(par, tok)) > 0) {
+    buf[len++] = chr & 0xff;
+    if (len == sizeof(buf))
+      goto bad_time;
+  }
+
+  if (chr < 0)
+    return chr;
+  buf[len] = '\0';
+
+  const char *end = NULL;
+  struct tm tm;
+  if (!(end = strptime(buf, "%Y%m%d%H%M%S", &tm)) || *end != 0)
+    goto bad_time;
+  par->rdata.int32 = htonl(mktime_from_utc(&tm));
+  par->rdata.length = sizeof(par->rdata.int32);
+  return 0;
+bad_time:
+  SEMANTIC_ERROR(par, "Invalid time in %s", par->rr.descriptors.rdata->name);
+}
+
+static zone_return_t parse_int8(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  uint64_t num;
+  zone_return_t ret;
+
+  if ((ret = lex_int(par, par->rr.descriptors.rdata, tok, &num)) < 0)
+    return ret;
+  assert(num <= INT8_MAX);
+  par->rdata.int8 = (uint8_t)num;
+  par->rdata.length = sizeof(par->rdata.int8);
+  return 0;
+}
+
+static zone_return_t parse_int16(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  uint64_t num;
+  zone_return_t ret;
+
+  if ((ret = lex_int(par, par->rr.descriptors.rdata, tok, &num)) < 0)
+    return ret;
+  assert(num <= UINT16_MAX);
+  par->rdata.int16 = htons((uint16_t)num);
+  par->rdata.length = sizeof(par->rdata.int16);
+  return 0;
+}
+
+static zone_return_t parse_int32(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  uint64_t num;
+  zone_return_t ret;
+
+  if ((ret = lex_int(par, par->rr.descriptors.rdata, tok, &num)) < 0)
+    return ret;
+  assert(num <= UINT32_MAX);
+  par->rdata.int32 = htonl((uint32_t)num);
+  par->rdata.length = sizeof(par->rdata.int32);
+  return 0;
+}
+
+static zone_return_t parse_ip4(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  char buf[INET_ADDRSTRLEN + 1];
+  size_t len = 0;
+
+  for (zone_char_t chr; (chr = zone_get(par, tok));) {
+    if (chr < 0)
+      return chr;
+    buf[len++] = chr & 0xff;
+    if (len == sizeof(buf))
+      goto bad_ip;
+  }
+  buf[len] = '\0';
+  if (inet_pton(AF_INET, buf, &par->rdata.ip4) != 1)
+    goto bad_ip;
+  par->rdata.length = sizeof(par->rdata.ip4);
+  return 0;
+bad_ip:
+  SYNTAX_ERROR(par, "Invalid IPv4 address in %s", par->rr.descriptors.rdata->name);
+}
+
+static zone_return_t parse_ip6(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  char buf[INET6_ADDRSTRLEN + 1];
+  size_t len = 0;
+
+  for (zone_char_t chr; (chr = zone_get(par, tok));) {
+    if (chr < 0)
+      return chr;
+    buf[len++] = chr & 0xff;
+    if (len == sizeof(buf))
+      goto bad_ip;
+  }
+  buf[len] = '\0';
+  if (inet_pton(AF_INET6, buf, &par->rdata.ip6) != 1)
+    goto bad_ip;
+  par->rdata.length = sizeof(par->rdata.ip6);
+  return 0;
+bad_ip:
+  SYNTAX_ERROR(par, "Invalid IPv6 address in %s", par->rr.descriptors.rdata->name);
 }
 
 #define OWNER (0)
@@ -331,129 +549,87 @@ zone_parse_name(
 #define TYPE (3)
 #define RDATA (4)
 
-static const struct {
-  rdata_parse_t typed;
-  rdata_parse_t generic;
-  rdata_accept_t accept;
-} functions[] = {
-  { 0, 0, 0 }, // FIXME: should probably store the unknown rdata callback here?!?!
-  { 0, 0, 0 }, // domain, reference returned by accept_name, never parsed
-  { parse_int8, 0, 0 },
-  { parse_int16, 0, 0 },
-  { parse_int32, 0, 0 },
-  { parse_ip4, parse_generic_ip4, 0 },
-  { parse_ip6, parse_generic_ip6, 0 },
-  { parse_name, 0, 0 }, // >> we should make an accept_name that automatically calls accept name before!
-  { parse_string, parse_generic_string, 0 },
-  { parse_base16, 0, accept_base16 },
-  { 0, 0, 0 },
-  { parse_base64, 0, accept_base64 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { 0, 0, 0 },
-  { parse_svc_param, 0, 0 },
-  { parse_wks, 0, accept_wks },
-  { parse_nsec, 0, accept_nsec }
-};
-
-static zone_return_t
-parse_owner(zone_parser_t *par, const zone_token_t *tok, void *ptr)
+static zone_return_t parse_name(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
 {
+  const zone_field_descriptor_t *dsc = par->rr.descriptors.rdata;
+  return lex_name(par, dsc, tok, &par->rr.fields[RDATA].domain, par->rdata.name, &par->rdata.length);
+}
+
+static zone_return_t parse_string(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  zone_char_t chr;
+  size_t len = 1;
+
+  while ((chr = zone_get(par, tok)) > 0) {
+    if (len == sizeof(par->rdata.string))
+      SEMANTIC_ERROR(par, "String is too large!");
+    par->rdata.string[len++] = chr & 0xff;
+  }
+
+  if (chr < 0)
+    return chr;
+  par->rdata.string[0] = len - 1;
+  par->rdata.length = len;
+  return 0;
+}
+
+#include "base16.h"
+#include "base32.h"
+#include "base64.h"
+#include "nsec.h"
+#include "wks.h"
+#include "grammar.h"
+
+static inline zone_return_t parse_generic_rdata(
+  zone_parser_t *__restrict par,
+  zone_token_t *__restrict tok,
+  void *__restrict ptr)
+{
+  (void)par;
+  (void)tok;
   (void)ptr;
-  assert((tok->code & ZONE_STRING) == ZONE_STRING);
-
-  // a freestanding "@" denotes the current origin
-  if (tok->string.length == 1 && tok->string.data[0] == '@') {
-    assert(!par->options.accept.name || par->file->origin.domain);
-    // reuse persistent reference if available
-    if (par->options.accept.name)
-      par->rr.fields[OWNER] = (zone_field_t){
-        .location = tok->location,
-        .code = ZONE_OWNER | ZONE_DOMAIN,
-        .domain = par->file->origin.domain };
-    else
-      par->rr.fields[OWNER] = (zone_field_t){
-        .location = tok->location,
-        .code = ZONE_OWNER | ZONE_NAME,
-        .wire = {
-          .length = par->file->origin.name.length,
-          .octets = par->file->origin.name.octets }};
-  } else {
-    // invalidate persistent reference
-    par->file->owner.domain = NULL;
-    if (zone_parse_name(
-          par, NULL, tok, par->file->owner.name.octets, &par->file->owner.name.length))
-      return ZONE_SYNTAX_ERROR;
-
-    par->rr.fields[OWNER] = (zone_field_t){
-      .location = tok->location,
-      .code = ZONE_OWNER | ZONE_NAME,
-      .wire = {
-        .length = par->file->owner.name.length,
-        .octets = par->file->owner.name.octets }};
-  }
-
-  return ZONE_OWNER;
+  return ZONE_NOT_IMPLEMENTED;
 }
 
-static inline zone_return_t accept_rr(zone_parser_t *par, void *ptr)
+static inline bool is_last_rdata(
+  const zone_parser_t *__restrict par,
+  const zone_field_descriptor_t *__restrict dsc)
 {
-  // allocate memory to hold the owner last-minute (if no persistent reference
-  // is available) to simplify memory management
-  zone_field_t owner = par->rr.fields[OWNER];
-  assert(zone_type(owner.code) == ZONE_DOMAIN ||
-         zone_type(owner.code) == ZONE_NAME);
-  if (zone_type(owner.code) != ZONE_DOMAIN) {
-    assert(owner.wire.length == par->file->owner.name.length);
-    assert(owner.wire.octets == par->file->owner.name.octets);
-
-    if (par->options.accept.name) {
-      const void *ref;
-
-      if (!(ref = par->options.accept.name(par, &owner, ptr)))
-        return ZONE_OUT_OF_MEMORY;
-      owner.code = ZONE_OWNER | ZONE_DOMAIN;
-      owner.domain = ref;
-    }
+  (void)par;
+  if (!dsc->type)
+    return true;
+  else switch (dsc->type) {
+    case ZONE_NSEC:
+    case ZONE_WKS:
+    case ZONE_SVC_PARAM:
+      return true;
+    default:
+      if (dsc->qualifiers & (ZONE_OPTIONAL|ZONE_SEQUENCE))
+        return true;
+      break;
   }
 
-  assert(par->options.accept.rr);
-
-  zone_return_t ret = par->options.accept.rr(
-    par,
-   &owner,
-   &par->rr.fields[TTL],
-   &par->rr.fields[CLASS],
-   &par->rr.fields[TYPE],
-    ptr);
-
-  return ret < 0 ? ret : 0;
+  return false;
 }
 
-static inline zone_return_t
-accept_rdata(zone_parser_t *par, zone_field_t *fld, void *ptr)
+static inline zone_return_t accept_rdata(
+  zone_parser_t *__restrict par,
+  zone_field_t *__restrict fld,
+  void *__restrict ptr)
 {
-  size_t fid;
   zone_return_t ret;
-  const struct rdata_descriptor *desc;
+  const struct rdata_descriptor *dsc;
 
-  desc = (const struct rdata_descriptor *)par->rr.descriptors.rdata;
-  assert(desc);
-
-  assert(!(par->state.parser & ZONE_DEFERRED_RDATA) ||
-          (&par->rr.fields[RDATA] == fld));
+  dsc = (const struct rdata_descriptor *)par->rr.descriptors.rdata;
+  assert(dsc);
 
   // FIXME: call accept name here if type is ZONE_NAME
   fld->domain = NULL;
-  fld->wire.length = (uint16_t)par->rdata.length;
-  fld->wire.octets = par->rdata.base64;
 
-  fid = zone_type(desc->public.type) >> 8;
-  assert(fid < sizeof(functions)/sizeof(functions[0]));
-  if (desc->accept)
-    ret = desc->accept(par, fld, ptr);
-  else if (functions[fid].accept)
-    ret = functions[fid].accept(par, fld, ptr);
+  if (dsc->accept)
+    ret = dsc->accept(par, fld, ptr);
   else
     ret = par->options.accept.rdata(par, fld, ptr);
 
@@ -461,169 +637,428 @@ accept_rdata(zone_parser_t *par, zone_field_t *fld, void *ptr)
 
   if (ret < 0)
     return ret;
-  par->state.parser &= ~ZONE_DEFERRED_RDATA;
+  par->state.scanner &= ~ZONE_DEFERRED_RDATA;
   // forward descriptor unless the current descriptor is known to be last
-  if (desc->public.qualifiers & ZONE_SEQUENCE)
-    return 0;
-  if (!(desc->public.qualifiers & ZONE_OPTIONAL) &&
-      !(desc->public.type == ZONE_WKS) &&
-      !(desc->public.type == ZONE_SVC_PARAM) &&
-      !(desc->public.type == ZONE_NSEC))
-    par->rr.descriptors.rdata = (const void *)(desc + 1);
+  if (!is_last_rdata(par, (const void *)dsc))
+    par->rr.descriptors.rdata = (const void *)(dsc+1);
 
   return 0;
 }
 
-zone_return_t zone_parse(zone_parser_t *par, void *user_data)
+static inline zone_return_t parse_rdata(
+  zone_parser_t *__restrict par,
+  zone_token_t *__restrict tok,
+  void *__restrict ptr)
 {
-  zone_token_t tok;
-  zone_return_t code;
+  zone_return_t ret;
 
-  do {
-    code = zone_scan(par, &tok);
-    // propagate errors
-    if (code < 0)
+  for (;;) {
+    if ((ret = zone_scan(par, tok)) < 0)
+      return ret;
+
+    if (ret == '\n' || ret == '\0') {
+      zone_field_t fld;
+
+      if (par->state.scanner & ZONE_DEFERRED_RDATA) {
+        fld = par->rr.fields[RDATA];
+        assert(!fld.wire.octets && !fld.wire.length);
+        fld.wire.octets = par->rdata.base64;
+        fld.wire.length = par->rdata.length;
+        if ((ret = accept_rdata(par, &fld, ptr)) < 0)
+          return ret;
+      }
+
+      fld = (zone_field_t){
+        .location = tok->location,
+        .code = ZONE_RDATA | ZONE_INT8,
+        .int8 = (uint8_t)ret & 0xff
+      };
+      const struct rdata_descriptor *dsc = (const void *)par->rr.descriptors.rdata;
+      if (!is_last_rdata(par, (const void *)dsc))
+        SEMANTIC_ERROR(par, "Missing rdata field %s", dsc->base.name);
+      if ((ret = par->options.accept.delimiter(par, &fld, ptr)) < 0)
+        return ret;
+
+      zone_flush(par, tok);
+      par->rr.descriptors.type = NULL;
+      par->rr.descriptors.rdata = NULL;
       break;
-    assert(code == tok.code);
-    zone_code_t item = code & 0xff0000;
-
-    // ignore comments
-    if (item == ZONE_COMMENT)
-      continue;
-
-    if (item == ZONE_DELIMITER) {
-      if (par->state.parser != ZONE_INITIAL) {
-        zone_return_t ret = 0;
-        zone_field_t fld = {
-          .location = tok.location,
-          .code = code | ZONE_INT8,
-          .int8 = (uint8_t)tok.code & 0xff };
-
-        // FIXME: should be a no-op for blank line. perhaps just use rdlength?
-        if (!par->rr.descriptors.type)
-          SEMANTIC_ERROR(par, "Expected type at {l}", &tok);
-        else if (!par->rr.descriptors.rdata)
-          SEMANTIC_ERROR(par, "Expected rdata at {l}", &tok);
-
-        if (par->state.parser & ZONE_DEFERRED_RDATA)
-          ret = accept_rdata(par, &par->rr.fields[RDATA], user_data);
-
-        if (ret < 0 || (ret = par->options.accept.delimiter(par, &fld, user_data)) < 0)
-          code = ret;
-
-        // FIXME: record descriptor must point to terminator or last record
-        //        that allows for multiple occurences
-        //if ((ret = par->options.accept.delimiter(par, &fld, user_data)) < 0)
-        //  code = ret;
-        par->rr.descriptors.type = NULL;
-        par->rr.descriptors.rdata = NULL;
-        //if (tok.code == '\0' && par->file->handle)
-        //  close_file(par);
-      }
-      // FIXME: we must reset the location here so that the location is correct
-      //        even if the owner is left blank in the next record!
-      // par->parser.state = ZONE_INITIAL;
-      par->state.parser = ZONE_INITIAL;
     } else {
-      // update state to properly handle blank lines
-      par->state.parser = item | (par->state.parser & ZONE_DEFERRED_RDATA);
+      const struct rdata_descriptor *dsc = (const void *)par->rr.descriptors.rdata;
+      zone_field_t fld;
 
-      if (item == ZONE_OWNER) {
-        assert(code == (ZONE_OWNER | ZONE_STRING));
-        code = parse_owner(par, &tok, user_data);
-      } else if (item == ZONE_TTL) {
-        assert(code == (ZONE_TTL | ZONE_INT32));
-        par->rr.fields[TTL].location = tok.location;
-        par->rr.fields[TTL].code = ZONE_TTL | ZONE_INT32;
-        par->rr.fields[TTL].int32 = tok.int32;
-        par->rr.fields[TTL].wire.octets = NULL;
-        par->rr.fields[TTL].wire.length = 0;
-      } else if (item == ZONE_CLASS) {
-        assert(code == (ZONE_CLASS | ZONE_INT16));
-        par->rr.fields[CLASS].location = tok.location;
-        par->rr.fields[CLASS].code = ZONE_CLASS | ZONE_INT16;
-        par->rr.fields[CLASS].int16 = tok.int16;
-        par->rr.fields[CLASS].wire.octets = NULL;
-        par->rr.fields[CLASS].wire.length = 0;
-      } else if (item == ZONE_TYPE) {
-        zone_return_t ret;
-        const struct type_descriptor *desc;
+      assert((ret & ZONE_STRING));
 
-        if (tok.int16 < sizeof(descriptors)/sizeof(descriptors[0]))
-          desc = &descriptors[tok.int16];
-        else
-          desc = &unknown_type;
+      if (!dsc->base.type)
+        SEMANTIC_ERROR(par, "Too much rdata fields");
 
-        assert(code == (ZONE_TYPE | ZONE_INT16));
-        par->rr.fields[TYPE].location = tok.location;
-        par->rr.fields[TYPE].code = ZONE_TYPE | ZONE_INT16;
-        par->rr.fields[TYPE].int16 = tok.int16;
-        par->rr.fields[TYPE].wire.octets = NULL;
-        par->rr.fields[TYPE].wire.length = 0;
-        par->rr.fields[TYPE].descriptor.type = &desc->public;
+      if (par->state.scanner & ZONE_DEFERRED_RDATA)
+        fld = par->rr.fields[RDATA];
+      else
+        fld = (zone_field_t){
+          .location = tok->location,
+          .code = ZONE_RDATA | zone_type(dsc->base.type),
+          .descriptor.rdata = (const void *)dsc,
+          .wire = { .length = 0, .octets = NULL }
+        };
 
-        par->rr.descriptors.type = (const void *)&desc->public;
-        par->rr.descriptors.rdata = &desc->rdata[0].public;
-        if ((ret = accept_rr(par, user_data)) < 0)
-          code = ret;
-      } else if (item == ZONE_BACKSLASH_HASH) {
-        assert(code == (ZONE_BACKSLASH_HASH | ZONE_STRING));
-        assert(par->state.scanner & ZONE_GENERIC_RDATA);
-      } else if (item == ZONE_RDLENGTH) {
-        assert(code == (ZONE_RDLENGTH | ZONE_INT16));
-        assert(par->state.scanner & ZONE_GENERIC_RDATA);
-        par->rdlength.expect = tok.int16;
+      assert((uintptr_t)fld.descriptor.rdata == (uintptr_t)dsc);
+
+      if ((ret = dsc->typed(par, tok)) == ZONE_DEFER_ACCEPT) {
+        fld.location.end = tok->location.end;
+        par->rr.fields[RDATA] = fld;
+        par->state.scanner |= ZONE_DEFERRED_RDATA;
+      } else if (ret < 0) {
+        return ret;
       } else {
-        size_t fid;
-        zone_field_t fld;
-        zone_return_t ret;
-        const struct rdata_descriptor *desc;
-        rdata_parse_t fun;
-
-        assert(item == ZONE_RDATA);
-        assert(par->rr.descriptors.type);
-        assert(par->rr.descriptors.rdata);
-
-        desc = (const struct rdata_descriptor *)par->rr.descriptors.rdata;
-        if (!desc->public.type)
-          SYNTAX_ERROR(par, "Invalid record got too much rdatas");
-
-        fid = zone_type(desc->public.type) >> 8;
-        assert(fid < sizeof(functions)/sizeof(functions[0]));
-
-        if (par->state.scanner & ZONE_GENERIC_RDATA)
-          fun = desc->generic ? desc->generic : functions[fid].generic;
-        else
-          fun = desc->typed ? desc->typed : functions[fid].typed;
-        if (!fun)
-          return ZONE_NOT_IMPLEMENTED;
-
-        if (par->state.parser & ZONE_DEFERRED_RDATA) {
-          fld = par->rr.fields[RDATA];
-          assert(zone_type(fld.code) == desc->public.type);
-          fld.location.end = tok.location.end;
-        } else {
-          fld = (zone_field_t){
-            .location = tok.location,
-            .code = ZONE_RDATA | desc->public.type,
-            .descriptor = { .rdata = &desc->public }, { 0 }, { { NULL }, 0} };
-        }
-
-        assert(desc->public.type);
-
-        if ((ret = fun(par,  &tok, &fld, user_data)) == ZONE_DEFER_ACCEPT) {
-          par->rr.fields[RDATA] = fld;
-          par->state.parser |= ZONE_DEFERRED_RDATA;
-        } else if (ret < 0) {
-          code = ret;
-        } else if ((ret = accept_rdata(par, &fld, user_data)) < 0) {
-          code = ret;
-        }
+        fld.location.end = tok->location.end;
+        assert(!fld.wire.octets && !fld.wire.length);
+        fld.wire.octets = par->rdata.base64;
+        fld.wire.length = par->rdata.length;
+        if ((ret = accept_rdata(par, &fld, ptr)) < 0)
+          return ret;
       }
+      zone_flush(par, tok);
     }
-  } while (code > 0);
+  }
 
-  // FIXME: cleanup on error, etc
+  return 0;
+}
 
-  return code < 0 ? code : 0;
+static inline zone_return_t parse_owner(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  static const zone_field_descriptor_t dsc =
+    { "owner", 5, ZONE_OWNER|ZONE_NAME, 0, { 0 }, NULL };
+  zone_return_t ret;
+
+  if ((ret = lex_name(
+    par, &dsc, tok,
+   &par->file->owner.domain,
+    par->file->owner.name.octets,
+   &par->file->owner.name.length)) < 0)
+    return ret;
+  par->rr.fields[OWNER] = (zone_field_t){
+    .location = tok->location,
+    .code = ZONE_OWNER|ZONE_NAME,
+    .domain = par->file->owner.domain,
+    .wire = {
+      .length = par->file->owner.name.length,
+      .octets = par->file->owner.name.octets }};
+  return 0;
+}
+
+static inline zone_return_t have_ttl(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  static const zone_field_descriptor_t dsc =
+    { "ttl", 3, ZONE_TTL|ZONE_INT32, 0, { 0 }, NULL };
+  uint32_t ttl;
+
+  if (lex_ttl(par, &dsc, tok, &ttl) < 0)
+    return 0;
+  assert(par->rr.fields[TTL].code == (ZONE_TTL|ZONE_INT32));
+  par->rr.fields[TTL].location = tok->location;
+  par->rr.fields[TTL].int32 = ttl;
+  return ZONE_TTL|ZONE_INT32;
+}
+
+static inline zone_return_t have_class(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  uint16_t class;
+  static const zone_field_descriptor_t dsc =
+    { "class", 5, ZONE_CLASS|ZONE_INT16, 0, { 0 }, NULL };
+
+  if (lex_class(par, &dsc, tok, &class) < 0)
+    return 0;
+  assert(par->rr.fields[CLASS].code == (ZONE_CLASS|ZONE_INT16));
+  par->rr.fields[CLASS].location = tok->location;
+  par->rr.fields[CLASS].int16 = class;
+  return 1;
+}
+
+static inline zone_return_t have_type(
+  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+{
+  uint16_t type;
+  static const zone_field_descriptor_t dsc =
+    { "type", 4, ZONE_TYPE|ZONE_INT16, 0, { 0 }, NULL };
+
+  if (lex_type(par, &dsc, tok, &type) < 0)
+    return 0;
+  assert(par->rr.fields[TYPE].code == (ZONE_TYPE|ZONE_INT16));
+  par->rr.fields[TYPE].location = tok->location;
+  par->rr.fields[TYPE].int16 = type;
+  if (type < sizeof(descriptors)/sizeof(descriptors[0]))
+    par->rr.fields[TYPE].descriptor.type = (const void *)&descriptors[type];
+  else
+    par->rr.fields[TYPE].descriptor.type = (const void *)&descriptors[0];
+  return 1;
+}
+
+static inline zone_return_t accept_rr(
+  zone_parser_t *par,
+  zone_field_t *owner,
+  zone_field_t *ttl,
+  zone_field_t *class,
+  zone_field_t *type,
+  void *ptr)
+{
+  assert(zone_type(owner->code) == ZONE_NAME);
+
+  if (!par->options.accept.name || owner->domain)
+    return par->options.accept.rr(par, owner, ttl, class, type, ptr);
+  if (!(owner->domain = par->options.accept.name(par, owner, ptr)))
+    return ZONE_OUT_OF_MEMORY;
+  return par->options.accept.rr(par, owner, ttl, class, type, ptr);
+}
+
+static inline zone_return_t parse_rr(
+  zone_parser_t *__restrict par,
+  zone_token_t *__restrict tok,
+  void *__restrict ptr)
+{
+  zone_return_t ret;
+
+  par->state.scanner = ZONE_OWNER;
+  switch ((ret = zone_quick_peek(par, 0))) {
+    case ' ':
+    case '\t':
+      break;
+    default:
+      if (ret < 0)
+        return ret;
+      if ((ret = zone_scan(par, tok)) < 0)
+        return ret;
+      if (tok->code == '\n' || tok->code == '\0') {
+        zone_flush(par, tok);
+        return 0;
+      }
+      if ((ret = parse_owner(par, tok)) < 0)
+        return ret;
+      zone_flush(par, tok);
+      break;
+  }
+
+  par->state.scanner = ZONE_RR | (par->state.scanner & ZONE_GROUPED);
+  while (par->state.scanner & ZONE_TYPE) {
+    int got_this = 0;
+    if ((ret = zone_scan(par, tok)) < 0)
+      return ret;
+
+    if (tok->code & ZONE_STRING) {
+//      goto bail;
+    
+    if ((par->state.scanner & ZONE_TTL) && (got_this = have_ttl(par, tok))) {
+      par->state.scanner &= ~ZONE_TTL;
+
+    } else if ((par->state.scanner & ZONE_TYPE) && (got_this = have_type(par, tok))) {
+      par->state.scanner &= ~ZONE_TYPE;
+      par->rr.descriptors.type = par->rr.fields[TYPE].descriptor.type;
+      par->rr.descriptors.rdata = (const void *)&((const struct type_descriptor *)par->rr.descriptors.type)->rdata[0];
+      assert(par->options.accept.rr);
+      if ((ret = accept_rr(
+        par,
+       &par->rr.fields[OWNER],
+       &par->rr.fields[TTL],
+       &par->rr.fields[CLASS],
+       &par->rr.fields[TYPE],
+        ptr)) < 0)
+        return ret;
+    } else if ((par->state.scanner & ZONE_CLASS) && (got_this = have_class(par, tok))) {
+      par->state.scanner &= ~ZONE_CLASS;
+    }
+    }
+
+    if (!got_this) {
+
+      const char *expect = "type";
+      if ((par->state.scanner & (ZONE_CLASS|ZONE_TTL)) == (ZONE_CLASS|ZONE_TTL))
+        expect = "ttl, class or type";
+      else if ((par->state.scanner & ZONE_TTL) == ZONE_TTL)
+        expect = "ttl or type";
+      else if ((par->state.scanner & ZONE_CLASS) == ZONE_CLASS)
+        expect = "class or type";
+      SYNTAX_ERROR(par, "Invalid item at {l}, expected %s", expect);
+    }
+
+    zone_flush(par, tok);
+  }
+
+  // fallback to default TTL if unspecified
+  if (par->state.scanner & ZONE_TTL) {
+    par->rr.fields[TTL].location = par->file->ttl.location;
+    par->rr.fields[TTL].int32 = par->file->ttl.seconds;
+  }
+
+  par->state.scanner = ZONE_RDATA | (par->state.scanner & ZONE_GROUPED);
+  if ((ret = zone_scan(par, tok)) < 0 || (ret = zone_lex(par, tok)) < 0)
+    return ret;
+  if (!(tok->code & ZONE_STRING) || zone_compare(&tok->string, "\\#", 2) != 0)
+    return parse_rdata(par, tok, ptr);
+  zone_flush(par, tok);
+  return parse_generic_rdata(par, tok, ptr);
+}
+
+static inline zone_return_t parse_dollar_include(
+  zone_parser_t *__restrict par,
+  zone_token_t *__restrict tok,
+  void *__restrict ptr)
+{
+  (void)par;
+  (void)tok;
+  (void)ptr;
+  fprintf(stderr, "$INCLUDE directive not implemented yet\n");
+  return ZONE_NOT_IMPLEMENTED;
+}
+
+static zone_return_t lex_origin(
+  zone_parser_t * par,
+  const zone_field_descriptor_t *dsc,
+  zone_token_t *tok,
+  uint8_t str[255],
+  size_t *len)
+{
+  size_t lab = 0, oct = 1;
+
+  (void)dsc;
+
+  for (zone_char_t chr; (chr = zone_get(par, tok)) >= 0;) {
+    if (oct >= 255)
+      SYNTAX_ERROR(par, "Invalid name in $ORIGIN, name exceeds maximum");
+
+    if (chr == '.' || chr == '\0') {
+      if (oct - 1 == lab && chr == '.')
+        SYNTAX_ERROR(par, "Invalid name in $ORIGIN, empty label");
+      else if ((oct - lab) - 1 > 63)
+        SYNTAX_ERROR(par, "Invalid name in $ORIGIN, label exceeds maximum");
+      str[lab] = (oct - lab) - 1;
+      if (chr != '.')
+        break;
+      lab = oct++;
+      str[lab] = 0;
+    } else {
+      str[oct++] = chr & 0xff;
+    }
+  }
+
+  if (str[lab] != 0)
+    SEMANTIC_ERROR(par, "Invalid name in $ORIGIN, name not fully qualified");
+
+  *len = oct;
+  return 0;
+}
+
+// RFC1035 section 5.1
+// $ORIGIN <domain-name> [<comment>]
+static inline zone_return_t parse_dollar_origin(
+  zone_parser_t *par, zone_token_t *tok, void *ptr)
+{
+  static const zone_field_descriptor_t dsc =
+    { "origin", 6, ZONE_DOLLAR_ORIGIN|ZONE_NAME, 0, { 0 }, NULL };
+  zone_return_t ret;
+  zone_name_t *name = &par->file->origin.name;
+  zone_field_t fld;
+
+  assert(par);
+  assert(tok);
+
+  if ((ret = zone_scan(par, tok)) < 0)
+    return ret;
+  if (!(tok->code & ZONE_STRING))
+    SYNTAX_ERROR(par, "$ORIGIN directive takes a domain name");
+  if ((ret = lex_origin(par, &dsc, tok, name->octets, &name->length)) < 0)
+    return ret;
+  zone_flush(par, tok);
+  par->file->origin.domain = NULL;
+  par->file->origin.location = tok->location;
+
+  if ((ret = zone_scan(par, tok)) < 0)
+    return ret;
+  if (tok->code != '\n' && tok->code != '\0')
+    SYNTAX_ERROR(par, "$ORIGIN directive takes just a single argument");
+  zone_flush(par, tok);
+
+  if (!par->options.accept.name)
+    return 0;
+  fld = (zone_field_t){
+    .location = tok->location,
+    .code = ZONE_DOLLAR_ORIGIN|ZONE_NAME,
+    .wire = { .octets = name->octets, .length = name->length }};
+  if (!(par->file->origin.domain = par->options.accept.name(par, &fld, ptr)))
+    return ZONE_OUT_OF_MEMORY;
+  return 0;
+}
+
+// RFC2308 section 4
+// $TTL <TTL> [<comment>]
+static inline zone_return_t parse_dollar_ttl(
+  zone_parser_t *par, zone_token_t * tok, void *ptr)
+{
+  static const zone_field_descriptor_t dsc =
+    { "ttl", 3, ZONE_DOLLAR_TTL|ZONE_INT32, 0, { 0 }, NULL };
+  zone_return_t ret;
+
+  (void)ptr;
+  if ((ret = zone_scan(par, tok)) < 0)
+    return ret;
+  if (!(tok->code & ZONE_STRING))
+    SYNTAX_ERROR(par, "$TTL directive takes a time-to-live");
+  if ((ret = lex_ttl(par, &dsc, tok, &par->file->ttl.seconds)) < 0)
+    return ret;
+  zone_flush(par, tok);
+  par->file->ttl.location = tok->location;
+
+  if ((ret = zone_scan(par, tok)) < 0)
+    return ret;
+  if (tok->code != '\n' && tok->code != '\0')
+    SYNTAX_ERROR(par, "$TTL directive takes just a single argument");
+  zone_flush(par, tok);
+  return 0;
+}
+
+zone_return_t zone_parse(
+  zone_parser_t *__restrict par, void *__restrict ptr)
+{
+  static const char ttl[] = "$TTL";
+  static const char origin[] = "$ORIGIN";
+  static const char include[] = "$INCLUDE";
+
+  zone_token_t tok;
+  zone_return_t ret = 0;
+
+  for (zone_char_t chr; ret == 0 && (chr = zone_quick_peek(par, 0)); ) {
+    // control directives must start at the beginning of the line
+    if (chr != '$')
+      ret = parse_rr(par, &tok, ptr);
+    else switch ((ret = zone_scan(par, &tok))) {
+      case ZONE_STRING|ZONE_ESCAPED:
+      case ZONE_STRING:
+        if ((ret = zone_lex(par, &tok)) < 0) {
+          return ret;
+        } else if (zone_compare(&tok.string, include, sizeof(include) - 1) == 0) {
+          zone_flush(par, &tok);
+          ret = parse_dollar_include(par, &tok, ptr);
+        } else if (zone_compare(&tok.string, origin, sizeof(origin) - 1) == 0) {
+          zone_flush(par, &tok);
+          ret = parse_dollar_origin(par, &tok, ptr);
+        } else if (zone_compare(&tok.string, ttl, sizeof(ttl) - 1) == 0) {
+          zone_flush(par, &tok);
+          ret = parse_dollar_ttl(par, &tok, ptr);
+        } else {
+          ret = parse_rr(par, &tok, ptr);
+        }
+        break;
+      case '\n':
+        zone_flush(par, &tok);
+        break;
+      case '\0':
+        return 0;
+    }
+  }
+
+  // FIXME: set state to return on error!
+
+  return ret;
 }

@@ -91,10 +91,12 @@ add_custom_command(
 # FIXME: scanner-types.h can be generated eventually
 add_library(zone STATIC
   src/zone.c
-  src/scanner.c
+  src/scanner.h
+  src/base16.h
+  src/base64.h
+  src/nsec.h
+  src/wks.h
   src/parser.c
-  src/log.c
-  src/util.c
   "${CMAKE_CURRENT_BINARY_DIR}/src/types.h"
   "${CMAKE_CURRENT_BINARY_DIR}/src/grammar.h")
 target_include_directories(

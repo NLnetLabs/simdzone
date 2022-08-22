@@ -74,7 +74,21 @@ DNSKEY:48:A DNSKEY [RFC4034][RFC3755]
   I1[RSAMD5=1,DH=2,DSA=3,ECC=4,RSASHA1=5,INDIRECT=252,PRIVATEDNS=253,PRIVATEOID=254]:algorithm Algorithm
   B64:publickey Public key
 
-SVCB:64 Service binding and parameter specification
-  I2:SvcPriority
-  N:TargetName
-  Z[SVCB]:SvcParam
+NSEC3:50:A NSEC3 [RFC5155]
+  I1[SHA-1=1]:algorithm Hash algorithm
+  I1[OPTOUT=1]:flags Flags
+  I2:iterations Iterations
+  X[C]:salt Salt
+  B32:next Next hashed owner
+  R[L]:types Type bitmaps (as window blocks)
+
+NSEC3PARAM:51:A NSEC3PARAM [RFC5155]
+  I1[SHA-1=1]:algorithm Hash algorithm
+  I1[OPTOUT=1]:flags Flags
+  I2:iterations Iterations
+  X[C]:salt Salt
+
+#SVCB:64 Service binding and parameter specification
+#  I2:SvcPriority
+#  N:TargetName
+#  Z[SVCB]:SvcParam

@@ -1,21 +1,15 @@
 /*
- * base16.h -- parser for base16 rdata in (DNS) zone files
+ * base16.h -- some useful comment
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
  * See LICENSE for the license.
+ *
  */
 #ifndef ZONE_BASE16_H
 #define ZONE_BASE16_H
 
-static inline zone_return_t accept_base16(
-  zone_parser_t *par, zone_field_t *fld, void *ptr)
-{
-  if (par->rdata.state.base16 != 0)
-    SEMANTIC_ERROR(par, "Invalid base16 sequence");
-  par->rdata.state.base16 = 0;
-  return par->options.accept.rdata(par, fld, ptr);
-}
+#include "scanner.h"
 
 static const uint8_t b16rmap[256] = {
   0xfd, 0xff, 0xff, 0xff,  0xff, 0xff, 0xff, 0xff,  /*   0 -   7 */
@@ -57,36 +51,34 @@ static const uint8_t b16rmap_end = 0xfd;
 static const uint8_t b16rmap_space = 0xfe;
 
 static inline zone_return_t parse_base16(
-  zone_parser_t *par, const zone_token_t *tok, zone_field_t *fld, void *ptr)
+  zone_parser_t *par, zone_token_t *tok)
 {
-  size_t cur = 0;
-  zone_char_t ch;
+  int32_t ch;
   uint8_t ofs;
 
-  (void)fld;
-  (void)ptr;
-
   for (;;) {
-    if ((ch = zone_string_next(&tok->string, &cur, 0)) < 0)
-      SEMANTIC_ERROR(par, "Invalid escape sequence");
+    ch = zone_get(par, tok);
     ofs = b16rmap[(uint8_t)ch & 0xff];
 
     if (ofs >= b16rmap_special) {
-      // Ignore whitespaces
+      // ignore whitespace
       if (ofs == b16rmap_space)
         continue;
-      // End of base64 characters
+      // end of base16 characters
       if (ofs == b16rmap_end)
         break;
+      // propagate original error
+      if (ch < 0)
+        return ch;
       SEMANTIC_ERROR(par, "Invalid character in base16 encoding");
     }
 
-    if (par->rdata.state.base16 == 0) {
+    if (par->state.base16 == 0) {
       par->rdata.base16[par->rdata.length]  = ofs << 4;
-      par->rdata.state.base16 = 1;
-    } else if (par->rdata.state.base16 == 1) {
+      par->state.base16 = 1;
+    } else if (par->state.base16 == 1) {
       par->rdata.base16[par->rdata.length] |= ofs;
-      par->rdata.state.base16 = 0;
+      par->state.base16 = 0;
       if (par->rdata.length == UINT16_MAX - 1)
         SEMANTIC_ERROR(par, "Base16 sequence is too big");
       par->rdata.length++;
@@ -95,6 +87,32 @@ static inline zone_return_t parse_base16(
 
   assert(ch == '\0');
   return ZONE_DEFER_ACCEPT;
+}
+
+static inline zone_return_t accept_base16(
+  zone_parser_t *par, zone_field_t *fld, void *ptr)
+{
+  if (par->state.base16 != 0)
+    SEMANTIC_ERROR(par, "Invalid base16 sequence");
+  par->state.base16 = 0;
+  return par->options.accept.rdata(par, fld, ptr);
+}
+
+static inline zone_return_t parse_salt(
+  zone_parser_t *par, zone_token_t *tok)
+{
+  size_t quot = (tok->code & ZONE_QUOTED) != 0;
+  zone_return_t ret;
+
+  par->rdata.length = 1;
+  if ((ret = zone_quick_peek(par, quot)) < 0)
+    return ret;
+  else if ((ret & 0xff) == '-')
+    (void)zone_get(par, tok);
+  else if ((ret = parse_base16(par, tok)) != ZONE_DEFER_ACCEPT)
+    return ret;
+  par->rdata.base16[0] = par->rdata.length - 1;
+  return 0;
 }
 
 #endif // ZONE_BASE16_H

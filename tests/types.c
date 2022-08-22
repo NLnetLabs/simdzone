@@ -108,7 +108,7 @@ void str_type_max_len(void **state)
     struct str_test test = { 0 };
     ssize_t rrlen;
 
-    opts.flags = tests[i].leanient ? ZONE_LEANIENT : 0;
+    opts.flags = tests[i].leanient ? ZONE_LENIENT : 0;
 
     for (size_t j=0; j < tests[i].length; j++)
       os[j] = 'x';
