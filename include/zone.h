@@ -94,13 +94,7 @@ struct zone_file {
   } buffer;
 };
 
-// zone code is a concatenation of the item and the format. the 8 least
-// significant bits are reserved to embed ascii internally. e.g. end-of-file
-// and line feed delimiters are simply encoded as '\0' and '\n' by the
-// scanner. the 8 least significant bits must only be considered valid ascii
-// if no other bits are set as they are reserved for private state if there
-// are. bits 8 - 15 encode the the value type, bits 16-27 are reserved for the
-// field type. negative values indicate an error condition
+// zone code is a concatenation of the item and the type.
 typedef zone_return_t zone_code_t;
 
 typedef enum {
@@ -117,6 +111,11 @@ inline zone_item_t zone_item(const zone_code_t code)
   return code & 0xff;
 }
 
+// types are defined by their binary representation. this is different from
+// dnsextlang, which defines types mostly by their textual representation.
+// e.g. I4, T and T[L] are different field types in dnsextlang, but the wire
+// format is identical. qualifiers, like time and ttl, are available from the
+// field descriptor for completeness.
 typedef enum {
   ZONE_INT8 = (1 << 14),
   ZONE_INT16 = (2 << 14),
@@ -281,7 +280,6 @@ struct zone_options {
   // FIXME: a compiler flag indicating host or network order might be useful
   uint32_t flags;
   const char *origin;
-  uint16_t default_class; // << don't think we need this, right?!?!
   uint32_t ttl;
   size_t block_size;
   struct {
