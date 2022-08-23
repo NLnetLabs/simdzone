@@ -78,14 +78,14 @@ static inline zone_return_t parse_base16(
     }
 
     if (par->state.base16 == 0) {
-      par->rdata.base16[par->rdata.length]  = ofs << 4;
+      par->rdata[par->rdlength]  = ofs << 4;
       par->state.base16 = 1;
     } else if (par->state.base16 == 1) {
-      par->rdata.base16[par->rdata.length] |= ofs;
+      par->rdata[par->rdlength] |= ofs;
       par->state.base16 = 0;
-      if (par->rdata.length == UINT16_MAX - 1)
+      if (par->rdlength == UINT16_MAX - 1)
         SEMANTIC_ERROR(par, "Base16 sequence is too big");
-      par->rdata.length++;
+      par->rdlength++;
     }
   }
 
@@ -107,14 +107,14 @@ static inline zone_return_t parse_salt(
 {
   zone_return_t ret;
 
-  par->rdata.length = 1;
+  size_t rdlength = par->rdlength++;
   if ((ret = zone_quick_peek(par, tok->cursor)) < 0)
     return ret;
   else if ((ret & 0xff) == '-')
     (void)zone_get(par, tok);
   else if ((ret = parse_base16(par, tok)) != ZONE_DEFER_ACCEPT)
     return ret;
-  par->rdata.base16[0] = par->rdata.length - 1;
+  par->rdata[rdlength] = (par->rdlength - rdlength) - 1;
   return 0;
 }
 

@@ -261,6 +261,8 @@ typedef zone_return_t(*zone_accept_rdata_t)(
 typedef zone_return_t(*zone_accept_t)(
   const zone_parser_t *,
   const zone_field_t *, // end-of-file or newline
+  const uint8_t *, // rdata
+  size_t, // rdlength
   void *); // user data
 
 typedef void *(*zone_malloc_t)(void *arena, size_t size);
@@ -314,6 +316,7 @@ struct zone_parser {
     } wks;
     struct {
       uint16_t highest_bit;
+      uint8_t bitmap[256][2 + 256 / 8];
     } nsec;
     // base16 state can be any of:
     //   0: parse bits 0-3
@@ -344,24 +347,8 @@ struct zone_parser {
       const zone_field_descriptor_t *rdata;
     } descriptors;
   } rr;
-  struct {
-    size_t length;
-    union {
-      uint8_t int8;
-      uint16_t int16;
-      uint32_t int32;
-      struct in_addr ip4;
-      struct in6_addr ip6;
-      uint8_t name[255];
-      uint8_t string[1 + 255];
-      uint8_t wks[UINT16_MAX / 8];
-      uint8_t nsec[256][2 + 256 / 8];
-      uint8_t svcb[UINT16_MAX];
-      uint8_t base16[UINT16_MAX];
-      uint8_t base32[UINT16_MAX];
-      uint8_t base64[UINT16_MAX];
-    };
-  } rdata;
+  size_t rdlength;
+  uint8_t rdata[UINT16_MAX];
 };
 
 // return codes

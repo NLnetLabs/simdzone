@@ -75,39 +75,39 @@ static inline zone_return_t parse_base32(
 
     switch (par->state.base32) {
       case 0:
-        par->rdata.base32[par->rdata.length  ]  = ofs << 3;
+        par->rdata[par->rdlength  ]  = ofs << 3;
         par->state.base32 = 1;
         break;
       case 1:
-        par->rdata.base32[par->rdata.length++] |= ofs >> 2;
-        par->rdata.base32[par->rdata.length  ]  = ofs << 6;
+        par->rdata[par->rdlength++] |= ofs >> 2;
+        par->rdata[par->rdlength  ]  = ofs << 6;
         par->state.base32 = 2;
         break;
       case 2:
-        par->rdata.base32[par->rdata.length  ] |= ofs << 1;
+        par->rdata[par->rdlength  ] |= ofs << 1;
         par->state.base32 = 3;
         break;
       case 3:
-        par->rdata.base32[par->rdata.length++] |= ofs >> 4;
-        par->rdata.base32[par->rdata.length  ]  = ofs << 4;
+        par->rdata[par->rdlength++] |= ofs >> 4;
+        par->rdata[par->rdlength  ]  = ofs << 4;
         par->state.base32 = 4;
         break;
       case 4:
-        par->rdata.base32[par->rdata.length++] |= ofs >> 1;
-        par->rdata.base32[par->rdata.length  ]  = ofs << 7;
+        par->rdata[par->rdlength++] |= ofs >> 1;
+        par->rdata[par->rdlength  ]  = ofs << 7;
         par->state.base32 = 5;
         break;
       case 5:
-        par->rdata.base32[par->rdata.length  ] |= ofs << 2;
+        par->rdata[par->rdlength  ] |= ofs << 2;
         par->state.base32 = 6;
         break;
       case 6:
-        par->rdata.base32[par->rdata.length++] |= ofs >> 3;
-        par->rdata.base32[par->rdata.length  ]  = ofs << 5;
+        par->rdata[par->rdlength++] |= ofs >> 3;
+        par->rdata[par->rdlength  ]  = ofs << 5;
         par->state.base32 = 7;
         break;
       case 7:
-        par->rdata.base32[par->rdata.length++] |= ofs;
+        par->rdata[par->rdlength++] |= ofs;
         par->state.base32 = 0;
         break;
     }
@@ -115,7 +115,7 @@ static inline zone_return_t parse_base32(
 
   assert(ch == '\0' || (ch & 0xff) == '=');
   for (; ch ; ch = zone_get(par, tok)) {
-    if (ch != '=')
+    if (ch == '=')
       switch (par->state.base32) {
         case 0: // invalid
         case 1:

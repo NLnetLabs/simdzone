@@ -50,10 +50,10 @@ static inline uint32_t is_unit(char c)
 }
 
 static inline zone_return_t lex_ttl(
-  zone_parser_t *__restrict par,
-  const zone_field_descriptor_t *__restrict dsc,
-  zone_token_t *__restrict tok,
-  uint32_t *__restrict ttl)
+  zone_parser_t *par,
+  const zone_field_descriptor_t *dsc,
+  zone_token_t *tok,
+  uint32_t *ttl)
 {
   uint64_t num = 0, sum = 0, fact = 0;
   enum { INITIAL, NUMBER, UNIT } state = INITIAL;
@@ -138,10 +138,10 @@ static inline zone_return_t lex_ttl(
 }
 
 static inline zone_return_t lex_int(
-  zone_parser_t *__restrict par,
-  const zone_field_descriptor_t *__restrict dsc,
-  zone_token_t *__restrict tok,
-  uint64_t *__restrict num)
+  zone_parser_t *par,
+  const zone_field_descriptor_t *dsc,
+  zone_token_t *tok,
+  uint64_t *num)
 {
   uint64_t sum = 0u, max;
 
@@ -211,9 +211,9 @@ static inline zone_return_t lex_int(
 }
 
 static zone_return_t lex_name(
-  zone_parser_t *__restrict par,
-  const zone_field_descriptor_t *__restrict dsc,
-  zone_token_t *__restrict tok,
+  zone_parser_t *par,
+  const zone_field_descriptor_t *dsc,
+  zone_token_t *tok,
   const void **ref,
   uint8_t str[255],
   size_t *len)
@@ -223,9 +223,9 @@ static zone_return_t lex_name(
 
   // a freestanding "@" denotes the current origin
   if (zone_get(par, &at) == '@' && !zone_get(par, &at)) {
-    memcpy(str, par->file->origin.name.octets, *len);
-    *len = par->file->origin.name.length;
+    memcpy(str, par->file->origin.name.octets, par->file->origin.name.length);
     *ref = par->file->origin.domain;
+    *len = par->file->origin.name.length;
     *tok = at;
     return 0;
   }
@@ -264,9 +264,9 @@ static zone_return_t lex_name(
 #include "types.h"
 
 static inline zone_return_t lex_type(
-  zone_parser_t *__restrict par,
-  const zone_field_descriptor_t *__restrict dsc,
-  zone_token_t *__restrict tok,
+  zone_parser_t *par,
+  const zone_field_descriptor_t *dsc,
+  zone_token_t *tok,
   uint16_t *type)
 {
   zone_return_t ret;
@@ -308,9 +308,9 @@ bad_type:
 }
 
 static inline zone_return_t lex_class(
-  zone_parser_t *__restrict par,
-  const zone_field_descriptor_t *__restrict dsc,
-  zone_token_t *__restrict tok,
+  zone_parser_t *par,
+  const zone_field_descriptor_t *dsc,
+  zone_token_t *tok,
   uint16_t *class)
 {
   char buf[32];
@@ -360,8 +360,7 @@ bad_class:
   SEMANTIC_ERROR(par, "Invalid class in %s", dsc->name);
 }
 
-static zone_return_t parse_ttl(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+static zone_return_t parse_ttl(zone_parser_t *par, zone_token_t *tok)
 {
   uint32_t ttl = 0;
   zone_return_t ret;
@@ -369,21 +368,20 @@ static zone_return_t parse_ttl(
   if ((ret = lex_ttl(par, par->rr.descriptors.rdata, tok, &ttl)) < 0)
     return ret;
   assert(ttl <= INT32_MAX);
-  par->rdata.int32 = htonl(ttl);
-  par->rdata.length = sizeof(par->rdata.int32);
+  *((uint32_t *)&par->rdata[par->rdlength]) = htonl(ttl);
+  par->rdlength += sizeof(uint32_t);
   return 0;
 }
 
-static zone_return_t parse_type(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+static zone_return_t parse_type(zone_parser_t *par, zone_token_t *tok)
 {
   uint16_t type;
   zone_return_t ret;
 
   if ((ret = lex_type(par, par->rr.descriptors.rdata, tok, &type)) < 0)
     return ret;
-  par->rdata.int16 = htons((uint16_t)type);
-  par->rdata.length = sizeof(par->rdata.int16);
+  *((uint16_t *)&par->rdata[par->rdlength]) = htons((uint16_t)type);
+  par->rdlength += sizeof(uint16_t);
   return 0;
 }
 
@@ -429,8 +427,7 @@ static time_t mktime_from_utc(const struct tm *tm)
   return seconds;
 }
 
-static zone_return_t parse_time(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+static zone_return_t parse_time(zone_parser_t *par, zone_token_t *tok)
 {
   char buf[] = "YYYYmmddHHMMSS";
   size_t len = 0;
@@ -450,15 +447,14 @@ static zone_return_t parse_time(
   struct tm tm;
   if (!(end = strptime(buf, "%Y%m%d%H%M%S", &tm)) || *end != 0)
     goto bad_time;
-  par->rdata.int32 = htonl(mktime_from_utc(&tm));
-  par->rdata.length = sizeof(par->rdata.int32);
+  *((uint32_t *)&par->rdata[par->rdlength]) = htonl(mktime_from_utc(&tm));
+  par->rdlength += sizeof(uint32_t);
   return 0;
 bad_time:
   SEMANTIC_ERROR(par, "Invalid time in %s", par->rr.descriptors.rdata->name);
 }
 
-static zone_return_t parse_int8(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+static zone_return_t parse_int8(zone_parser_t *par, zone_token_t *tok)
 {
   uint64_t num;
   zone_return_t ret;
@@ -466,13 +462,12 @@ static zone_return_t parse_int8(
   if ((ret = lex_int(par, par->rr.descriptors.rdata, tok, &num)) < 0)
     return ret;
   assert(num <= INT8_MAX);
-  par->rdata.int8 = (uint8_t)num;
-  par->rdata.length = sizeof(par->rdata.int8);
+  par->rdata[par->rdlength] = (uint8_t)num;
+  par->rdlength += 1;
   return 0;
 }
 
-static zone_return_t parse_int16(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+static zone_return_t parse_int16(zone_parser_t *par, zone_token_t *tok)
 {
   uint64_t num;
   zone_return_t ret;
@@ -480,13 +475,12 @@ static zone_return_t parse_int16(
   if ((ret = lex_int(par, par->rr.descriptors.rdata, tok, &num)) < 0)
     return ret;
   assert(num <= UINT16_MAX);
-  par->rdata.int16 = htons((uint16_t)num);
-  par->rdata.length = sizeof(par->rdata.int16);
+  *((uint16_t *)&par->rdata[par->rdlength]) = htons((uint16_t)num);
+  par->rdlength += sizeof(uint16_t);
   return 0;
 }
 
-static zone_return_t parse_int32(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+static zone_return_t parse_int32(zone_parser_t *par, zone_token_t *tok)
 {
   uint64_t num;
   zone_return_t ret;
@@ -494,13 +488,12 @@ static zone_return_t parse_int32(
   if ((ret = lex_int(par, par->rr.descriptors.rdata, tok, &num)) < 0)
     return ret;
   assert(num <= UINT32_MAX);
-  par->rdata.int32 = htonl((uint32_t)num);
-  par->rdata.length = sizeof(par->rdata.int32);
+  *((uint32_t *)&par->rdata[par->rdlength]) = htonl((uint32_t)num);
+  par->rdlength += sizeof(uint32_t);
   return 0;
 }
 
-static zone_return_t parse_ip4(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+static zone_return_t parse_ip4(zone_parser_t *par, zone_token_t *tok)
 {
   char buf[INET_ADDRSTRLEN + 1];
   size_t len = 0;
@@ -513,16 +506,15 @@ static zone_return_t parse_ip4(
       goto bad_ip;
   }
   buf[len] = '\0';
-  if (inet_pton(AF_INET, buf, &par->rdata.ip4) != 1)
+  if (inet_pton(AF_INET, buf, &par->rdata[par->rdlength]) != 1)
     goto bad_ip;
-  par->rdata.length = sizeof(par->rdata.ip4);
+  par->rdlength += sizeof(struct in_addr);
   return 0;
 bad_ip:
   SYNTAX_ERROR(par, "Invalid IPv4 address in %s", par->rr.descriptors.rdata->name);
 }
 
-static zone_return_t parse_ip6(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+static zone_return_t parse_ip6(zone_parser_t *par, zone_token_t *tok)
 {
   char buf[INET6_ADDRSTRLEN + 1];
   size_t len = 0;
@@ -535,42 +527,48 @@ static zone_return_t parse_ip6(
       goto bad_ip;
   }
   buf[len] = '\0';
-  if (inet_pton(AF_INET6, buf, &par->rdata.ip6) != 1)
+  if (inet_pton(AF_INET6, buf, &par->rdata[par->rdlength]) != 1)
     goto bad_ip;
-  par->rdata.length = sizeof(par->rdata.ip6);
+  par->rdlength += sizeof(struct in6_addr);
   return 0;
 bad_ip:
   SYNTAX_ERROR(par, "Invalid IPv6 address in %s", par->rr.descriptors.rdata->name);
 }
 
-static zone_return_t parse_name(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+static zone_return_t parse_name(zone_parser_t *par, zone_token_t *tok)
 {
-  return lex_name(
+  size_t length = 0;
+  zone_return_t ret;
+
+  ret = lex_name(
     par,
     par->rr.descriptors.rdata,
     tok,
    &par->rr.items[RDATA].field.domain,
-    par->rdata.name,
-   &par->rdata.length);
+   &par->rdata[par->rdlength],
+   &length);
+  if (ret < 0)
+    return ret;
+  par->rdlength += length;
+  return 0;
 }
 
-static zone_return_t parse_string(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+static zone_return_t parse_string(zone_parser_t *par, zone_token_t *tok)
 {
   zone_char_t chr;
   size_t len = 1;
 
   while ((chr = zone_get(par, tok)) > 0) {
-    if (len == sizeof(par->rdata.string))
+    if (len == 256)
       SEMANTIC_ERROR(par, "String is too large!");
-    par->rdata.string[len++] = chr & 0xff;
+    par->rdata[par->rdlength + len] = chr & 0xff;
+    len++;
   }
 
   if (chr < 0)
     return chr;
-  par->rdata.string[0] = len - 1;
-  par->rdata.length = len;
+  par->rdata[par->rdlength] = len - 1;
+  par->rdlength += len;
   return 0;
 }
 
@@ -632,8 +630,6 @@ static inline zone_return_t accept_rdata(
   else
     ret = par->options.accept.rdata(par, fld, ptr);
 
-  par->rdata.length = 0;
-
   if (ret < 0)
     return ret;
   par->state.scanner &= ~ZONE_DEFERRED_RDATA;
@@ -645,11 +641,12 @@ static inline zone_return_t accept_rdata(
 }
 
 static inline zone_return_t parse_rdata(
-  zone_parser_t *__restrict par,
-  zone_token_t *__restrict tok,
-  void *__restrict ptr)
+  zone_parser_t *par, zone_token_t *tok, void *ptr)
 {
+  size_t rdlength;
   zone_return_t ret;
+
+  par->rdlength = rdlength = 0;
 
   for (;;) {
     if ((ret = zone_scan(par, tok)) < 0)
@@ -662,8 +659,8 @@ static inline zone_return_t parse_rdata(
       if (par->state.scanner & ZONE_DEFERRED_RDATA) {
         fld = par->rr.items[RDATA].field;
         assert(!fld.octets && !fld.length);
-        fld.octets = par->rdata.base64;
-        fld.length = par->rdata.length;
+        fld.octets = &par->rdata[rdlength];
+        fld.length = par->rdlength - rdlength;
         if ((ret = accept_rdata(par, &fld, ptr)) < 0)
           return ret;
       }
@@ -677,7 +674,7 @@ static inline zone_return_t parse_rdata(
       const struct rdata_descriptor *dsc = (const void *)par->rr.descriptors.rdata;
       if (!is_last_rdata(par, (const void *)dsc))
         SEMANTIC_ERROR(par, "Missing rdata field %s", dsc->base.name);
-      if ((ret = par->options.accept.delimiter(par, &fld, ptr)) < 0)
+      if ((ret = par->options.accept.delimiter(par, &fld, par->rdata, par->rdlength, ptr)) < 0)
         return ret;
 
       zone_flush(par, tok);
@@ -715,10 +712,11 @@ static inline zone_return_t parse_rdata(
       } else {
         fld.location.end = tok->location.end;
         assert(!fld.octets && !fld.length);
-        fld.octets = par->rdata.base64;
-        fld.length = par->rdata.length;
+        fld.octets = &par->rdata[rdlength];
+        fld.length = par->rdlength - rdlength;
         if ((ret = accept_rdata(par, &fld, ptr)) < 0)
           return ret;
+        rdlength = par->rdlength;
       }
       zone_flush(par, tok);
     }

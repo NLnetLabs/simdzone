@@ -250,7 +250,7 @@ zone_return_t zone_open_string(
   if ((ret = check_options(opts)) < 0)
     return ret;
 
-  memset(par, 0, sizeof(*par) - sizeof(par->rdata.base64));
+  memset(par, 0, sizeof(*par) - sizeof(par->rdata));
   file = &par->first;
   file->name = not_a_file;
   file->path = not_a_file;
@@ -294,7 +294,7 @@ zone_return_t zone_open(
   if (mmap_addr == MAP_FAILED)
     goto err_mmap;
 
-  memset(par, 0, sizeof(*par) - sizeof(par->rdata.base64));
+  memset(par, 0, sizeof(*par) - sizeof(par->rdata));
   file = &par->first;
   file->name = relpath;
   file->path = abspath;

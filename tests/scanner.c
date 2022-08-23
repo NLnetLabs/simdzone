@@ -79,11 +79,15 @@ static zone_return_t accept_rdata(
 static zone_return_t accept_delimiter(
   const zone_parser_t *par,
   const zone_field_t *term,
+  const uint8_t *rdata,
+  size_t rdlength,
   void *user_data)
 {
   (void)par;
   (void)term;
   (void)user_data;
+  (void)rdata;
+  (void)rdlength;
   printf("got delimiter!\n");
   return 0;
 }

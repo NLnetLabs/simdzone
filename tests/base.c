@@ -121,10 +121,14 @@ static zone_return_t accept_rdata(
 static zone_return_t accept_delimiter(
   const zone_parser_t *par,
   const zone_field_t *fld,
+  const uint8_t *rdata,
+  size_t rdlength,
   void *user_data)
 {
   (void)par;
   (void)fld;
+  (void)rdata;
+  (void)rdlength;
   (void)user_data;
   return 0;
 }

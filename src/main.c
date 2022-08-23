@@ -34,11 +34,15 @@ static zone_return_t accept_rdata(
 zone_return_t accept_delimiter(
   const zone_parser_t *parser,
   const zone_field_t *delimiter,
+  const uint8_t *rdata,
+  size_t rdlength,
   void *user_data)
 {
   size_t *count = user_data;
   (void)parser;
   (void)delimiter;
+  (void)rdata;
+  (void)rdlength;
   (*count)++;
 //  printf("and that's %zu\n", *count);
   return ZONE_SUCCESS;

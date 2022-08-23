@@ -11,16 +11,8 @@
 
 #include "parser.h"
 
-static zone_return_t accept_wks(
-  zone_parser_t *__restrict par, zone_field_t *__restrict fld, void *ptr)
-{
-  par->state.wks.protocol = NULL;
-  par->state.wks.highest_port = 0;
-  return par->options.accept.rdata(par, fld, ptr);
-}
-
 static zone_return_t parse_wks_protocol(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+  zone_parser_t *par, zone_token_t *tok)
 {
   char buf[32];
   size_t len;
@@ -47,12 +39,12 @@ static zone_return_t parse_wks_protocol(
 
   par->state.wks.protocol = proto;
   par->state.wks.highest_port = 0;
-  par->rdata.int8 = (uint8_t)proto->p_proto;
+  *((uint8_t *)&par->rdata[par->rdlength]) = (uint8_t)proto->p_proto;
   return 0;
 }
 
 static zone_return_t parse_wks(
-  zone_parser_t *__restrict par, zone_token_t *__restrict tok)
+  zone_parser_t *par, zone_token_t *tok)
 {
   zone_return_t ret;
   const struct protoent *proto;
@@ -89,13 +81,24 @@ static zone_return_t parse_wks(
     size_t off = 0;
     if (par->state.wks.highest_port)
       off = par->state.wks.highest_port / 8 + 1;
-    size_t size = ((oct - off) + 1) * sizeof(par->rdata.wks[off]);
-    memset(&par->rdata.wks[off], 0, size);
+    size_t size = ((oct - off) + 1) * sizeof(uint8_t);
+    memset(&par->rdata[par->rdlength + off], 0, size);
     par->state.wks.highest_port = port;
-    par->rdata.length = oct + 1;
   }
 
-  par->rdata.wks[oct] |= (1 << (7 - port % 8));
+  par->rdata[par->rdlength + oct] |= (1 << (7 - port % 8));
 
   return 0;
+}
+
+static zone_return_t accept_wks(
+  zone_parser_t *par, zone_field_t *fld, void *ptr)
+{
+  const size_t length = par->state.wks.highest_port / 8 + 1;
+  par->state.wks.protocol = NULL;
+  par->state.wks.highest_port = 0;
+  fld->octets = &par->rdata[par->rdlength];
+  fld->length = length;
+  par->rdlength += length;
+  return par->options.accept.rdata(par, fld, ptr);
 }

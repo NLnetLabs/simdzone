@@ -80,22 +80,22 @@ static inline zone_return_t parse_base64(
 
     switch (par->state.base64) {
       case 0:
-        par->rdata.base64[par->rdata.length  ]  =  ofs << 2;
+        par->rdata[par->rdlength  ]  =  ofs << 2;
         par->state.base64 = 1;
         break;
       case 1:
-        par->rdata.base64[par->rdata.length++] |=  ofs >> 4;
-        par->rdata.base64[par->rdata.length  ]  = (ofs & 0x0f) << 4;
+        par->rdata[par->rdlength++] |=  ofs >> 4;
+        par->rdata[par->rdlength  ]  = (ofs & 0x0f) << 4;
         par->state.base64 = 2;
         break;
       case 2:
-        par->rdata.base64[par->rdata.length++] |=  ofs >> 2;
-        par->rdata.base64[par->rdata.length  ]  = (ofs & 0x03) << 6;
+        par->rdata[par->rdlength++] |=  ofs >> 2;
+        par->rdata[par->rdlength  ]  = (ofs & 0x03) << 6;
         par->state.base64 = 3;
         break;
       case 3:
-        par->rdata.base64[par->rdata.length++] |=  ofs;
-        par->rdata.base64[par->rdata.length  ]  = 0;
+        par->rdata[par->rdlength++] |=  ofs;
+        par->rdata[par->rdlength  ]  = 0;
         par->state.base64 = 0;
         break;
       default:
