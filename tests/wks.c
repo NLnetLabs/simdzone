@@ -57,7 +57,7 @@ static zone_return_t accept_rr(
   (void)class;
 
   if (zone_type(type->code) == ZONE_INT16)
-    test->type = type->int16;
+    test->type = *type->int16;
 
   return 0;
 }
@@ -80,14 +80,14 @@ static zone_return_t accept_rdata(
   } else if (test->count == 2) { // expect protocol
     if (zone_type(rdata->code) != ZONE_INT8)
       return ZONE_SYNTAX_ERROR;
-    test->protocol = *rdata->wire.int8;
+    test->protocol = *rdata->int8;
     return 0;
   } else if (test->count == 3) { // expect bitmask
     if (zone_type(rdata->code) != ZONE_WKS)
       return ZONE_SYNTAX_ERROR;
-    test->services.octets = malloc(rdata->wire.length);
-    memcpy(test->services.octets, rdata->wire.octets, rdata->wire.length);
-    test->services.length = rdata->wire.length;
+    test->services.octets = malloc(rdata->length);
+    memcpy(test->services.octets, rdata->octets, rdata->length);
+    test->services.length = rdata->length;
     return 0;
   }
 

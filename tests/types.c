@@ -37,14 +37,14 @@ static zone_return_t accept_rr(
 
   (void)par;
   assert(test);
-  test->owner.length = owner->wire.length;
-  memcpy(test->owner.octets, owner->wire.octets, owner->wire.length);
+  test->owner.length = owner->length;
+  memcpy(test->owner.octets, owner->octets, owner->length);
   if (zone_type(ttl->code) == ZONE_INT32)
-    test->ttl = ttl->int32;
+    test->ttl = *ttl->int32;
   if (zone_type(class->code) == ZONE_INT16)
-    test->class = class->int16;
+    test->class = *class->int16;
   if (zone_type(type->code) == ZONE_INT16)
-    test->type = type->int16;
+    test->type = *type->int16;
 
   return 0;
 }
@@ -59,7 +59,7 @@ static zone_return_t accept_rdata(
   (void)par;
   assert(test);
   if (test->rdcount < 2)
-    memcpy(test->rdata[test->rdcount], rdata->wire.octets, rdata->wire.length);
+    memcpy(test->rdata[test->rdcount], rdata->octets, rdata->length);
   test->rdcount++;
 
   return 0;

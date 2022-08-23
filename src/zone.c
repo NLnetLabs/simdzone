@@ -149,11 +149,6 @@ static zone_return_t check_options(const zone_options_t *opts)
   return 0;
 }
 
-#define OWNER (0)
-#define TTL (1)
-#define CLASS (2)
-#define TYPE (3)
-
 // support escaped characters here too!
 static int parse_origin(const char *origin, uint8_t str[255], size_t *len)
 {
@@ -220,17 +215,26 @@ static zone_return_t set_defaults(
   par->file->ttl.seconds = opts->ttl;
   par->file->ttl.location = loc;
 
-  par->rr.fields[OWNER] = (zone_field_t){
-    .code = ZONE_OWNER|ZONE_NAME, .location = loc,
-    .wire = {
-      .octets = par->file->owner.name.octets,
-      .length = par->file->owner.name.length } };
-  par->rr.fields[TTL] = (zone_field_t){
-    .code = ZONE_TTL|ZONE_INT32, .location = loc, .int32 = opts->ttl };
-  par->rr.fields[CLASS] = (zone_field_t){
-    .code = ZONE_CLASS|ZONE_INT16, .location = loc, .int32 = 2 };
-  par->rr.fields[TYPE] = (zone_field_t){
-    .code = ZONE_TYPE|ZONE_INT16, .location = loc };
+  par->rr.items[OWNER].field = (zone_field_t){
+    .code = ZONE_OWNER|ZONE_NAME,
+    .location = loc,
+    .octets = par->file->owner.name.octets,
+    .length = par->file->owner.name.length };
+  par->rr.items[TTL].field = (zone_field_t){
+    .code = ZONE_TTL|ZONE_INT32,
+    .location = loc,
+    .int32 = &opts->ttl,
+    .length = sizeof(opts->ttl) };
+  par->rr.items[CLASS].int16 = 2;
+  par->rr.items[CLASS].field = (zone_field_t){
+    .code = ZONE_CLASS|ZONE_INT16,
+    .location = loc,
+    .int16 = &par->rr.items[CLASS].int16,
+    .length = sizeof(par->rr.items[CLASS].int16) };
+  par->rr.items[TYPE].field = (zone_field_t){
+    .code = ZONE_TYPE|ZONE_INT16,
+    .location = loc,
+    .length = sizeof(uint16_t) };
 
   return 0;
 }

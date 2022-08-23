@@ -38,7 +38,7 @@ static zone_return_t accept_rr(
   (void)class;
 
   if (zone_type(type->code) == ZONE_INT16)
-    test->type = type->int16;
+    test->type = *type->int16;
 
   return 0;
 }
@@ -61,9 +61,9 @@ static zone_return_t accept_rdata(
   } else if (test->count == 2) { // expect nsec
     if (zone_type(rdata->code) != ZONE_NSEC)
       return ZONE_SYNTAX_ERROR;
-    test->records.length = rdata->wire.length;
-    test->records.octets = malloc(rdata->wire.length);
-    memcpy(test->records.octets, rdata->wire.octets, rdata->wire.length);
+    test->records.length = rdata->length;
+    test->records.octets = malloc(rdata->length);
+    memcpy(test->records.octets, rdata->octets, rdata->length);
     return 0;
   }
 

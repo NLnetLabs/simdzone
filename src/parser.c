@@ -543,17 +543,16 @@ bad_ip:
   SYNTAX_ERROR(par, "Invalid IPv6 address in %s", par->rr.descriptors.rdata->name);
 }
 
-#define OWNER (0)
-#define TTL (1)
-#define CLASS (2)
-#define TYPE (3)
-#define RDATA (4)
-
 static zone_return_t parse_name(
   zone_parser_t *__restrict par, zone_token_t *__restrict tok)
 {
-  const zone_field_descriptor_t *dsc = par->rr.descriptors.rdata;
-  return lex_name(par, dsc, tok, &par->rr.fields[RDATA].domain, par->rdata.name, &par->rdata.length);
+  return lex_name(
+    par,
+    par->rr.descriptors.rdata,
+    tok,
+   &par->rr.items[RDATA].field.domain,
+    par->rdata.name,
+   &par->rdata.length);
 }
 
 static zone_return_t parse_string(
@@ -657,21 +656,23 @@ static inline zone_return_t parse_rdata(
       return ret;
 
     if (ret == '\n' || ret == '\0') {
+      uint8_t delim = (uint8_t)ret & 0xff;
       zone_field_t fld;
 
       if (par->state.scanner & ZONE_DEFERRED_RDATA) {
-        fld = par->rr.fields[RDATA];
-        assert(!fld.wire.octets && !fld.wire.length);
-        fld.wire.octets = par->rdata.base64;
-        fld.wire.length = par->rdata.length;
+        fld = par->rr.items[RDATA].field;
+        assert(!fld.octets && !fld.length);
+        fld.octets = par->rdata.base64;
+        fld.length = par->rdata.length;
         if ((ret = accept_rdata(par, &fld, ptr)) < 0)
           return ret;
       }
 
       fld = (zone_field_t){
         .location = tok->location,
-        .code = ZONE_RDATA | ZONE_INT8,
-        .int8 = (uint8_t)ret & 0xff
+        .code = ZONE_DELIMITER | ZONE_INT8,
+        .int8 = &delim,
+        .length = sizeof(uint8_t)
       };
       const struct rdata_descriptor *dsc = (const void *)par->rr.descriptors.rdata;
       if (!is_last_rdata(par, (const void *)dsc))
@@ -693,28 +694,29 @@ static inline zone_return_t parse_rdata(
         SEMANTIC_ERROR(par, "Too much rdata fields");
 
       if (par->state.scanner & ZONE_DEFERRED_RDATA)
-        fld = par->rr.fields[RDATA];
+        fld = par->rr.items[RDATA].field;
       else
         fld = (zone_field_t){
           .location = tok->location,
           .code = ZONE_RDATA | zone_type(dsc->base.type),
           .descriptor.rdata = (const void *)dsc,
-          .wire = { .length = 0, .octets = NULL }
+          .length = 0,
+          .octets = NULL
         };
 
       assert((uintptr_t)fld.descriptor.rdata == (uintptr_t)dsc);
 
       if ((ret = dsc->typed(par, tok)) == ZONE_DEFER_ACCEPT) {
         fld.location.end = tok->location.end;
-        par->rr.fields[RDATA] = fld;
+        par->rr.items[RDATA].field = fld;
         par->state.scanner |= ZONE_DEFERRED_RDATA;
       } else if (ret < 0) {
         return ret;
       } else {
         fld.location.end = tok->location.end;
-        assert(!fld.wire.octets && !fld.wire.length);
-        fld.wire.octets = par->rdata.base64;
-        fld.wire.length = par->rdata.length;
+        assert(!fld.octets && !fld.length);
+        fld.octets = par->rdata.base64;
+        fld.length = par->rdata.length;
         if ((ret = accept_rdata(par, &fld, ptr)) < 0)
           return ret;
       }
@@ -738,13 +740,12 @@ static inline zone_return_t parse_owner(
     par->file->owner.name.octets,
    &par->file->owner.name.length)) < 0)
     return ret;
-  par->rr.fields[OWNER] = (zone_field_t){
+  par->rr.items[OWNER].field = (zone_field_t){
     .location = tok->location,
     .code = ZONE_OWNER|ZONE_NAME,
     .domain = par->file->owner.domain,
-    .wire = {
-      .length = par->file->owner.name.length,
-      .octets = par->file->owner.name.octets }};
+    .length = par->file->owner.name.length,
+    .octets = par->file->owner.name.octets };
   return 0;
 }
 
@@ -757,9 +758,10 @@ static inline zone_return_t have_ttl(
 
   if (lex_ttl(par, &dsc, tok, &ttl) < 0)
     return 0;
-  assert(par->rr.fields[TTL].code == (ZONE_TTL|ZONE_INT32));
-  par->rr.fields[TTL].location = tok->location;
-  par->rr.fields[TTL].int32 = ttl;
+  assert(par->rr.items[TTL].field.code == (ZONE_TTL|ZONE_INT32));
+  par->rr.items[TTL].int32 = ttl;
+  par->rr.items[TTL].field.location = tok->location;
+  par->rr.items[TTL].field.int32 = &par->rr.items[TTL].int32;
   return ZONE_TTL|ZONE_INT32;
 }
 
@@ -772,9 +774,10 @@ static inline zone_return_t have_class(
 
   if (lex_class(par, &dsc, tok, &class) < 0)
     return 0;
-  assert(par->rr.fields[CLASS].code == (ZONE_CLASS|ZONE_INT16));
-  par->rr.fields[CLASS].location = tok->location;
-  par->rr.fields[CLASS].int16 = class;
+  assert(par->rr.items[CLASS].field.code == (ZONE_CLASS|ZONE_INT16));
+  par->rr.items[CLASS].int16 = class;
+  par->rr.items[CLASS].field.location = tok->location;
+  par->rr.items[CLASS].field.int16 = &par->rr.items[CLASS].int16;
   return 1;
 }
 
@@ -787,13 +790,14 @@ static inline zone_return_t have_type(
 
   if (lex_type(par, &dsc, tok, &type) < 0)
     return 0;
-  assert(par->rr.fields[TYPE].code == (ZONE_TYPE|ZONE_INT16));
-  par->rr.fields[TYPE].location = tok->location;
-  par->rr.fields[TYPE].int16 = type;
+  assert(par->rr.items[TYPE].field.code == (ZONE_TYPE|ZONE_INT16));
+  par->rr.items[TYPE].int16 = type;
+  par->rr.items[TYPE].field.location = tok->location;
+  par->rr.items[TYPE].field.int16 = &par->rr.items[TYPE].int16;
   if (type < sizeof(descriptors)/sizeof(descriptors[0]))
-    par->rr.fields[TYPE].descriptor.type = (const void *)&descriptors[type];
+    par->rr.items[TYPE].field.descriptor.type = (const void *)&descriptors[type];
   else
-    par->rr.fields[TYPE].descriptor.type = (const void *)&descriptors[0];
+    par->rr.items[TYPE].field.descriptor.type = (const void *)&descriptors[0];
   return 1;
 }
 
@@ -851,15 +855,15 @@ static inline zone_return_t parse_rr(
       if ((zone_quick_peek(par, tok->cursor) & 0xff) > '9') {
         if ((par->state.scanner & ZONE_TYPE) && (got_this = have_type(par, tok))) {
           par->state.scanner &= ~ZONE_TYPE;
-          par->rr.descriptors.type = par->rr.fields[TYPE].descriptor.type;
+          par->rr.descriptors.type = par->rr.items[TYPE].field.descriptor.type;
           par->rr.descriptors.rdata = (const void *)&((const struct type_descriptor *)par->rr.descriptors.type)->rdata[0];
           assert(par->options.accept.rr);
           if ((ret = accept_rr(
             par,
-           &par->rr.fields[OWNER],
-           &par->rr.fields[TTL],
-           &par->rr.fields[CLASS],
-           &par->rr.fields[TYPE],
+           &par->rr.items[OWNER].field,
+           &par->rr.items[TTL].field,
+           &par->rr.items[CLASS].field,
+           &par->rr.items[TYPE].field,
             ptr)) < 0)
             return ret;
         } else if ((par->state.scanner & ZONE_CLASS) && (got_this = have_class(par, tok))) {
@@ -887,8 +891,8 @@ static inline zone_return_t parse_rr(
 
   // fallback to default TTL if unspecified
   if (par->state.scanner & ZONE_TTL) {
-    par->rr.fields[TTL].location = par->file->ttl.location;
-    par->rr.fields[TTL].int32 = par->file->ttl.seconds;
+    par->rr.items[TTL].field.location = par->file->ttl.location;
+    par->rr.items[TTL].field.int32 = &par->file->ttl.seconds;
   }
 
   par->state.scanner = ZONE_RDATA | (par->state.scanner & ZONE_GROUPED);
@@ -984,7 +988,8 @@ static inline zone_return_t parse_dollar_origin(
   fld = (zone_field_t){
     .location = tok->location,
     .code = ZONE_DOLLAR_ORIGIN|ZONE_NAME,
-    .wire = { .octets = name->octets, .length = name->length }};
+    .octets = name->octets,
+    .length = name->length };
   if (!(par->file->origin.domain = par->options.accept.name(par, &fld, ptr)))
     return ZONE_OUT_OF_MEMORY;
   return 0;

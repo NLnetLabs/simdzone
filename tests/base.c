@@ -67,38 +67,38 @@ static zone_return_t accept_rdata(
     return ZONE_SYNTAX_ERROR;
   switch (test->fields[test->count].code) {
     case ZONE_INT8:
-      eq = test->fields[test->count].int8 == *rdata->wire.int8;
+      eq = test->fields[test->count].int8 == *rdata->int8;
       break;
     case ZONE_INT16:
-      eq = test->fields[test->count].int16 == ntohs(*rdata->wire.int16);
+      eq = test->fields[test->count].int16 == ntohs(*rdata->int16);
       break;
     case ZONE_INT32:
-      eq = test->fields[test->count].int32 == ntohl(*rdata->wire.int32);
+      eq = test->fields[test->count].int32 == ntohl(*rdata->int32);
       break;
     case ZONE_IP4:
-      if (sizeof(test->fields[test->count].ip4.s_addr) == rdata->wire.length)
+      if (sizeof(test->fields[test->count].ip4.s_addr) == rdata->length)
         eq = !memcmp(&test->fields[test->count].ip4.s_addr,
-                     rdata->wire.octets, rdata->wire.length);
+                     rdata->octets, rdata->length);
       break;
     case ZONE_IP6:
-      if (sizeof(test->fields[test->count].ip6.s6_addr) == rdata->wire.length)
+      if (sizeof(test->fields[test->count].ip6.s6_addr) == rdata->length)
         eq = !memcmp(&test->fields[test->count].ip6.s6_addr,
-                     rdata->wire.octets, rdata->wire.length);
+                     rdata->octets, rdata->length);
       break;
     case ZONE_NAME:
-      if (test->fields[test->count].name.length == rdata->wire.length)
+      if (test->fields[test->count].name.length == rdata->length)
         eq = !memcmp(test->fields[test->count].name.octets,
-                     rdata->wire.octets, rdata->wire.length);
+                     rdata->octets, rdata->length);
       break;
     case ZONE_BLOB:
-      if (test->fields[test->count].b64.length == rdata->wire.length)
+      if (test->fields[test->count].b64.length == rdata->length)
         eq = !memcmp(test->fields[test->count].b64.octets,
-                     rdata->wire.octets, rdata->wire.length);
+                     rdata->octets, rdata->length);
       break;
     case ZONE_STRING:
     {
-      size_t len = (size_t)*rdata->wire.octets;
-      const uint8_t *str = rdata->wire.octets + 1;
+      size_t len = (size_t)*rdata->octets;
+      const uint8_t *str = rdata->octets + 1;
       if (test->fields[test->count].string.length == len)
         eq = !memcmp(test->fields[test->count].string.octets, str, len);
     }
@@ -106,8 +106,8 @@ static zone_return_t accept_rdata(
     case ZONE_NSEC:
     {
       eq = !memcmp(test->fields[test->count].string.octets,
-                   rdata->wire.octets,
-                   rdata->wire.length);
+                   rdata->octets,
+                   rdata->length);
     }
       break;
     default:

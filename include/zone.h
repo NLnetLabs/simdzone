@@ -213,26 +213,19 @@ struct zone_field {
     const zone_type_descriptor_t *type; // type field
     const zone_field_descriptor_t *rdata; // rdata fields
   } descriptor;
-  union {
-    const void *domain;
-    uint8_t int8;
-    uint16_t int16;
-    uint32_t int32;
-  };
+  const void *domain;
   // rdata is NOT stored in heap memory or allocated using a potentially
   // custom allocator. a scratch buffer specific to the parser is used to
   // avoid any memory leaks (there are NO allocations) when parsing a string
-  struct {
-    union {
-      const uint8_t *int8;
-      const uint16_t *int16;
-      const uint32_t *int32;
-      const struct in_addr *ip4;
-      const struct in6_addr *ip6;
-      const uint8_t *octets;
-    };
-    uint16_t length;
-  } wire;
+  union {
+    const uint8_t *int8;
+    const uint16_t *int16;
+    const uint32_t *int32;
+    const struct in_addr *ip4;
+    const struct in6_addr *ip6;
+    const uint8_t *octets;
+  };
+  uint16_t length;
 };
 
 typedef struct zone_parser zone_parser_t;
@@ -324,7 +317,6 @@ struct zone_parser {
     struct {
       uint16_t highest_bit;
     } nsec;
-    uint8_t salt;
     // base16 state can be any of:
     //   0: parse bits 0-3
     //   1: parse bits 4-7
@@ -340,10 +332,15 @@ struct zone_parser {
     uint8_t base64;
   } state;
   struct {
-    // small backlog to track items before invoking accept_rr. memory for
-    // owner, if no accept_name was registered, is allocated just before
-    // invoking accept_rr to simplify memory management
-    zone_field_t fields[5]; // { owner, ttl, class, type, rdata }
+    // small backlog to track items before invoking accept_rr
+    struct {
+      zone_field_t field;
+      union {
+        // owner name is stored on a per-file base
+        uint16_t int16; // class + type
+        uint32_t int32; // ttl
+      };
+    } items[5]; // { owner, ttl, class, type, rdata }
     struct {
       const zone_type_descriptor_t *type;
       const zone_field_descriptor_t *rdata;

@@ -30,8 +30,8 @@ static inline zone_return_t accept_nsec(
     memmove(&window[2], &par->rdata.nsec[i][2], len);
   }
 
-  fld->wire.length = par->rdata.length;
-  fld->wire.octets = par->rdata.base64;
+  fld->octets = par->rdata.base64;
+  fld->length = par->rdata.length;
 
   par->state.nsec.highest_bit = 0;
   return par->options.accept.rdata(par, fld, ptr);

@@ -62,12 +62,12 @@ static zone_return_t accept_rdata(
 
   if (zone_type(rdata->code) == ZONE_IP4) {
     char buf[INET_ADDRSTRLEN + 1];
-    if (!inet_ntop(AF_INET, rdata->wire.octets, buf, sizeof(buf)))
+    if (!inet_ntop(AF_INET, rdata->octets, buf, sizeof(buf)))
       return ZONE_SYNTAX_ERROR;
     printf("ip4: %s\n", buf);
   } else if (zone_type(rdata->code) == ZONE_IP6) {
     char buf[INET6_ADDRSTRLEN + 1];
-    if (!inet_ntop(AF_INET6, rdata->wire.octets, buf, sizeof(buf)))
+    if (!inet_ntop(AF_INET6, rdata->octets, buf, sizeof(buf)))
       return ZONE_SYNTAX_ERROR;
     printf("ip6: %s\n", buf);
   } else {

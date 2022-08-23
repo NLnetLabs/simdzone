@@ -11,6 +11,12 @@
 
 #include "scanner.h"
 
+#define OWNER (0)
+#define TTL (1)
+#define CLASS (2)
+#define TYPE (3)
+#define RDATA (4)
+
 typedef zone_return_t(*rdata_parse_t)(
   zone_parser_t *, zone_token_t *);
 
