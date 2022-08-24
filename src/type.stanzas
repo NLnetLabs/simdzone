@@ -4,6 +4,12 @@ A:1 Host address [RFC1035]
 NS:2:A an authoritative name server [RFC1035]
   N[C]:host Host name
 
+MD:3:AO a mail destination (OBSOLETE - use MX) [RFC1035]
+  N[C]:host Host name
+
+MF:4:AO a mail forwarder (OBSOLETE - use MX) [RFC1035]
+  N[C]:host Host name
+
 CNAME:5:A the canonical name for an alias [RFC1035]
   N[C]:host Host name
 
@@ -16,14 +22,30 @@ SOA:6:A marks the start of a zone of authority [RFC1035]
   T[L]:expire Expire time (seconds)
   T[L]:minimum Minium time (seconds)
 
+MB:7:AE a mailbox domain name (EXPERIMENTAL) [RFC1035]
+  N[C]:host Host name
+
+MG:8:AE a mail group member (EXPERIMENTAL) [RFC1035]
+  N[A]:mailbox Mailbox name
+
+MR:9:AE a mail rename domain name (EXPERIMENTAL) [RFC1035]
+  N[A]:mailbox Mailbox name
+
 WKS:11:I a well known service description [RFC1035]
   A:address IPv4 address
   I1:protocol Protocol number
   Z[WKS]:bitmap Bit Map
 
+PTR:12:A a domain name pointer [RFC1035]
+  N[C]:host Host name
+
 HINFO:13:A host information [RFC1035]
   S:cpu CPU type
   S:os Operating system
+
+MINFO:14:A mailbox or mail list information [RFC1035]
+  N[A]:respbox Responsible mailbox
+  N[A]:errbox Error mailbox
 
 MX:15:A mail exchange [RFC1035]
   I2:priority Priority (lower values are higher priority)
@@ -31,6 +53,10 @@ MX:15:A mail exchange [RFC1035]
 
 TXT:16:A text strings [RFC1035]
   S[M]:text Strings
+
+RP:17:A for Responsible Person [RFC1183]
+  N[A]:mailbox Mailbox
+  N:text Text location
 
 AAAA:28:I IP6 Address [RFC3596]
   AAAA:address Address
