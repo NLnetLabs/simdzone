@@ -210,7 +210,7 @@ while(1)
   # ignore blank lines and lines where the first nonblank character is "#"
   if(line MATCHES "^${WSP}*(#.*)?$")
     # discard
-  elseif(line MATCHES "^(${ldh}):(${DIGIT}+)((:[a-zA-Z])*)(${WSP}+.*)?$")
+  elseif(line MATCHES "^(${ldh}):(${DIGIT}+)(:[aeioxAEIOX]+)?(${WSP}+.*)?$")
     set(name "${CMAKE_MATCH_1}")
     string(TOLOWER "${name}" lname) # normalize name
     string(TOUPPER "${CMAKE_MATCH_3}" opts)
@@ -218,7 +218,7 @@ while(1)
     string(REGEX REPLACE "^0+" "" id "${CMAKE_MATCH_2}")
     # cleanup options
     string(REGEX REPLACE "^:" "" opts "${opts}")
-    string(REGEX REPLACE ":" ";" opts "${opts}")
+    string(REGEX REPLACE "([a-zA-Z])" "\\1;" opts "${opts}")
     # cleanup description
     string(REGEX REPLACE "^[^ \t]+" "" desc "${line}")
     string(STRIP "${desc}" desc)
@@ -430,17 +430,17 @@ foreach(id RANGE ${maxid})
     endforeach()
 
     # options
-    set(topts)
+    set(opts)
     if(_${id}_opts)
-      set(toptsep "")
-      foreach(topt ${_${id}_opts})
-        if(DEFINED ${topt}_opt_print)
-          set(topts "${topts}${toptsep}${${topt}_opt_print}")
-          set(toptsep" | ")
+      set(optsep "")
+      foreach(opt ${_${id}_opts})
+        if(DEFINED ${opt}_opt_print)
+          set(opts "${opts}${optsep}${${opt}_opt_print}")
+          set(optsep " | ")
         endif()
       endforeach()
     else()
-      set(topts "0")
+      set(opts "0")
     endif()
 
     # description
@@ -463,7 +463,7 @@ foreach(id RANGE ${maxid})
         ".name = \"${name}\", "
         ".length = sizeof(\"${name}\") - 1, "
         ".type = ${id}, "
-        ".options = ${topts}, "
+        ".options = ${opts}, "
         ".description = \"${tdesc}\" "
       "}, "
       ".rdata = ${rdatas} }")
