@@ -314,10 +314,16 @@ struct zone_parser {
       const void *protocol;
       uint16_t highest_port;
     } wks;
-    struct {
-      uint16_t highest_bit;
-      uint8_t bitmap[256][2 + 256 / 8];
-    } nsec;
+    union {
+      struct {
+        uint16_t highest_key;
+        uint8_t bitmap[UINT16_MAX / 8];
+      } svcb;
+      struct {
+        uint16_t highest_bit;
+        uint8_t bitmap[256][2 + 256 / 8];
+      } nsec;
+    };
     // base16 state can be any of:
     //   0: parse bits 0-3
     //   1: parse bits 4-7

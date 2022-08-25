@@ -577,6 +577,7 @@ static zone_return_t parse_string(zone_parser_t *par, zone_token_t *tok)
 #include "base64.h"
 #include "nsec.h"
 #include "wks.h"
+#include "svcb.h"
 #include "grammar.h"
 
 static inline zone_return_t parse_generic_rdata(

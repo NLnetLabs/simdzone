@@ -26,7 +26,7 @@ typedef zone_code_t zone_char_t;
 
 typedef struct zone_string zone_string_t;
 struct zone_string {
-  zone_code_t code; // <LF>, <EOF>, ZONE_STRING or ZONE_SVC_PARAM (future)
+  zone_code_t code; // <LF>, <EOF>, ZONE_STRING
   const char *data;
   size_t length;
 };
@@ -34,8 +34,6 @@ struct zone_string {
 #define ZONE_ESCAPED (1<<12) // characters and strings
 #define ZONE_DECIMAL (3<<12) // characters
 #define ZONE_QUOTED (1<<10) // strings
-
-
 
 // remove \DDD constructs from input. see RFC 1035, section 5.1
 static inline size_t zone_unescape(
@@ -137,6 +135,7 @@ struct zone_token {
   zone_location_t location;
   size_t cursor;
   union {
+    // FIXME: remove connection between code and string...
     zone_code_t code;
     zone_string_t string;
   };
@@ -168,7 +167,10 @@ static inline void zone_flush(zone_parser_t *par, const zone_token_t *tok)
 {
   assert(par && tok);
   assert(tok->cursor <= par->file->buffer.length);
-  assert(tok->cursor == par->file->buffer.offset + tok->string.length + ((tok->code & ZONE_QUOTED) != 0));
+  assert(tok->cursor >= par->file->buffer.offset);
+  assert(tok->code == '\0' ||
+         tok->cursor == tok->string.length +
+           ((uint64_t)tok->string.data - (uint64_t)par->file->buffer.data));
   par->file->buffer.offset = tok->cursor + ((tok->code & ZONE_QUOTED) != 0);
   par->file->position = tok->location.end;
 }
@@ -233,7 +235,8 @@ static inline zone_return_t zone_skip_comment(zone_parser_t *par)
   }
 }
 
-static inline zone_char_t zone_scan(zone_parser_t *par, zone_token_t *tok)
+static inline zone_char_t zone_scan(
+  zone_parser_t *par, zone_token_t *tok)
 {
   assert(par && tok);
 
@@ -300,10 +303,15 @@ token:
   return tok->code;
 }
 
-static inline zone_return_t zone_end_of_string(
+static inline zone_return_t zone_delimit(
   const zone_parser_t *par, zone_token_t *tok)
 {
-  tok->string.length = (tok->cursor - ((tok->code & ZONE_QUOTED) != 0)) - par->file->buffer.offset;
+  assert(tok->cursor >= par->file->buffer.offset);
+  assert(tok->cursor <= par->file->buffer.length);
+  assert(tok->string.data >= par->file->buffer.data + par->file->buffer.offset);
+  assert(tok->string.data <= par->file->buffer.data + tok->cursor);
+  tok->string.length =
+    tok->cursor - ((uintptr_t)tok->string.data - (uintptr_t)par->file->buffer.data);
   return 0;
 }
 
@@ -321,18 +329,18 @@ static inline zone_return_t zone_get(
     case ' ':
     case '\t':
       if (!(tok->code & ZONE_QUOTED))
-        return zone_end_of_string(par, tok);
+        return zone_delimit(par, tok);
       tok->cursor++;
       tok->location.end.column++;
       return chr;
     case '"':
       if (!(tok->code & ZONE_QUOTED))
-        return zone_end_of_string(par, tok);
+        return zone_delimit(par, tok);
       tok->location.end.column++;
-      return zone_end_of_string(par, tok);
+      return zone_delimit(par, tok);
     case '\r': // handle cr+lf consistently, but return separately in string
       if (!(tok->code & ZONE_QUOTED))
-        return zone_end_of_string(par, tok);
+        return zone_delimit(par, tok);
       if ((chr = zone_quick_peek(par, tok->cursor + 1)) < 0)
         return chr;
       tok->cursor++;
@@ -345,13 +353,13 @@ static inline zone_return_t zone_get(
       return '\r';
     case '\n':
       if (!(tok->code & ZONE_QUOTED))
-        return zone_end_of_string(par, tok);
+        return zone_delimit(par, tok);
       tok->cursor++;
       tok->location.end.line++;
       tok->location.end.column = 1;
       return chr;
     case '\0':
-      return zone_end_of_string(par, tok);
+      return zone_delimit(par, tok);
     case '\\':
       break; // escaped character, slow path
     default:
@@ -360,7 +368,7 @@ static inline zone_return_t zone_get(
       return chr;
   }
 
-  tok->code |= ZONE_QUOTED;
+  tok->code |= ZONE_ESCAPED;
 
   switch ((chr = zone_quick_peek(par, tok->cursor + 1))) {
     case '\r': // handle cr+lf consistently, but return separately in string
@@ -376,7 +384,7 @@ static inline zone_return_t zone_get(
       tok->cursor += 2;
       tok->location.end.line++;
       tok->location.end.column = 1;
-      return chr | ZONE_QUOTED;
+      return chr | ZONE_ESCAPED;
     case '0':
     case '1':
     case '2':
@@ -421,8 +429,10 @@ bad_escape:
     SYNTAX_ERROR(par, "Invalid escape sequence");
   tok->cursor += 2;
   tok->location.end.column += 2;
-  return chr | ZONE_QUOTED;
+  return chr | ZONE_ESCAPED;
 }
+
+// FIXME: implement zone_unget
 
 static inline zone_return_t zone_lex(
   zone_parser_t *par, zone_token_t *tok)

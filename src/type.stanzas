@@ -114,7 +114,7 @@ NSEC3PARAM:51:A NSEC3PARAM [RFC5155]
   I2:iterations Iterations
   X[C]:salt Salt
 
-#SVCB:64 Service binding and parameter specification
-#  I2:SvcPriority
-#  N:TargetName
-#  Z[SVCB]:SvcParam
+SVCB:64:I Service binding and parameter specification
+  I2:SvcPriority
+  N:TargetName
+  Z[SVCB]:SvcParam

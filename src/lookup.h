@@ -71,7 +71,7 @@ static inline int zone_mapcmp(const void *key, const void *member)
 }
 
 static inline zone_key_value_t *zone_lookup(
-  const zone_map_t *__restrict map, zone_string_t *__restrict zstr)
+  const zone_map_t *__restrict map, const zone_string_t *zstr)
 {
   const zone_key_value_t key = { zstr->data, zstr->length, 0 };
 
