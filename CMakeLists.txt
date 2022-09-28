@@ -60,33 +60,30 @@ if(SANITIZER)
   endforeach()
 endif()
 
+
+add_executable(dnsextlang src/dnsextlang.c)
+
 # generate types from dnsextlang stanzas
 add_custom_command(
-  OUTPUT src/types.h
-  COMMAND "${CMAKE_COMMAND}"
+  OUTPUT types.h
+  COMMAND dnsextlang
   ARGS
-    "-DSTANZAS=${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
-    "-DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/src/types.h.in"
-    "-DHEADER=src/types.h"
-    "-P" "${CMAKE_CURRENT_SOURCE_DIR}/dnsextlang.cmake"
-  DEPENDS
+    "TYPE-TABLE"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/types.h.in"
-    "${CMAKE_CURRENT_SOURCE_DIR}/dnsextlang.cmake")
+    "types.h"
+  DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas")
 
 # generate descriptors from dnsextlang stanzas
 add_custom_command(
-  OUTPUT src/grammar.h
-  COMMAND "${CMAKE_COMMAND}"
+  OUTPUT grammar.h
+  COMMAND dnsextlang
   ARGS
-    "-DSTANZAS=${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
-    "-DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/src/grammar.h.in"
-    "-DHEADER=src/grammar.h"
-    "-P" "${CMAKE_CURRENT_SOURCE_DIR}/dnsextlang.cmake"
-  DEPENDS
+    "GRAMMAR"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/grammar.h.in"
-    "${CMAKE_CURRENT_SOURCE_DIR}/dnsextlang.cmake")
+    "grammar.h"
+  DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas")
 
 # FIXME: scanner-types.h can be generated eventually
 add_library(zone STATIC
@@ -97,11 +94,11 @@ add_library(zone STATIC
   src/nsec.h
   src/wks.h
   src/parser.c
-  "${CMAKE_CURRENT_BINARY_DIR}/src/types.h"
-  "${CMAKE_CURRENT_BINARY_DIR}/src/grammar.h")
+  "${CMAKE_CURRENT_BINARY_DIR}/types.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/grammar.h")
 target_include_directories(
   zone PUBLIC include $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-                      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>)
+                      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 set_target_properties(zone PROPERTIES C_STANDARD_REQUIRED 11)
 target_link_libraries(zone)
 

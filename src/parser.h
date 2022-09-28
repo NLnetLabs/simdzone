@@ -20,13 +20,16 @@
 typedef zone_return_t(*rdata_parse_t)(
   zone_parser_t *, zone_token_t *);
 
+typedef zone_return_t(*rdata_print_t)(
+  zone_parser_t *, zone_field_t *);
+
 typedef zone_return_t(*rdata_accept_t)(
   zone_parser_t *, zone_field_t *, void *);
 
 struct rdata_descriptor {
   zone_field_descriptor_t base;
-  rdata_parse_t typed;
-  rdata_parse_t generic;
+  rdata_parse_t parse;
+  rdata_print_t print;
   rdata_accept_t accept;
 };
 

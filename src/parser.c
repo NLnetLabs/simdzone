@@ -704,7 +704,7 @@ static inline zone_return_t parse_rdata(
 
       assert((uintptr_t)fld.descriptor.rdata == (uintptr_t)dsc);
 
-      if ((ret = dsc->typed(par, tok)) == ZONE_DEFER_ACCEPT) {
+      if ((ret = dsc->parse(par, tok)) == ZONE_DEFER_ACCEPT) {
         fld.location.end = tok->location.end;
         par->rr.items[RDATA].field = fld;
         par->state.scanner |= ZONE_DEFERRED_RDATA;
