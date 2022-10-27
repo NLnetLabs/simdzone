@@ -216,29 +216,33 @@ static inline void index_data(
   block->escaped = find_escaped(
     block->backslash, &parser->file->indexer.is_escaped);
 
+  block->bounds = 0;
   block->quote = find(&input, '"') & ~block->escaped;
   block->semicolons = find(&input, ';') & ~block->escaped;
-  // escaped newlines are classified as contiguous. however, escape sequences
-  // have no meaning in comments and newlines, escaped or not, have no special
-  // meaning in quoted
-  block->newlines = find(&input, '\n');
 
   assert(!(parser->file->indexer.in_quoted & parser->file->indexer.in_comment));
 
-  const uint64_t prev_in_bounded =
+  uint64_t in_bounded =
     parser->file->indexer.in_quoted | parser->file->indexer.in_comment;
 
-  block->bounds = find_bounds(
-    block->quote,
-    block->semicolons,
-    block->newlines,
-   &parser->file->indexer.in_quoted,
-   &parser->file->indexer.in_comment);
+  if (in_bounded || block->quote || block->semicolons) {
+    // escaped newlines are classified as contiguous. however, escape sequences
+    // have no meaning in comments and newlines, escaped or not, have no special
+    // meaning in quoted
+    block->newlines = find(&input, '\n');
 
-  // discard any quotes found in comments
-  block->quote &= block->bounds;
+    block->bounds = find_bounds(
+      block->quote,
+      block->semicolons,
+      block->newlines,
+     &parser->file->indexer.in_quoted,
+     &parser->file->indexer.in_comment);
 
-  const uint64_t in_bounded = prefix_xor(block->bounds) ^ prev_in_bounded;
+    // discard any quotes found in comments
+    block->quote &= block->bounds;
+
+    in_bounded ^= prefix_xor(block->bounds);
+  }
 
   block->space = find_any(&input, space) & ~(block->escaped | in_bounded);
   block->special = find_any(&input, special) & ~(block->escaped | in_bounded);
