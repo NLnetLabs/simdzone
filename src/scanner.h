@@ -13,6 +13,7 @@
 #include <immintrin.h> // assume x86_64 for now
 
 #include "zone.h"
+#include "dfa.h"
 
 // scanner states
 #define ZONE_INITIAL (0)
@@ -29,8 +30,8 @@
 #define ZONE_DEFERRED_RDATA (1<<26)
 
 // operate on 64-bit blocks. always.
-typedef struct input input_t;
-struct input {
+typedef struct block block_t;
+struct block {
   __m256i chunks[2];
 };
 
@@ -53,6 +54,31 @@ static void print_input(const char *label, const char *str, size_t len)
   printf(" '\n");
 }
 
+static void print_classified(const char *label, const block_t *block)
+{
+  printf("%-12s: [ ", label);
+  for (size_t i=0; i < 32; i++) {
+    const uint8_t b = ((uint8_t *)&block->chunks[0])[i];
+    printf("%x", (int)b);
+  }
+  for (size_t i=0; i < 32; i++) {
+    const uint8_t b = ((uint8_t *)&block->chunks[1])[i];
+    printf("%x", (int)b);
+  }
+  printf(" ]\n");
+}
+
+static void print_compressed(const char *label, const block_t *block)
+{
+  printf("%-12s: [ ", label);
+  const uint32_t *x = (const uint32_t *)&block->chunks[0];
+  for (size_t i=0; i < 16; i++) {
+    const uint32_t y = x[i]&0xfff;
+    printf("%x%x%x%x", y&7, (y>>3)&7, (y>>6)&7, (y>>9)&7);
+  }
+  printf(" ]\n");
+}
+
 static void print_mask(const char *label, uint64_t mask) {
   printf("%-12s: [ ", label);
   for(int i = 0, n = (sizeof(mask)*8)-1; i <= n; i++){
@@ -63,201 +89,134 @@ static void print_mask(const char *label, uint64_t mask) {
 }
 #else
 #define print_input(label, str, len)
+#define print_classified(label, block)
+#define print_compressed(label, block)
 #define print_mask(label, mask)
 #endif
 
 #define zone_unlikely(x) __builtin_expect(!!(x), 0)
 
-static inline uint64_t follows(const uint64_t match, uint64_t *overflow)
+static inline void load(block_t *block, const uint8_t *input)
 {
-  const uint64_t result = match << 1 | (*overflow);
-  *overflow = match >> 63;
-  return result;
+  block->chunks[0] = _mm256_loadu_si256((const __m256i *)(input));
+  block->chunks[1] = _mm256_loadu_si256((const __m256i *)(input+32));
 }
 
-static inline void load(
-  input_t *input, const uint8_t *ptr)
+#define TABLE(v0,  v1,  v2,  v3,  v4,  v5,  v6,  v7,  \
+              v8,  v9,  v10, v11, v12, v13, v14, v15) \
+ { v0,  v1,  v2,  v3,  v4,  v5,  v6,  v7,             \
+   v8,  v9,  v10, v11, v12, v13, v14, v15,            \
+   v0,  v1,  v2,  v3,  v4,  v5,  v6,  v7,             \
+   v8,  v9,  v10, v11, v12, v13, v14, v15 }
+
+static const uint8_t mask_hi[32] = TABLE(
+  /* 0x00 */  0x80 | ZONE_SPACE | ZONE_NEWLINE,
+  /* 0x10 */  0x00, 
+  /* 0x20 */  0x40 | ZONE_SPACE | ZONE_QUOTE | ZONE_BRACKET,
+  /* 0x30 */  0x20 | ZONE_SEMICOLON,
+  /* 0x40 */  0x00, 
+  /* 0x50 */  0x10 | ZONE_BACKSLASH,
+  /* 0x60 */  0x00,
+  /* 0x70 */  0x00,
+  /* 0x80 */  0x00,
+  /* 0x90 */  0x00,
+  /* 0xa0 */  0x00,
+  /* 0xb0 */  0x00,
+  /* 0xc0 */  0x00,
+  /* 0xd0 */  0x00,
+  /* 0xe0 */  0x00,
+  /* 0xf0 */  0x00 
+);  
+
+static const uint8_t mask_lo[32] = TABLE(
+  /* 0x00 */  0x40 | ZONE_SPACE,
+  /* 0x01 */  0x00,
+  /* 0x02 */  0x40 | ZONE_QUOTE | ZONE_BACKSLASH,
+  /* 0x03 */  0x00,
+  /* 0x04 */  0x00,
+  /* 0x05 */  0x00,
+  /* 0x06 */  0x00,
+  /* 0x07 */  0x00,
+  /* 0x08 */  0x40 | ZONE_BRACKET,
+  /* 0x09 */  0xc0 | ZONE_SPACE | ZONE_BRACKET,
+  /* 0x0a */  0x80 | ZONE_NEWLINE,
+  /* 0x0b */  0x20 | ZONE_SEMICOLON,
+  /* 0x0c */  0x10 | ZONE_BACKSLASH,
+  /* 0x0d */  0x80 | ZONE_SPACE,
+  /* 0x0e */  0x00,
+  /* 0x0f */  0x00
+);
+
+static inline void classify_chunk(__m256i *chunk)
 {
-  input->chunks[0] = _mm256_loadu_si256((const __m256i *)(ptr));
-  input->chunks[1] = _mm256_loadu_si256((const __m256i *)(ptr+32));
+  const __m256i hi =
+    _mm256_and_si256(_mm256_srli_epi16(*chunk, 0x4), _mm256_set1_epi8(0xf));
+
+  const __m256i shuffled_lo = _mm256_shuffle_epi8(*(const __m256i *)mask_lo, *chunk);
+  const __m256i shuffled_hi = _mm256_shuffle_epi8(*(const __m256i *)mask_hi, hi);
+
+  *chunk = _mm256_and_si256(shuffled_lo, shuffled_hi);
+  *chunk = _mm256_subs_epu8(*chunk, _mm256_set1_epi8(0x10));
+  // just for ease of visualization; we don't need this
+  *chunk = _mm256_and_si256(*chunk, _mm256_set1_epi8(0x0f));
 }
 
-static inline uint64_t find(
-  const input_t *input, uint8_t needle)
+static inline void classify(block_t *block)
 {
-  const __m256i needles = _mm256_set1_epi8(needle);
-
-  const __m256i v0 = _mm256_cmpeq_epi8(input->chunks[0], needles);
-  const __m256i v1 = _mm256_cmpeq_epi8(input->chunks[1], needles);
-  
-  const uint64_t r0 = (uint32_t)_mm256_movemask_epi8(v0);
-  const uint64_t r1 = _mm256_movemask_epi8(v1);
-    
-  return r0 | (r1 << 32);
+  classify_chunk(&block->chunks[0]);
+  classify_chunk(&block->chunks[1]);
 }
 
-static const uint8_t space[32] = {
-  0x20, 0x00, 0x00, 0x00, // " " = 0x20
-  0x00, 0x00, 0x00, 0x00,
-  0x00, 0x09, 0x00, 0x00, // "\t" = 0x09
-  0x00, 0x0d, 0x00, 0x00, // "\r" = 0x0d
-  0x20, 0x00, 0x00, 0x00, // " " = 0x20
-  0x00, 0x00, 0x00, 0x00,
-  0x00, 0x09, 0x00, 0x00, // "\t" = 0x09
-  0x00, 0x0d, 0x00, 0x00  // "\r" = 0x0d
-};
-
-static const uint8_t special[32] = {
-  0xff, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00,
-  0x28, 0x29, 0x0a, 0x00, // "(" = 0x28, ")" = 0x29, "\n" = 0x0a
-  0x00, 0x00, 0x00, 0x00,
-  0xff, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00,
-  0x28, 0x29, 0x0a, 0x00, // "(" = 0x28, ")" = 0x29, "\n" = 0x0a
-  0x00, 0x00, 0x00, 0x00
-};
-
-static inline uint64_t find_any(
-  const input_t *input, const uint8_t needles[32])
+static inline void compress_chunk(__m256i *chunk)
 {
-  const __m256i t = _mm256_loadu_si256((const __m256i*)needles);
-  const __m256i eq0 = _mm256_cmpeq_epi8(
-    _mm256_shuffle_epi8(t, input->chunks[0]), input->chunks[0]);
-  const __m256i eq1 = _mm256_cmpeq_epi8(
-    _mm256_shuffle_epi8(t, input->chunks[1]), input->chunks[1]);
-
-  const uint64_t r0 = (uint32_t)_mm256_movemask_epi8(eq0);
-  const uint64_t r1 = _mm256_movemask_epi8(eq1);
-
-  return r0 | (r1 << 32);
+  *chunk = _mm256_and_si256(*chunk, _mm256_set1_epi8(0x7));
+  *chunk = _mm256_or_si256(_mm256_srli_epi16(*chunk, 5), *chunk);
+  *chunk = _mm256_and_si256(*chunk, _mm256_set1_epi16(0x3f));
+  *chunk = _mm256_or_si256(_mm256_srli_epi32(*chunk, 10), *chunk);
 }
 
-static inline bool add_overflow(uint64_t value1, uint64_t value2, uint64_t *result) {
-  return __builtin_uaddll_overflow(value1, value2, (unsigned long long *)result);
+static inline void compress(block_t *block)
+{
+  compress_chunk(&block->chunks[0]);
+  compress_chunk(&block->chunks[1]);
 }
 
-static inline uint64_t find_escaped(
-  uint64_t backslash, uint64_t *is_escaped)
+static inline uint32_t key(block_t *block, uint32_t which)
 {
-  backslash &= ~ *is_escaped;
-
-  uint64_t follows_escape = backslash << 1 | *is_escaped;
-
-  // Get sequences starting on even bits by clearing out the odd series using +
-  const uint64_t even_bits = 0x5555555555555555ULL;
-  uint64_t odd_sequence_starts = backslash & ~even_bits & ~follows_escape;
-  uint64_t sequences_starting_on_even_bits;
-  *is_escaped = add_overflow(odd_sequence_starts, backslash, &sequences_starting_on_even_bits);
-  uint64_t invert_mask = sequences_starting_on_even_bits << 1; // The mask we want to return is the *escaped* bits, not escapes.
-
-  // Mask every other backslashed character as an escaped character
-  // Flip the mask for sequences that start on even bits, to correct them
-  return (even_bits ^ invert_mask) & follows_escape;
+  const uint32_t *keys = (const uint32_t *)&block->chunks[0];
+  return keys[which] & 0xfff;
 }
 
-static inline uint64_t find_bounds(
-  uint64_t quotes,
-  uint64_t semicolons,
-  uint64_t newlines,
-  uint64_t *in_quoted,
-  uint64_t *in_comment)
+#include "transitions.h"
+
+static inline uint64_t lex(zone_parser_t *parser, const uint8_t *input)
 {
-  uint64_t bounds, starts = quotes | semicolons;
-  uint64_t end, start = 0;
+  uint64_t bits = 0;
+  uint32_t masks[16];
+  block_t block;
 
-  assert(!(quotes & semicolons));
+  print_input("input", (const char *)input, 64);
+  load(&block, input);
+  classify(&block);
+  print_classified("classified", &block);
+  compress(&block);
+  print_compressed("compressed", &block);
 
-  // carry over state from last block
-  end = (newlines & *in_comment) | (quotes & *in_quoted);
-  end &= -end;
-
-  bounds = end;
-  starts &= ~((*in_comment | *in_quoted) ^ (-end - end));
-
-  while (starts) {
-    start = -starts & starts;
-    assert(start);
-    const uint64_t quote = quotes & start;
-    const uint64_t semicolon = semicolons & start;
-
-    end = (newlines & -semicolon) | (quotes & (-quote - quote));
-    end &= -end;
-
-    bounds |= end | start;
-    starts &= -end - end;
+  for (int i=0; i < 16; i++) {
+    const uint32_t k = key(&block, i);
+    masks[i] = transitions[k];
   }
 
-  // carry over state to next block
-  *in_quoted = (uint64_t)((int64_t)(
-    ((-(start & quotes) | (*in_quoted & ~(-start))) & ~(-end))) >> 63);
-  *in_comment = (uint64_t)((int64_t)(
-    ((-(start & semicolons) | (*in_comment & ~(-start))) & ~(-end))) >> 63);
+  for (int i=0; i < 16; i++) {
+    uint32_t state = parser->file->indexer.state;
+    const uint64_t mask = (masks[i] >> (state*4)) & 0xf;
+    bits |= (mask << (i*4));
+    state = (masks[i] >> ((state*3) + 24)) & 0x7;
+    parser->file->indexer.state = state;
+  }
 
-  return bounds;
-}
-
-static inline uint64_t prefix_xor(const uint64_t bitmask) {
-  // There should be no such thing with a processor supporting avx2
-  // but not clmul.
-  __m128i all_ones = _mm_set1_epi8('\xFF');
-  __m128i result = _mm_clmulepi64_si128(_mm_set_epi64x(0ULL, bitmask), all_ones, 0);
-  return _mm_cvtsi128_si64(result);
-}
-
-static inline void index_data(
-  zone_parser_t *parser, zone_block_t *block, const uint8_t *ptr)
-{
-  input_t input;
-
-  load(&input, ptr);
-
-  block->backslash = find(&input, '\\');
-  block->escaped = find_escaped(
-    block->backslash, &parser->file->indexer.is_escaped);
-
-  block->quote = find(&input, '"') & ~block->escaped;
-  block->semicolons = find(&input, ';') & ~block->escaped;
-  // escaped newlines are classified as contiguous. however, escape sequences
-  // have no meaning in comments and newlines, escaped or not, have no special
-  // meaning in quoted
-  block->newlines = find(&input, '\n');
-
-  assert(!(parser->file->indexer.in_quoted & parser->file->indexer.in_comment));
-
-  const uint64_t prev_in_bounded =
-    parser->file->indexer.in_quoted | parser->file->indexer.in_comment;
-
-  block->bounds = find_bounds(
-    block->quote,
-    block->semicolons,
-    block->newlines,
-   &parser->file->indexer.in_quoted,
-   &parser->file->indexer.in_comment);
-
-  // discard any quotes found in comments
-  block->quote &= block->bounds;
-
-  const uint64_t in_bounded = prefix_xor(block->bounds) ^ prev_in_bounded;
-
-  block->space = find_any(&input, space) & ~(block->escaped | in_bounded);
-  block->special = find_any(&input, special) & ~(block->escaped | in_bounded);
-
-  block->contiguous =
-    ~(block->space | block->special | block->quote) & ~in_bounded;
-  block->follows_contiguous =
-    follows(block->contiguous, &parser->file->indexer.follows_contiguous);
-
-  print_input("input", (const char *)ptr, 64);
-  print_mask("backslash", block->backslash);
-  print_mask("escaped", block->escaped);
-  print_mask("quote", block->quote);
-  print_mask("semicolons", block->semicolons);
-  print_mask("bounds", block->bounds);
-  print_mask("bounded", in_bounded);
-  print_mask("space", block->space);
-  print_mask("special", block->special);
-  print_mask("contiguous", block->contiguous);
+  print_mask("bits", bits);
+  return bits;
 }
 
 static inline zone_return_t refill(zone_parser_t *parser)
@@ -352,19 +311,8 @@ static inline bool has_tape(const zone_parser_t *parser)
 
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
-static inline void write_tape(
-  zone_parser_t *parser, const zone_block_t *block)
+static inline void write_tape(zone_parser_t *parser, uint64_t bits)
 {
-  // quoted and contiguous have a dynamic length, write two indexes
-  const uint64_t contiguous = block->contiguous ^ block->follows_contiguous;
-  const uint64_t quoted = block->quote;
-  // length for special characters is fixed. always.
-  const uint64_t special = block->special;
-
-  uint64_t bits = contiguous | quoted | special;
-
-  print_mask("bits", bits);
-
   int count = count_ones(bits);
 
   for (int i=0; i < 6; i++) {
@@ -439,10 +387,9 @@ static inline zone_return_t roll(zone_parser_t *parser)
   while (has_data(parser) >= 64) {
     if (!has_tape(parser))
       goto terminate;
-    zone_block_t block;
     const uint8_t *ptr = read_data(parser);
-    index_data(parser, &block, ptr);
-    write_tape(parser, &block);
+    uint64_t bits = lex(parser, ptr);
+    write_tape(parser, bits);
     advance_data(parser, 64);
   }
 
@@ -452,11 +399,9 @@ static inline zone_return_t roll(zone_parser_t *parser)
     const uint8_t *ptr = read_data(parser);
     assert(size < ZONE_BLOCK_SIZE);
     memcpy(buffer, ptr, size);
-    zone_block_t block;
-    index_data(parser, &block, buffer);
-    block.contiguous &= (1 << size) - 1;
-    block.follows_contiguous &= (1 << size) - 1;
-    write_tape(parser, &block);
+    uint64_t bits = lex(parser, buffer);
+    bits &= (1 << size) - 1;
+    write_tape(parser, bits);
     advance_data(parser, size);
   }
 

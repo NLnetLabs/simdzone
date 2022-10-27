@@ -1,0 +1,42 @@
+(set-logic QF_BV)
+
+(declare-const m0 (_ BitVec 3))
+(declare-const m2 (_ BitVec 3))
+(declare-const m3 (_ BitVec 3))
+(declare-const m5 (_ BitVec 3))
+
+(declare-const l0 (_ BitVec 3))
+(declare-const l2 (_ BitVec 3))
+(declare-const l8 (_ BitVec 3))
+(declare-const l9 (_ BitVec 3))
+(declare-const la (_ BitVec 3))
+(declare-const lb (_ BitVec 3))
+(declare-const lc (_ BitVec 3))
+(declare-const ld (_ BitVec 3))
+
+(declare-const class1 (_ BitVec 3))
+(declare-const class2 (_ BitVec 3))
+(declare-const class3 (_ BitVec 3))
+(declare-const class4 (_ BitVec 3))
+(declare-const class5 (_ BitVec 3))
+(declare-const class6 (_ BitVec 3))
+
+(assert (= class1 (bvand m2 l0)))
+(assert (= class1 (bvand m0 l9)))
+(assert (= class1 (bvand m0 ld)))
+
+(assert (= class2 (bvand m0 la)))
+
+(assert (= class3 (bvand m2 l2)))
+
+(assert (= class4 (bvand m3 lb)))
+
+(assert (= class5 (bvand m5 lc)))
+
+(assert (= class6 (bvand m2 l8)))
+(assert (= class6 (bvand m2 l9)))
+
+
+(assert (distinct class1 class2 class3 class4 class5 class6 #b000 #b111))
+(check-sat)
+(get-model)
