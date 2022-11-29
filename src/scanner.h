@@ -184,8 +184,8 @@ static inline uint64_t find_delimiters(
   uint64_t *in_quoted,
   uint64_t *in_comment)
 {
-  uint64_t bounds, starts = quotes | semicolons;
-  uint64_t end, start = 0;
+  uint64_t delimiters, starts = quotes | semicolons;
+  uint64_t end, quote = 0, semicolon = 0;
 
   assert(!(quotes & semicolons));
 
@@ -193,29 +193,29 @@ static inline uint64_t find_delimiters(
   end = (newlines & *in_comment) | (quotes & *in_quoted);
   end &= -end;
 
-  bounds = end;
+  delimiters = end;
   starts &= ~((*in_comment | *in_quoted) ^ (-end - end));
 
   while (starts) {
-    start = -starts & starts;
+    const uint64_t start = -starts & starts;
     assert(start);
-    const uint64_t quote = quotes & start;
-    const uint64_t semicolon = semicolons & start;
+    quote = quotes & start;
+    semicolon = semicolons & start;
 
     end = (newlines & -semicolon) | (quotes & (-quote - quote));
     end &= -end;
 
-    bounds |= end | start;
+    delimiters |= end | start;
     starts &= -end - end;
   }
 
   // carry over state to next block
   *in_quoted = (uint64_t)((int64_t)(
-    ((-(start & quotes) | (*in_quoted & ~(-start))) & ~(-end))) >> 63);
+    (-quote | *in_quoted) & (end - 1)) >> 63);
   *in_comment = (uint64_t)((int64_t)(
-    ((-(start & semicolons) | (*in_comment & ~(-start))) & ~(-end))) >> 63);
+    (-semicolon | *in_comment) & (end - 1)) >> 63);
 
-  return bounds;
+  return delimiters;
 }
 
 static inline uint64_t prefix_xor(const uint64_t bitmask) {
