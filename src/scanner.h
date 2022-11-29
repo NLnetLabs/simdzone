@@ -14,6 +14,37 @@
 
 #include "zone.h"
 
+#define zone_error(parser, ...) fprintf(stderr, __VA_ARGS__)
+
+#define MAYBE_ERROR(parser, code, ...)    \
+  do {                                    \
+    if (parser->state.scanner & ZONE_RR)  \
+      return ZONE_BLADIEBLA;              \
+    zone_error(parser, __VA_ARGS__);      \
+    return code;                          \
+  } while (0)
+
+#define MAYBE_SYNTAX_ERROR(parser, ...)   \
+  MAYBE_ERROR(parser, ZONE_SYNTAX_ERROR, __VA_ARGS__)
+
+#define MAYBE_SEMANTIC_ERROR(parser, ...) \
+  MAYBE_ERROR(parser, ZONE_SEMANTIC_ERROR, __VA_ARGS__)
+
+#define ERROR(parser, code, ...) \
+  do { zone_error(parser, __VA_ARGS__); return code; } while (0)
+
+#define SYNTAX_ERROR(parser, ...) \
+  ERROR(parser, ZONE_SYNTAX_ERROR, __VA_ARGS__)
+
+#define SEMANTIC_ERROR(parser, ...) \
+  ERROR(parser, ZONE_SEMANTIC_ERROR, __VA_ARGS__)
+
+#define NOT_IMPLEMENTED(parser, ...) \
+  ERROR(parser, ZONE_NOT_IMPLEMENTED, __VA_ARGS__)
+
+#define OUT_OF_MEMORY(parser) \
+  return ZONE_OUT_OF_MEMORY
+
 // scanner states
 #define ZONE_INITIAL (0)
 // ZONE_TTL
@@ -24,9 +55,8 @@
 // ZONE_RDATA
 
 // secondary scanner states
-#define ZONE_GROUPED (1<<24)
-#define ZONE_GENERIC_RDATA (1<<25) // parsing generic rdata (RFC3597)
-#define ZONE_DEFERRED_RDATA (1<<26)
+#define GROUPED (1<<24)
+#define GENERIC_RDATA (1<<25) // parsing generic rdata (RFC3597)
 
 // operate on 64-bit blocks. always.
 typedef struct input input_t;
@@ -66,15 +96,6 @@ static void print_mask(const char *label, uint64_t mask) {
 #define print_mask(label, mask)
 #endif
 
-#define zone_unlikely(x) __builtin_expect(!!(x), 0)
-
-static inline uint64_t follows(const uint64_t match, uint64_t *overflow)
-{
-  const uint64_t result = match << 1 | (*overflow);
-  *overflow = match >> 63;
-  return result;
-}
-
 static inline void load(
   input_t *input, const uint8_t *ptr)
 {
@@ -96,7 +117,7 @@ static inline uint64_t find(
   return r0 | (r1 << 32);
 }
 
-static const uint8_t space[32] = {
+static const uint8_t space_table[32] = {
   0x20, 0x00, 0x00, 0x00, // " " = 0x20
   0x00, 0x00, 0x00, 0x00,
   0x00, 0x09, 0x00, 0x00, // "\t" = 0x09
@@ -107,7 +128,7 @@ static const uint8_t space[32] = {
   0x00, 0x0d, 0x00, 0x00  // "\r" = 0x0d
 };
 
-static const uint8_t special[32] = {
+static const uint8_t special_table[32] = {
   0xff, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00,
   0x28, 0x29, 0x0a, 0x00, // "(" = 0x28, ")" = 0x29, "\n" = 0x0a
@@ -156,7 +177,7 @@ static inline uint64_t find_escaped(
   return (even_bits ^ invert_mask) & follows_escape;
 }
 
-static inline uint64_t find_bounds(
+static inline uint64_t find_delimiters(
   uint64_t quotes,
   uint64_t semicolons,
   uint64_t newlines,
@@ -205,82 +226,69 @@ static inline uint64_t prefix_xor(const uint64_t bitmask) {
   return _mm_cvtsi128_si64(result);
 }
 
-static inline void index_data(
-  zone_parser_t *parser, zone_block_t *block, const uint8_t *ptr)
+static inline uint64_t follows(const uint64_t match, uint64_t *overflow)
+{
+  const uint64_t result = match << 1 | (*overflow);
+  *overflow = match >> 63;
+  return result;
+}
+
+static inline uint64_t scan(zone_parser_t *parser, const uint8_t *ptr)
 {
   input_t input;
 
   load(&input, ptr);
 
-  block->backslash = find(&input, '\\');
-  block->escaped = find_escaped(
-    block->backslash, &parser->file->indexer.is_escaped);
+  const uint64_t backslash = find(&input, '\\');
+  const uint64_t escaped = find_escaped(
+    backslash, &parser->file->indexer.is_escaped);
 
-  block->bounds = 0;
-  block->quote = find(&input, '"') & ~block->escaped;
-  block->semicolons = find(&input, ';') & ~block->escaped;
+  uint64_t quote = find(&input, '"') & ~escaped;
+  uint64_t semicolon = find(&input, ';') & ~escaped;
 
-  assert(!(parser->file->indexer.in_quoted & parser->file->indexer.in_comment));
-
-  uint64_t in_bounded =
+  uint64_t in_delimited =
     parser->file->indexer.in_quoted | parser->file->indexer.in_comment;
 
-  if (in_bounded || block->quote || block->semicolons) {
+  if (parser->file->indexer.in_comment || semicolon) {
     // escaped newlines are classified as contiguous. however, escape sequences
-    // have no meaning in comments and newlines, escaped or not, have no special
-    // meaning in quoted
-    block->newlines = find(&input, '\n');
+    // have no meaning in comments and newlines, escaped or not, have no
+    // special meaning in quoted
+    const uint64_t newline = find(&input, '\n');
 
-    block->bounds = find_bounds(
-      block->quote,
-      block->semicolons,
-      block->newlines,
+    const uint64_t delimiter = find_delimiters(
+      quote,
+      semicolon,
+      newline,
      &parser->file->indexer.in_quoted,
      &parser->file->indexer.in_comment);
 
-    // discard any quotes found in comments
-    block->quote &= block->bounds;
-
-    in_bounded ^= prefix_xor(block->bounds);
+    // discard any quotes within comments
+    quote &= delimiter;
+    in_delimited ^= prefix_xor(delimiter);
+  } else {
+    in_delimited ^= prefix_xor(quote);
+    parser->file->indexer.in_quoted = (uint64_t)((int64_t)in_delimited >> 63);
   }
 
-  block->space = find_any(&input, space) & ~(block->escaped | in_bounded);
-  block->special = find_any(&input, special) & ~(block->escaped | in_bounded);
+  const uint64_t space = find_any(&input, space_table) & ~(escaped | in_delimited);
+  const uint64_t special = find_any(&input, special_table) & ~(escaped | in_delimited);
 
-  block->contiguous =
-    ~(block->space | block->special | block->quote) & ~in_bounded;
-  block->follows_contiguous =
-    follows(block->contiguous, &parser->file->indexer.follows_contiguous);
+  const uint64_t contiguous = ~(space | special | quote) & ~in_delimited;
+  const uint64_t follows_contiguous =
+    follows(contiguous, &parser->file->indexer.follows_contiguous);
+
+  // quote and contiguous have dynamic lengths, write two indexes
+  const uint64_t bits = (contiguous ^ follows_contiguous) | quote | special;
 
   print_input("input", (const char *)ptr, 64);
-  print_mask("backslash", block->backslash);
-  print_mask("escaped", block->escaped);
-  print_mask("quote", block->quote);
-  print_mask("semicolons", block->semicolons);
-  print_mask("bounds", block->bounds);
-  print_mask("bounded", in_bounded);
-  print_mask("space", block->space);
-  print_mask("special", block->special);
-  print_mask("contiguous", block->contiguous);
+  print_mask("bits", bits);
+
+  return bits;
 }
 
 static inline zone_return_t refill(zone_parser_t *parser)
 {
   zone_file_t *file = parser->file;
-
-  if (file->buffer.index == file->buffer.length) {
-    file->buffer.offset = 0;
-    file->buffer.index = 0;
-    file->buffer.length = 0;
-  } else {
-    assert(file->buffer.index < file->buffer.length);
-    memcpy(file->buffer.data,
-           file->buffer.data + file->buffer.index,
-           file->buffer.length - file->buffer.index);
-    file->buffer.length -= file->buffer.index;
-    file->buffer.index = 0;
-    file->buffer.offset = 0;
-  }
 
   // grow buffer if necessary
   if (file->buffer.length == file->buffer.size) {
@@ -300,34 +308,8 @@ static inline zone_return_t refill(zone_parser_t *parser)
   // always null-terminate so terminating token can point to something
   file->buffer.length += (size_t)count;
   file->buffer.data[file->buffer.length] = '\0';
-  file->empty = count == 0;
+  file->end_of_file = count == 0;
   return 0;
-}
-
-static inline size_t has_data(const zone_parser_t *parser)
-{
-  assert(parser->file->buffer.length <= parser->file->buffer.size);
-  assert(parser->file->buffer.length >= parser->file->buffer.index);
-  return parser->file->buffer.length - parser->file->buffer.index;
-}
-
-static inline bool is_empty(const zone_parser_t *parser)
-{
-  return parser->file->empty;
-}
-
-static inline uint8_t *read_data(const zone_parser_t *parser)
-{
-  const char *ptr = &parser->file->buffer.data[parser->file->buffer.index];
-  return (uint8_t *)ptr;
-}
-
-static inline void advance_data(const zone_parser_t *parser, size_t skip)
-{
-  assert(parser->file->buffer.length >= skip);
-  assert(parser->file->buffer.length <= parser->file->buffer.size);
-  assert(parser->file->buffer.index <= parser->file->buffer.length - skip);
-  parser->file->buffer.index += skip;
 }
 
 static inline long long int count_ones(uint64_t input_num) {
@@ -347,28 +329,10 @@ static inline uint64_t leading_zeroes(uint64_t input_num) {
   return __builtin_clzll(input_num);
 }
 
-static inline bool has_tape(const zone_parser_t *parser)
-{
-  const size_t used = parser->file->indexer.tail - parser->file->indexer.tape;
-  const size_t size = sizeof(parser->file->indexer.tape);
-  return 64 <= (size / sizeof(parser->file->indexer.tape[0])) - used;
-}
-
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
-static inline void write_tape(
-  zone_parser_t *parser, const zone_block_t *block)
+static inline void dump(zone_parser_t *parser, uint64_t bits)
 {
-  // quoted and contiguous have a dynamic length, write two indexes
-  const uint64_t contiguous = block->contiguous ^ block->follows_contiguous;
-  const uint64_t quoted = block->quote;
-  // length for special characters is fixed. always.
-  const uint64_t special = block->special;
-
-  uint64_t bits = contiguous | quoted | special;
-
-  print_mask("bits", bits);
-
   int count = count_ones(bits);
 
   for (int i=0; i < 6; i++) {
@@ -377,14 +341,14 @@ static inline void write_tape(
     bits = clear_lowest_bit(bits);
   }
 
-  if (zone_unlikely(count > 6)) {
+  if (unlikely(count > 6)) {
     for (int i=6; i < 12; i++) {
       parser->file->indexer.tail[i] =
         parser->file->buffer.index + trailing_zeroes(bits);
       bits = clear_lowest_bit(bits);
     }
 
-    if (zone_unlikely(count > 12)) {
+    if (unlikely(count > 12)) {
       for (int i=12; i < count; i++) {
         parser->file->indexer.tail[i] =
           parser->file->buffer.index + trailing_zeroes(bits);
@@ -396,148 +360,187 @@ static inline void write_tape(
   parser->file->indexer.tail += count;
 }
 
-static inline void terminate_tape(
-  zone_parser_t *parser)
+static inline zone_return_t step(zone_parser_t *parser, size_t *start)
 {
-  assert(parser->file->indexer.tail >= parser->file->indexer.tape);
-  assert(parser->file->indexer.tail <= parser->file->indexer.tape + ZONE_TAPE_SIZE);
-  parser->file->indexer.tail[0] = parser->file->buffer.size;
-}
+  parser->file->indexer.head = parser->file->indexer.tape;
+  parser->file->indexer.tail = parser->file->indexer.tape;
 
-static inline size_t read_tape(
-  const zone_parser_t *parser, const size_t skip)
-{
-  assert(parser->file->indexer.index <= (ZONE_TAPE_SIZE+1) - skip);
-  return parser->file->indexer.tape[parser->file->indexer.index + skip];
-}
+  // refill buffer if required
+  if (parser->file->buffer.length - parser->file->buffer.index <= 64) {
+    assert(*start <= parser->file->buffer.index);
+    // flush everything if no existing blocks need to be retained
+    if (!*start)
+      *start = parser->file->buffer.index;
+    memmove(parser->file->buffer.data,
+            parser->file->buffer.data + *start,
+            parser->file->buffer.length - *start);
+    parser->file->buffer.index -= *start;
+    parser->file->buffer.length -= *start;
+    *start = 0;
 
-static inline void advance_tape(
-  const zone_parser_t *parser, const size_t skip)
-{
-  assert(skip == 1 || skip == 2);
-  assert(parser->file->indexer.index <= (ZONE_TAPE_SIZE+1) - skip);
-  parser->file->indexer.index += skip;
-}
-
-static inline zone_return_t roll(zone_parser_t *parser)
-{
-  zone_return_t err;
-
-  if (parser->file->indexer.index) {
-    assert(parser->file->buffer.index <= parser->file->buffer.length);
-    size_t index = parser->file->indexer.index;
-    size_t count = parser->file->indexer.tape[index] != parser->file->buffer.size;
-    assert(parser->file->indexer.tape[index+count] == parser->file->buffer.size);
-    if (count)
-      parser->file->indexer.tape[0] =
-        parser->file->indexer.tape[index] - parser->file->buffer.index;
-    parser->file->indexer.tail = parser->file->indexer.tape + count;
-    parser->file->indexer.index = count;
-  } else {
-    assert(parser->file->indexer.tape == parser->file->indexer.tail);
+    zone_return_t result;
+    if ((result = refill(parser)) < 0)
+      return result;
   }
 
-  if ((err = refill(parser)) != 0)
-    return err;
+  zone_file_t *file = parser->file;
 
-  while (has_data(parser) >= 64) {
-    if (!has_tape(parser))
+  size_t length = 0;
+  static const size_t size =
+    sizeof(file->indexer.tape) / sizeof(file->indexer.tape[0]);
+
+  while (file->buffer.length - file->buffer.index >= 64) {
+    if (size - length < 64)
       goto terminate;
-    zone_block_t block;
-    const uint8_t *ptr = read_data(parser);
-    index_data(parser, &block, ptr);
-    write_tape(parser, &block);
-    advance_data(parser, 64);
+    const uint64_t bits = scan(
+      parser, &file->buffer.data[file->buffer.index]);
+    dump(parser, bits);
+    file->buffer.index += 64;
+    length += (file->indexer.tail - file->indexer.tape) / sizeof(size_t);
   }
 
-  size_t size;
-  if (is_empty(parser) && (size = has_data(parser))) {
-    uint8_t buffer[ZONE_BLOCK_SIZE] = { 0 };
-    const uint8_t *ptr = read_data(parser);
-    assert(size < ZONE_BLOCK_SIZE);
-    memcpy(buffer, ptr, size);
-    zone_block_t block;
-    index_data(parser, &block, buffer);
-    block.contiguous &= (1 << size) - 1;
-    block.follows_contiguous &= (1 << size) - 1;
-    write_tape(parser, &block);
-    advance_data(parser, size);
-  }
+  const size_t count = file->buffer.length - file->buffer.index;
+  if (!file->end_of_file || !count)
+    goto terminate;
+  if (size - length < count)
+    goto terminate;
+
+  uint8_t buffer[64] = { 0 };
+  memcpy(buffer, &file->buffer.data[file->buffer.index], count);
+  uint64_t bits = scan(parser, buffer) & ((1 << count) - 1);
+  dump(parser, bits);
+  file->buffer.index += count;
 
 terminate:
-  terminate_tape(parser);
+  parser->file->indexer.tail[0] = parser->file->buffer.size;
   return 0;
 }
 
-static inline zone_return_t zone_scan(
+static inline bool empty(const zone_parser_t *parser)
+{
+  if (!parser->file->end_of_file)
+    return 0;
+  if (parser->file->buffer.index < parser->file->buffer.length)
+    return 0;
+  return 1;
+}
+
+static inline zone_return_t lex_quoted(
+  zone_parser_t *parser, zone_token_t *token, size_t start)
+{
+  zone_return_t result;
+  size_t end;
+
+do_jump:
+  end = *parser->file->indexer.head++;
+  switch (parser->file->buffer.data[end]) {
+    case '\"': goto do_quote;
+    case '\0': goto do_null;
+    default:   goto do_panic;
+  }
+
+do_quote:
+  *token = (zone_token_t){
+    { &parser->file->buffer.data[start], end - start }, parser->file->line };
+  return 'q'; // (q)uoted
+
+do_null:
+  if (empty(parser))
+    SYNTAX_ERROR(parser, "Unterminated string");
+  if ((result = step(parser, &start)) < 0)
+    return result;
+  goto do_jump;
+
+do_panic:
+  abort();
+}
+
+static inline zone_return_t lex_contiguous(
+  zone_parser_t *parser, zone_token_t *token, size_t start)
+{
+  zone_return_t result;
+  size_t end;
+
+do_jump:
+  end = *parser->file->indexer.head;
+  switch (parser->file->buffer.data[end]) {
+    case '\0': goto do_null;
+    case ' ':
+    case '\t':
+    case '\r': goto do_blank;
+    default:   goto do_special;
+  }
+
+do_blank:
+  parser->file->indexer.head++;
+do_special:
+  *token = (zone_token_t){
+    { &parser->file->buffer.data[start], end - start }, parser->file->line };
+  return 'c'; // (c)ontiguous
+
+do_null:
+  if (empty(parser))
+    goto do_special;
+  if ((result = step(parser, &start)) < 0)
+    return result;
+  goto do_jump;
+}
+
+static inline zone_return_t lex(
   zone_parser_t *parser, zone_token_t *token)
 {
-  zone_return_t err;
+  size_t dummy = 0, start;
+  zone_return_t result;
 
-  for (;;) {
-    size_t end, start = read_tape(parser, 0);
-    uint8_t delim;
-
-    switch (parser->file->buffer.data[start]) {
-      case '(':
-        if (parser->state.scanner & ZONE_GROUPED) {
-          fprintf(stderr, "Nested braces");
-          return ZONE_SYNTAX_ERROR;
-        }
-        parser->state.scanner |= ZONE_GROUPED;
-        advance_tape(parser, 1);
-        break;
-      case ')':
-        if (!(parser->state.scanner & ZONE_GROUPED)) {
-          fprintf(stderr, "Closing brace without opening brace");
-          return ZONE_SYNTAX_ERROR;
-        }
-        parser->state.scanner &= ~ZONE_GROUPED;
-        advance_tape(parser, 1);
-        break;
-      case ' ':
-      case '\t':
-        advance_tape(parser, 1);
-        break;
-      case '\n':
-        parser->file->indexer.index++;
-        if (parser->state.scanner & ZONE_GROUPED)
-          break;
-        *token = (zone_token_t){ start, 1 };
-        return '\n';
-      case '\0':
-        if (!is_empty(parser))
-          goto roll;
-        *token = (zone_token_t){ start, 1 };
-        return '\0';
-      case '\"':
-        end = read_tape(parser, 1);
-        delim = parser->file->buffer.data[end];
-        if (delim == '\0' && !is_empty(parser))
-          goto roll;
-        if (delim != '\"') {
-          fprintf(stderr, "Undelimited string");
-          return ZONE_SYNTAX_ERROR;
-        }
-        advance_tape(parser, 2);
-        *token = (zone_token_t){ start+1, end - start };
-        return 'q'; // (q)uoted
-      default:
-        end = read_tape(parser, 1);
-        delim = parser->file->buffer.data[end];
-        if (delim == '\0' && !is_empty(parser))
-          goto roll;
-        advance_tape(parser, 1);
-        *token = (zone_token_t){ start+0, end - start };
-        return 'c'; // (c)ontiguous
-roll:
-        if ((err = roll(parser)) != 0)
-          return 0;
-        else if (err)
-          return err;
-        break;
-    }
+do_jump:
+  start = *parser->file->indexer.head++;
+  switch (parser->file->buffer.data[start]) {
+    case '(':   goto do_open_bracket;
+    case ')':   goto do_close_bracket;
+    case ' ':
+    case '\t':
+    case '\r':  goto do_blank;
+    case '\n':  goto do_newline;
+    case '\0':  goto do_null;
+    case '\"':  goto do_quote;
+    default:    goto do_contiguous;
   }
+
+do_open_bracket:
+  if (parser->state.scanner & GROUPED)
+    SYNTAX_ERROR(parser, "Nested opening brace");
+  parser->state.scanner |= GROUPED;
+  goto do_jump;
+
+do_close_bracket:
+  if (!(parser->state.scanner & GROUPED))
+    SYNTAX_ERROR(parser, "Closing brace without opening brace");
+  parser->state.scanner &= ~GROUPED;
+  goto do_jump;
+
+do_blank:
+  abort();
+
+do_newline:
+  if (parser->state.scanner & GROUPED)
+    goto do_jump;
+  *token = (zone_token_t){
+    { &parser->file->buffer.data[start], 1 }, parser->file->line };
+  parser->file->line++;
+  return '\n';
+
+do_quote:
+  return lex_quoted(parser, token, start+1);
+
+do_contiguous:
+  return lex_contiguous(parser, token, start);
+
+do_null:
+  if (empty(parser))
+    return '\0';
+  if ((result = step(parser, &dummy)) < 0)
+    return result;
+  goto do_jump;
 }
 
 #endif // ZONE_SCANNER_H

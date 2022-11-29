@@ -144,7 +144,7 @@ static zone_return_t set_defaults(
   // owner (replicate origin)
   memcpy(&par->file->owner, &par->file->origin, sizeof(par->file->owner));
   // ttl
-  par->file->ttl.seconds = opts->ttl;
+  par->file->ttl = opts->ttl;
 
 #if 0
   par->file->ttl.location = loc;
@@ -206,12 +206,12 @@ zone_return_t zone_open(
   file->name = relpath;
   file->path = abspath;
   file->handle = fd;
-  file->buffer.offset = 0;
   file->buffer.index = 0;
   file->buffer.length = 0;
-  file->buffer.size = 1;
+  file->buffer.size = 0;
   file->buffer.data = window;
-  file->empty = false;
+  file->end_of_file = 0;
+  file->indexer.head = file->indexer.tape;
   file->indexer.tail = file->indexer.tape;
   file->indexer.tape[0] = 0;
   par->file = file;
@@ -264,7 +264,7 @@ zone_return_t zone_parse(zone_parser_t *parser, void *user_data)
 
   (void)user_data;
 
-  while ((ret = zone_scan(parser, &token)) > 0) {
+  while ((ret = lex(parser, &token)) > 0) {
 #if 0
     printf("token [index: %4zu, length: %4zu]: ", token.offset, token.length);
     const size_t n = token.length;// - token.offset;
