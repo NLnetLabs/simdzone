@@ -164,7 +164,7 @@ void zone_close(
 // FIXME: zone_process will merely be a proxy function to call the actual
 //        architecture specific function (SSE4, AVX2, NEON, etc) implemented
 //        in zone.c
-zone_return_t zone_process(
+zone_return_t zone_parse(
   zone_parser_t *parser, void *user_data);
 
 #endif // ZONE_H

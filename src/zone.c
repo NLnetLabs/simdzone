@@ -23,21 +23,21 @@
 static const char not_a_file[] = "<string>";
 #endif
 
-static void *zone_malloc(zone_options_t *opts, size_t size)
+void *zone_malloc(zone_options_t *opts, size_t size)
 {
   if (!opts->allocator.malloc)
     return malloc(size);
   return opts->allocator.malloc(opts->allocator.arena, size);
 }
 
-static void *zone_realloc(zone_options_t *opts, void *ptr, size_t size)
+void *zone_realloc(zone_options_t *opts, void *ptr, size_t size)
 {
   if (!opts->allocator.realloc)
     return realloc(ptr, size);
   return opts->allocator.realloc(opts->allocator.arena, ptr, size);
 }
 
-static void zone_free(zone_options_t *opts, void *ptr)
+void zone_free(zone_options_t *opts, void *ptr)
 {
   if (!opts->allocator.free)
     free(ptr);
@@ -45,9 +45,7 @@ static void zone_free(zone_options_t *opts, void *ptr)
     opts->allocator.free(opts->allocator.arena, ptr);
 }
 
-#include "scanner.h"
-
-static char *zone_strdup(zone_options_t *opts, const char *str)
+char *zone_strdup(zone_options_t *opts, const char *str)
 {
   size_t len = strlen(str);
   char *ptr;
@@ -217,7 +215,7 @@ zone_return_t zone_open(
   par->file = file;
   if (set_defaults(par, &opts) < 0)
     return ZONE_BAD_PARAMETER;
-  par->state.scanner = ZONE_INITIAL;
+  par->state.scanner = 0;//ZONE_INITIAL;
   return 0;
 err_window:
   close(fd);
@@ -255,32 +253,61 @@ void zone_close(zone_parser_t *par)
   }
 }
 
-zone_return_t zone_parse(zone_parser_t *parser, void *user_data)
-{
-  zone_token_t token;
-  zone_return_t ret;
+#include "config.h"
+#include "isadetection.h"
 
-  size_t tokens = 0;
-
-  (void)user_data;
-
-  while ((ret = lex(parser, &token)) > 0) {
-#if 0
-    printf("token [index: %4zu, length: %4zu]: ", token.offset, token.length);
-    const size_t n = token.length;// - token.offset;
-    const char *text = &parser->file->buffer.data[token.offset];
-    if (n == 1 && parser->file->buffer.data[token.offset] == '\n')
-      printf("<newline>\n");
-    else
-      printf("%.*s\n", n, &parser->file->buffer.data[token.offset]);
+#if ZONE_SUPPORTS_HASWELL
+extern zone_return_t zone_parse_haswell(zone_parser_t *, void *);
 #endif
-    tokens++;
-    if (ret == 0)
-      return 0;
+
+#if ZONE_SUPPORTS_WESTMERE
+extern zone_return_t zone_parse_westmere(zone_parser_t *, void *);
+#endif
+
+typedef struct {
+  const char *name;
+  uint32_t instruction_set;
+  zone_return_t (*parse)(zone_parser_t *, void *);
+} implementation_t;
+
+static const implementation_t implementations[] = {
+#if ZONE_SUPPORTS_HASWELL
+  { "haswell", AVX2, &zone_parse_haswell },
+#endif
+#if ZONE_SUPPORTS_WESTMERE
+  { "westmere", SSE42, &zone_parse_westmere },
+#endif
+  { "generic", 0, 0 } // generic implementation pending
+};
+
+static inline const implementation_t *
+select_implementation(void)
+{
+  const char *preferred;
+  const uint32_t supported = detect_supported_architectures();
+  const size_t length = sizeof(implementations)/sizeof(implementations[0]);
+  size_t count = 0;
+
+  if ((preferred = getenv("ZONE_IMPLEMENTATION"))) {
+    for (; count < length; count++)
+      if (strcasecmp(preferred, implementations[count].name) == 0)
+        break;
+    if (count == length)
+      count = 0;
   }
 
-  printf("saw %zu tokens\n", tokens);
-  return 0;
+  for (; count < length; count++)
+    if (implementations[count].instruction_set & supported)
+      return &implementations[count];
+
+  return &implementations[length - 1];
+}
+
+zone_return_t zone_parse(zone_parser_t *parser, void *user_data)
+{
+  const implementation_t *implementation = select_implementation();
+  assert(implementation);
+  return implementation->parse(parser, user_data);
 }
 
 int main(int argc, char *argv[])

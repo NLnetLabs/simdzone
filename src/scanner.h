@@ -6,11 +6,11 @@
  * See LICENSE for the license.
  *
  */
-#ifndef ZONE_SCANNER_H
-#define ZONE_SCANNER_H
+#ifndef SCANNER_H
+#define SCANNER_H
 
 #include <assert.h>
-#include <immintrin.h> // assume x86_64 for now
+#include <unistd.h>
 
 #include "zone.h"
 
@@ -58,13 +58,10 @@
 #define GROUPED (1<<24)
 #define GENERIC_RDATA (1<<25) // parsing generic rdata (RFC3597)
 
-// operate on 64-bit blocks. always.
-typedef struct input input_t;
-struct input {
-  __m256i chunks[2];
-};
-
 #ifndef NDEBUG
+#include <string.h>
+#include <stdio.h>
+
 static void print_input(const char *label, const char *str, size_t len)
 {
   char bar[120];
@@ -96,67 +93,24 @@ static void print_mask(const char *label, uint64_t mask) {
 #define print_mask(label, mask)
 #endif
 
-static inline void load(
-  input_t *input, const uint8_t *ptr)
-{
-  input->chunks[0] = _mm256_loadu_si256((const __m256i *)(ptr));
-  input->chunks[1] = _mm256_loadu_si256((const __m256i *)(ptr+32));
-}
+extern void *zone_malloc(zone_options_t *opts, size_t size);
+extern void *zone_realloc(zone_options_t *opts, void *ptr, size_t size);
+extern void zone_free(zone_options_t *opts, void *ptr);
+extern char *zone_strdup(zone_options_t *opts, const char *str);
 
-static inline uint64_t find(
-  const input_t *input, uint8_t needle)
-{
-  const __m256i needles = _mm256_set1_epi8(needle);
-
-  const __m256i v0 = _mm256_cmpeq_epi8(input->chunks[0], needles);
-  const __m256i v1 = _mm256_cmpeq_epi8(input->chunks[1], needles);
-  
-  const uint64_t r0 = (uint32_t)_mm256_movemask_epi8(v0);
-  const uint64_t r1 = _mm256_movemask_epi8(v1);
-    
-  return r0 | (r1 << 32);
-}
-
-static const uint8_t space_table[32] = {
-  0x20, 0x00, 0x00, 0x00, // " " = 0x20
-  0x00, 0x00, 0x00, 0x00,
-  0x00, 0x09, 0x00, 0x00, // "\t" = 0x09
-  0x00, 0x0d, 0x00, 0x00, // "\r" = 0x0d
+static const table_t space_table = TABLE(
   0x20, 0x00, 0x00, 0x00, // " " = 0x20
   0x00, 0x00, 0x00, 0x00,
   0x00, 0x09, 0x00, 0x00, // "\t" = 0x09
   0x00, 0x0d, 0x00, 0x00  // "\r" = 0x0d
-};
+);
 
-static const uint8_t special_table[32] = {
-  0xff, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00,
-  0x28, 0x29, 0x0a, 0x00, // "(" = 0x28, ")" = 0x29, "\n" = 0x0a
-  0x00, 0x00, 0x00, 0x00,
+static const table_t special_table = TABLE(
   0xff, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00,
   0x28, 0x29, 0x0a, 0x00, // "(" = 0x28, ")" = 0x29, "\n" = 0x0a
   0x00, 0x00, 0x00, 0x00
-};
-
-static inline uint64_t find_any(
-  const input_t *input, const uint8_t needles[32])
-{
-  const __m256i t = _mm256_loadu_si256((const __m256i*)needles);
-  const __m256i eq0 = _mm256_cmpeq_epi8(
-    _mm256_shuffle_epi8(t, input->chunks[0]), input->chunks[0]);
-  const __m256i eq1 = _mm256_cmpeq_epi8(
-    _mm256_shuffle_epi8(t, input->chunks[1]), input->chunks[1]);
-
-  const uint64_t r0 = (uint32_t)_mm256_movemask_epi8(eq0);
-  const uint64_t r1 = _mm256_movemask_epi8(eq1);
-
-  return r0 | (r1 << 32);
-}
-
-static inline bool add_overflow(uint64_t value1, uint64_t value2, uint64_t *result) {
-  return __builtin_uaddll_overflow(value1, value2, (unsigned long long *)result);
-}
+);
 
 static inline uint64_t find_escaped(
   uint64_t backslash, uint64_t *is_escaped)
@@ -216,14 +170,6 @@ static inline uint64_t find_delimiters(
     (-semicolon | *in_comment) & (end - 1)) >> 63);
 
   return delimiters;
-}
-
-static inline uint64_t prefix_xor(const uint64_t bitmask) {
-  // There should be no such thing with a processor supporting avx2
-  // but not clmul.
-  __m128i all_ones = _mm_set1_epi8('\xFF');
-  __m128i result = _mm_clmulepi64_si128(_mm_set_epi64x(0ULL, bitmask), all_ones, 0);
-  return _mm_cvtsi128_si64(result);
 }
 
 static inline uint64_t follows(const uint64_t match, uint64_t *overflow)
@@ -312,25 +258,7 @@ static inline zone_return_t refill(zone_parser_t *parser)
   return 0;
 }
 
-static inline long long int count_ones(uint64_t input_num) {
-  return _mm_popcnt_u64(input_num);
-}
-
-static inline uint64_t trailing_zeroes(uint64_t input_num) {
-  return __builtin_ctzll(input_num);
-}
-
-/* result might be undefined when input_num is zero */
-static inline uint64_t clear_lowest_bit(uint64_t input_num) {
-  return input_num & (input_num-1);
-}
-
-static inline uint64_t leading_zeroes(uint64_t input_num) {
-  return __builtin_clzll(input_num);
-}
-
 #define unlikely(x) __builtin_expect(!!(x), 0)
-
 static inline void dump(zone_parser_t *parser, uint64_t bits)
 {
   int count = count_ones(bits);
@@ -543,4 +471,4 @@ do_null:
   goto do_jump;
 }
 
-#endif // ZONE_SCANNER_H
+#endif // SCANNER_H
