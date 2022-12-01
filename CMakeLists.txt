@@ -26,15 +26,15 @@ string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" architecture)
 
 if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
   check_include_file("immintrin.h" HAVE_IMMINTRIN_H)
-  check_c_compiler_flag("-march=westmere" HAVE_MARCH_WESTMERE)
+#  check_c_compiler_flag("-march=westmere" HAVE_MARCH_WESTMERE)
   check_c_compiler_flag("-march=haswell" HAVE_MARCH_HASWELL)
 
-  if(HAVE_IMMINTRIN_H AND HAVE_MARCH_WESTMERE)
-    set(ZONE_SUPPORTS_WESTMERE TRUE)
-    set_source_files_properties(
-      src/westmere/parser.c PROPERTIES COMPILE_FLAGS "-march=westmere")
-    target_sources(simdzone PRIVATE src/westmere/parser.c)
-  endif()
+#  if(HAVE_IMMINTRIN_H AND HAVE_MARCH_WESTMERE)
+#    set(ZONE_SUPPORTS_WESTMERE TRUE)
+#    set_source_files_properties(
+#      src/westmere/parser.c PROPERTIES COMPILE_FLAGS "-march=westmere")
+#    target_sources(simdzone PRIVATE src/westmere/parser.c)
+#  endif()
 
   if(HAVE_IMMINTRIN_H AND HAVE_MARCH_HASWELL)
     set(ZONE_SUPPORTS_HASWELL TRUE)

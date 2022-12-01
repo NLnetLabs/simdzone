@@ -1,0 +1,49 @@
+(set-logic QF_BV)
+
+(declare-const m0 (_ BitVec 3))
+(declare-const m2 (_ BitVec 3))
+(declare-const m3 (_ BitVec 3))
+(declare-const m5 (_ BitVec 3))
+
+(declare-const l0 (_ BitVec 3))
+(declare-const l2 (_ BitVec 3))
+(declare-const l8 (_ BitVec 3))
+(declare-const l9 (_ BitVec 3))
+(declare-const la (_ BitVec 3))
+(declare-const lb (_ BitVec 3))
+(declare-const lc (_ BitVec 3))
+(declare-const ld (_ BitVec 3))
+
+(declare-const blank         (_ BitVec 3))
+(declare-const backslash     (_ BitVec 3))
+(declare-const newline       (_ BitVec 3))
+(declare-const quote         (_ BitVec 3))
+(declare-const semicolon     (_ BitVec 3))
+(declare-const parentheses   (_ BitVec 3))
+
+(assert (= blank (bvand m2 l0)))        ; " "  : 0x20 -- blank
+(assert (= blank (bvand m0 l9)))        ; "\t" : 0x09 |
+(assert (= blank (bvand m0 ld)))        ; "\r" : 0x0d |
+
+(assert (= backslash (bvand m5 lc)))    ; "\\" : 0x5c -- escapes character
+
+(assert (= newline (bvand m0 la)))      ; "\n" : 0x0a -- ends record/comment
+
+(assert (= semicolon (bvand m3 lb)))    ; ";"  : 0x3b -- starts comment
+
+(assert (= parentheses (bvand m2 l8)))  ; "("  : 0x28 -- starts/ends grouped
+(assert (= parentheses (bvand m2 l9)))  ; ")"  : 0x29 |
+
+(assert (= quote (bvand m2 l2)))        ; "\"" : 0x22 -- starts/ends quoted
+
+
+(assert (bvult blank backslash))
+
+(assert (bvult backslash newline))
+(assert (bvult newline semicolon))
+(assert (bvult semicolon parentheses))
+(assert (bvult parentheses quote))
+
+(assert (distinct blank backslash newline semicolon parentheses quote #b000 #b111))
+(check-sat)
+(get-model)

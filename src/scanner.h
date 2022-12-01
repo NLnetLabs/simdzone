@@ -11,6 +11,8 @@
 
 #include <assert.h>
 #include <unistd.h>
+#include <string.h>
+#include <stdio.h>
 
 #include "zone.h"
 
@@ -59,9 +61,6 @@
 #define GENERIC_RDATA (1<<25) // parsing generic rdata (RFC3597)
 
 #ifndef NDEBUG
-#include <string.h>
-#include <stdio.h>
-
 static void print_input(const char *label, const char *str, size_t len)
 {
   char bar[120];
@@ -98,20 +97,6 @@ extern void *zone_realloc(zone_options_t *opts, void *ptr, size_t size);
 extern void zone_free(zone_options_t *opts, void *ptr);
 extern char *zone_strdup(zone_options_t *opts, const char *str);
 
-static const table_t space_table = TABLE(
-  0x20, 0x00, 0x00, 0x00, // " " = 0x20
-  0x00, 0x00, 0x00, 0x00,
-  0x00, 0x09, 0x00, 0x00, // "\t" = 0x09
-  0x00, 0x0d, 0x00, 0x00  // "\r" = 0x0d
-);
-
-static const table_t special_table = TABLE(
-  0xff, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00,
-  0x28, 0x29, 0x0a, 0x00, // "(" = 0x28, ")" = 0x29, "\n" = 0x0a
-  0x00, 0x00, 0x00, 0x00
-);
-
 static inline uint64_t find_escaped(
   uint64_t backslash, uint64_t *is_escaped)
 {
@@ -131,47 +116,6 @@ static inline uint64_t find_escaped(
   return (even_bits ^ invert_mask) & follows_escape;
 }
 
-static inline uint64_t find_delimiters(
-  uint64_t quotes,
-  uint64_t semicolons,
-  uint64_t newlines,
-  uint64_t *in_quoted,
-  uint64_t *in_comment)
-{
-  uint64_t delimiters, starts = quotes | semicolons;
-  uint64_t end, quote = 0, semicolon = 0;
-
-  assert(!(quotes & semicolons));
-
-  // carry over state from last block
-  end = (newlines & *in_comment) | (quotes & *in_quoted);
-  end &= -end;
-
-  delimiters = end;
-  starts &= ~((*in_comment | *in_quoted) ^ (-end - end));
-
-  while (starts) {
-    const uint64_t start = -starts & starts;
-    assert(start);
-    quote = quotes & start;
-    semicolon = semicolons & start;
-
-    end = (newlines & -semicolon) | (quotes & (-quote - quote));
-    end &= -end;
-
-    delimiters |= end | start;
-    starts &= -end - end;
-  }
-
-  // carry over state to next block
-  *in_quoted = (uint64_t)((int64_t)(
-    (-quote | *in_quoted) & (end - 1)) >> 63);
-  *in_comment = (uint64_t)((int64_t)(
-    (-semicolon | *in_comment) & (end - 1)) >> 63);
-
-  return delimiters;
-}
-
 static inline uint64_t follows(const uint64_t match, uint64_t *overflow)
 {
   const uint64_t result = match << 1 | (*overflow);
@@ -183,48 +127,19 @@ static inline uint64_t scan(zone_parser_t *parser, const uint8_t *ptr)
 {
   input_t input;
 
-  load(&input, ptr);
+  classify(&input, ptr);
 
-  const uint64_t backslash = find(&input, '\\');
+  const uint64_t backslash = find(&input, BACKSLASH);
+  const uint64_t special = find_any(&input, SPECIAL);
   const uint64_t escaped = find_escaped(
     backslash, &parser->file->indexer.is_escaped);
 
-  uint64_t quote = find(&input, '"') & ~escaped;
-  uint64_t semicolon = find(&input, ';') & ~escaped;
-
-  uint64_t in_delimited =
-    parser->file->indexer.in_quoted | parser->file->indexer.in_comment;
-
-  if (parser->file->indexer.in_comment || semicolon) {
-    // escaped newlines are classified as contiguous. however, escape sequences
-    // have no meaning in comments and newlines, escaped or not, have no
-    // special meaning in quoted
-    const uint64_t newline = find(&input, '\n');
-
-    const uint64_t delimiter = find_delimiters(
-      quote,
-      semicolon,
-      newline,
-     &parser->file->indexer.in_quoted,
-     &parser->file->indexer.in_comment);
-
-    // discard any quotes within comments
-    quote &= delimiter;
-    in_delimited ^= prefix_xor(delimiter);
-  } else {
-    in_delimited ^= prefix_xor(quote);
-    parser->file->indexer.in_quoted = (uint64_t)((int64_t)in_delimited >> 63);
-  }
-
-  const uint64_t space = find_any(&input, space_table) & ~(escaped | in_delimited);
-  const uint64_t special = find_any(&input, special_table) & ~(escaped | in_delimited);
-
-  const uint64_t contiguous = ~(space | special | quote) & ~in_delimited;
+  const uint64_t contiguous = find(&input, CONTIGUOUS) | backslash | escaped;
   const uint64_t follows_contiguous =
     follows(contiguous, &parser->file->indexer.follows_contiguous);
 
   // quote and contiguous have dynamic lengths, write two indexes
-  const uint64_t bits = (contiguous ^ follows_contiguous) | quote | special;
+  const uint64_t bits = (contiguous ^ follows_contiguous) | special;
 
   print_input("input", (const char *)ptr, 64);
   print_mask("bits", bits);
@@ -362,10 +277,16 @@ static inline zone_return_t lex_quoted(
 do_jump:
   end = *parser->file->indexer.head++;
   switch (parser->file->buffer.data[end]) {
+    case '\n': goto do_newline;
+    case '\\': goto do_escaped;
     case '\"': goto do_quote;
     case '\0': goto do_null;
-    default:   goto do_panic;
+    default:   goto do_jump;
   }
+
+do_newline:
+  parser->file->line++;
+  goto do_jump;
 
 do_quote:
   *token = (zone_token_t){
@@ -379,8 +300,20 @@ do_null:
     return result;
   goto do_jump;
 
-do_panic:
-  abort();
+do_escaped:
+  end = *parser->file->indexer.head++;
+  switch (parser->file->buffer.data[end]) {
+    case '\n': goto do_newline;
+    case '\0': goto do_escaped_null;
+    default:   goto do_jump;
+  }
+
+do_escaped_null:
+  if (empty(parser))
+    SYNTAX_ERROR(parser, "Unterminated string");
+  if ((result = step(parser, &start)) < 0)
+    return result;
+  goto do_escaped;
 }
 
 static inline zone_return_t lex_contiguous(
@@ -390,17 +323,18 @@ static inline zone_return_t lex_contiguous(
   size_t end;
 
 do_jump:
-  end = *parser->file->indexer.head;
+  end = parser->file->indexer.head[0];
   switch (parser->file->buffer.data[end]) {
     case '\0': goto do_null;
     case ' ':
     case '\t':
     case '\r': goto do_blank;
+    case '\\': goto do_escaped;
     default:   goto do_special;
   }
 
 do_blank:
-  parser->file->indexer.head++;
+  parser->file->indexer.head += 1;
 do_special:
   *token = (zone_token_t){
     { &parser->file->buffer.data[start], end - start }, parser->file->line };
@@ -412,6 +346,88 @@ do_null:
   if ((result = step(parser, &start)) < 0)
     return result;
   goto do_jump;
+
+do_escaped:
+  end = parser->file->indexer.head[1];
+  parser->file->indexer.head += 2;
+  switch (parser->file->buffer.data[end]) {
+    case '\0': goto do_escaped_null;
+    case '\n': goto do_escaped_newline;
+    default:   goto do_jump;
+  }
+
+do_escaped_newline:
+  parser->file->line++;
+  goto do_jump;
+
+do_escaped_null:
+  parser->file->indexer.head -= 1;
+  if (empty(parser))
+    goto do_special;
+  if ((result = step(parser, &start)) < 0)
+    return result;
+  goto do_escaped;
+}
+
+static inline zone_return_t lex_escaped_contiguous(
+  zone_parser_t *parser, zone_token_t *token, size_t start)
+{
+  zone_return_t result;
+  size_t end;
+
+do_escaped:
+  end = *parser->file->indexer.head++;
+  switch (parser->file->buffer.data[end]) {
+    case '\0': goto do_escaped_null;
+    case '\n': goto do_escaped_newline;
+    default:   goto do_jump;
+  }
+
+do_escaped_null:
+  if (empty(parser)) {
+    parser->file->indexer.head--;
+    *token = (zone_token_t){
+      { &parser->file->buffer.data[start], end - start }, parser->file->line };
+    return 'c'; // (c)ontiguous
+  }
+  if ((result = step(parser, &start)) < 0)
+    return result;
+  goto do_escaped;
+
+do_escaped_newline:
+  parser->file->line++;
+
+do_jump:
+  return lex_contiguous(parser, token, start);
+}
+
+static inline zone_return_t lex_comment(
+  zone_parser_t *parser, zone_token_t *token, size_t start)
+{
+  size_t dummy = 0, end;
+  zone_return_t result;
+
+do_jump:
+  end = parser->file->indexer.head[0];
+  switch (parser->file->buffer.data[end]) {
+    case '\0': goto do_null;
+    case '\n': goto do_newline;
+    default:   goto do_comment;
+  }
+
+do_comment:
+  parser->file->indexer.head++;
+  goto do_jump;
+
+do_null:
+  if (empty(parser))
+    return 0;
+  if ((result = step(parser, &dummy)) < 0)
+    return result;
+  goto do_jump;
+
+do_newline:
+  return 0;
 }
 
 static inline zone_return_t lex(
@@ -423,24 +439,31 @@ static inline zone_return_t lex(
 do_jump:
   start = *parser->file->indexer.head++;
   switch (parser->file->buffer.data[start]) {
-    case '(':   goto do_open_bracket;
-    case ')':   goto do_close_bracket;
+    case ';':   goto do_comment;
+    case '(':   goto do_left_parenthesis;
+    case ')':   goto do_right_parenthesis;
     case ' ':
     case '\t':
     case '\r':  goto do_blank;
     case '\n':  goto do_newline;
     case '\0':  goto do_null;
     case '\"':  goto do_quote;
+    case '\\':  goto do_escaped_contiguous;
     default:    goto do_contiguous;
   }
 
-do_open_bracket:
+do_comment:
+  if ((result = lex_comment(parser, token, start)) < 0)
+    return result;
+  goto do_jump;
+
+do_left_parenthesis:
   if (parser->state.scanner & GROUPED)
     SYNTAX_ERROR(parser, "Nested opening brace");
   parser->state.scanner |= GROUPED;
   goto do_jump;
 
-do_close_bracket:
+do_right_parenthesis:
   if (!(parser->state.scanner & GROUPED))
     SYNTAX_ERROR(parser, "Closing brace without opening brace");
   parser->state.scanner &= ~GROUPED;
@@ -459,6 +482,9 @@ do_newline:
 
 do_quote:
   return lex_quoted(parser, token, start+1);
+
+do_escaped_contiguous:
+  return lex_escaped_contiguous(parser, token, start);
 
 do_contiguous:
   return lex_contiguous(parser, token, start);
