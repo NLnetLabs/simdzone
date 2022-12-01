@@ -11,6 +11,8 @@
 
 #include <assert.h>
 #include <unistd.h>
+#include <string.h>
+#include <stdio.h>
 
 #include "zone.h"
 
@@ -59,9 +61,6 @@
 #define GENERIC_RDATA (1<<25) // parsing generic rdata (RFC3597)
 
 #ifndef NDEBUG
-#include <string.h>
-#include <stdio.h>
-
 static void print_input(const char *label, const char *str, size_t len)
 {
   char bar[120];
