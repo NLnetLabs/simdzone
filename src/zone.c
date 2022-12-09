@@ -7,8 +7,6 @@
  *
  */
 #include <assert.h>
-#include <limits.h>
-#include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -16,8 +14,11 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <stdlib.h>
+#include <limits.h>
 
 #include "zone.h"
+#include "isadetection.h"
 
 #ifndef NDEBUG
 static const char not_a_file[] = "<string>";
@@ -130,10 +131,8 @@ static zone_return_t set_defaults(
   par->options = *opts;
   if (!par->options.origin)
     par->options.origin = "."; // use root by default?
-  if (!par->options.ttl)
-    par->options.ttl = 3600;
-  if (!par->options.block_size)
-    par->options.block_size = 4096;
+  if (!par->options.default_ttl)
+    par->options.default_ttl = 3600;
 
   // origin
   zone_name_t *name = &par->file->origin.name;
@@ -142,7 +141,7 @@ static zone_return_t set_defaults(
   // owner (replicate origin)
   memcpy(&par->file->owner, &par->file->origin, sizeof(par->file->owner));
   // ttl
-  par->file->ttl = opts->ttl;
+  par->file->last_ttl = par->file->default_ttl = opts->default_ttl;
 
 #if 0
   par->file->ttl.location = loc;
@@ -208,14 +207,22 @@ zone_return_t zone_open(
   file->buffer.length = 0;
   file->buffer.size = 0;
   file->buffer.data = window;
+  file->start_of_line = 1;
   file->end_of_file = 0;
   file->indexer.head = file->indexer.tape;
   file->indexer.tail = file->indexer.tape;
   file->indexer.tape[0] = 0;
+  file->last_type = 0;
+  file->last_class = opts.default_class;
+  file->last_ttl = opts.default_ttl;
   par->file = file;
   if (set_defaults(par, &opts) < 0)
     return ZONE_BAD_PARAMETER;
-  par->state.scanner = 0;//ZONE_INITIAL;
+  par->state = 0;
+  // FIXME: magic numbers, bad
+  par->items[1].data.int16 = &par->file->last_type;
+  par->items[2].data.int16 = &par->file->last_class;
+  par->items[3].data.int32 = &par->file->last_ttl;
   return 0;
 err_window:
   close(fd);
@@ -305,23 +312,11 @@ select_implementation(void)
 
 zone_return_t zone_parse(zone_parser_t *parser, void *user_data)
 {
-  const implementation_t *implementation = select_implementation();
+  const implementation_t *implementation;
+
+  // FIXME: do setjmp here so longjmp can be used?
+
+  implementation = select_implementation();
   assert(implementation);
   return implementation->parse(parser, user_data);
-}
-
-int main(int argc, char *argv[])
-{
-  zone_parser_t parser;
-  zone_options_t options = { 0 };
-
-  if (argc != 2)
-    return 1;
-  if (zone_open(&parser, &options, argv[1]) < 0)
-    return 1;
-
-  zone_parse(&parser, NULL);
-
-  zone_close(&parser);
-  return 0;
 }

@@ -6,6 +6,8 @@
  * See LICENSE for the license.
  *
  */
+#define _XOPEN_SOURCE
+#include <time.h>
 #include "haswell/simd.h"
 #include "haswell/bits.h"
 #include "parser.h"

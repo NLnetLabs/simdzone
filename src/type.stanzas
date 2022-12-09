@@ -1,0 +1,24 @@
+A:1 Host address [RFC1035]
+  A:address IPv4 address
+
+NS:2:A an authoritative name server [RFC1035]
+  N[C]:host Host name
+
+CNAME:5:A the canonical name for an alias [RFC1035]
+  N[C]:host Host name
+
+SOA:6:A marks the start of a zone of authority [RFC1035]
+  N[C]:primary Primary server name
+  N[A]:mailbox Responsible mailbox
+  I4:serial Serial number
+  T[L]:refresh Refresh time (seconds)
+  T[L]:retry Retry time (seconds)
+  T[L]:expire Expire time (seconds)
+  T[L]:minimum Minium time (seconds)
+
+MX:15:A mail exchange [RFC1035]
+  I2:priority Priority (lower values are higher priority)
+  N[C]:hostname Host name
+
+AAAA:28:I IP6 Address [RFC3596]
+  AAAA:address Address

@@ -1,6 +1,8 @@
 simdzone : Parsing zone files really fast
 =========================================
 
+Fast and standards compliant DNS zone file parser library.
+
 Zone files can become quite large and for some operators the parser included
 with NSD leaves something to be desired. Replacing the Flex and Bison based
 parser with a hand written one, should speedup loading of zone files

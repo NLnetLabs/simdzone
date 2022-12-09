@@ -16,21 +16,7 @@
 
 #include "zone.h"
 
-#define zone_error(parser, ...) fprintf(stderr, __VA_ARGS__)
-
-#define MAYBE_ERROR(parser, code, ...)    \
-  do {                                    \
-    if (parser->state.scanner & ZONE_RR)  \
-      return ZONE_BLADIEBLA;              \
-    zone_error(parser, __VA_ARGS__);      \
-    return code;                          \
-  } while (0)
-
-#define MAYBE_SYNTAX_ERROR(parser, ...)   \
-  MAYBE_ERROR(parser, ZONE_SYNTAX_ERROR, __VA_ARGS__)
-
-#define MAYBE_SEMANTIC_ERROR(parser, ...) \
-  MAYBE_ERROR(parser, ZONE_SEMANTIC_ERROR, __VA_ARGS__)
+#define zone_error(parser, ...) fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n")
 
 #define ERROR(parser, code, ...) \
   do { zone_error(parser, __VA_ARGS__); return code; } while (0)
@@ -97,20 +83,6 @@ extern void *zone_realloc(zone_options_t *opts, void *ptr, size_t size);
 extern void zone_free(zone_options_t *opts, void *ptr);
 extern char *zone_strdup(zone_options_t *opts, const char *str);
 
-static const table_t space_table = TABLE(
-  0x20, 0x00, 0x00, 0x00, // " " = 0x20
-  0x00, 0x00, 0x00, 0x00,
-  0x00, 0x09, 0x00, 0x00, // "\t" = 0x09
-  0x00, 0x0d, 0x00, 0x00  // "\r" = 0x0d
-);
-
-static const table_t special_table = TABLE(
-  0xff, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00,
-  0x28, 0x29, 0x0a, 0x00, // "(" = 0x28, ")" = 0x29, "\n" = 0x0a
-  0x00, 0x00, 0x00, 0x00
-);
-
 static inline uint64_t find_escaped(
   uint64_t backslash, uint64_t *is_escaped)
 {
@@ -130,6 +102,37 @@ static inline uint64_t find_escaped(
   return (even_bits ^ invert_mask) & follows_escape;
 }
 
+// special characters in zone files cannot be identified without branching
+// (unlike json) due to comments (*). no algorithm was found (so far) that
+// can correctly identify quoted and comment regions where a quoted region
+// includes a semicolon (or newline for that matter) and/or a comment region
+// includes one (or more) quote characters. also, for comments, only newlines
+// directly following a non-escaped, non-quoted semicolon must be included
+//
+// * while lookup tables can be used to identify sequences, doing so seems
+//   more expensive going by the results of some preliminary experiments.
+//   two dfa-based approaches are possible:
+//   1. classify quote, comment, newline and non-special characters
+//      (requires 2 bits to differentiate characters) after discarding any
+//      escaped quotes and semicolons and pack them using pext. lookup the
+//      dense representation with some state and expand the result using
+//      pdep.
+//
+//      this approach requires interleaving three different masks after
+//      discarding escaped bits or converting the escaped mask back into a
+//      simd vector and then extract the required information. either
+//      mechanism requires quite a few instructions to to come up with a
+//      working key and work the result back into a mask. if more than two
+//      lookups worth of keys exist in the input, the scanner could branch.
+//
+//      (not implement/tested, seemed to expensive right of the bat)
+//
+//   2. classify all structural characters (requires 3 bits to differentiate
+//      between characters) and pack 4 characters together in 12 bits. use a
+//      precompiled state table indexed by key, lookup all keys and extract
+//      the correct values using the state from the last lookup.
+//
+//      (implemented, initial results were not promising enough)
 static inline uint64_t find_delimiters(
   uint64_t quotes,
   uint64_t semicolons,
@@ -142,7 +145,7 @@ static inline uint64_t find_delimiters(
 
   assert(!(quotes & semicolons));
 
-  // carry over state from last block
+  // carry over state from previous block
   end = (newlines & *in_comment) | (quotes & *in_quoted);
   end &= -end;
 
@@ -177,6 +180,20 @@ static inline uint64_t follows(const uint64_t match, uint64_t *overflow)
   *overflow = match >> 63;
   return result;
 }
+
+static const table_t space_table = TABLE(
+  0x20, 0x00, 0x00, 0x00, // " " = 0x20
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x09, 0x00, 0x00, // "\t" = 0x09
+  0x00, 0x0d, 0x00, 0x00  // "\r" = 0x0d
+);
+
+static const table_t special_table = TABLE(
+  0xff, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x28, 0x29, 0x0a, 0x00, // "(" = 0x28, ")" = 0x29, "\n" = 0x0a
+  0x00, 0x00, 0x00, 0x00
+);
 
 static inline uint64_t scan(zone_parser_t *parser, const uint8_t *ptr)
 {
@@ -320,7 +337,7 @@ static inline zone_return_t step(zone_parser_t *parser, size_t *start)
     if (size - length < 64)
       goto terminate;
     const uint64_t bits = scan(
-      parser, &file->buffer.data[file->buffer.index]);
+      parser, (uint8_t *)&file->buffer.data[file->buffer.index]);
     dump(parser, bits);
     file->buffer.index += 64;
     length += (file->indexer.tail - file->indexer.tape) / sizeof(size_t);
@@ -368,7 +385,7 @@ do_jump:
 
 do_quote:
   *token = (zone_token_t){
-    { &parser->file->buffer.data[start], end - start }, parser->file->line };
+    parser->file->line, { .string = { end - start, &parser->file->buffer.data[start] } } };
   return 'q'; // (q)uoted
 
 do_null:
@@ -402,7 +419,7 @@ do_blank:
   parser->file->indexer.head++;
 do_special:
   *token = (zone_token_t){
-    { &parser->file->buffer.data[start], end - start }, parser->file->line };
+    parser->file->line, { .string = { end - start, &parser->file->buffer.data[start] } } };
   return 'c'; // (c)ontiguous
 
 do_null:
@@ -434,26 +451,35 @@ do_jump:
   }
 
 do_open_bracket:
-  if (parser->state.scanner & GROUPED)
+  if (parser->state & GROUPED)
     SYNTAX_ERROR(parser, "Nested opening brace");
-  parser->state.scanner |= GROUPED;
+  parser->state |= GROUPED;
   goto do_jump;
 
 do_close_bracket:
-  if (!(parser->state.scanner & GROUPED))
+  if (!(parser->state & GROUPED))
     SYNTAX_ERROR(parser, "Closing brace without opening brace");
-  parser->state.scanner &= ~GROUPED;
+  parser->state &= ~GROUPED;
   goto do_jump;
 
 do_blank:
   abort();
 
 do_newline:
-  if (parser->state.scanner & GROUPED)
-    goto do_jump;
-  *token = (zone_token_t){
-    { &parser->file->buffer.data[start], 1 }, parser->file->line };
   parser->file->line++;
+  if (parser->state & GROUPED)
+    goto do_jump;
+  switch (parser->file->buffer.data[start+1]) {
+    case ' ':
+    case '\t':
+    case '\n':
+      parser->file->start_of_line = false;
+      break;
+    default:
+      parser->file->start_of_line = true;
+      break;
+  }
+  *token = (zone_token_t){parser->file->line - 1, { .string = { 1, "\n" } } };
   return '\n';
 
 do_quote:
@@ -469,5 +495,48 @@ do_null:
     return result;
   goto do_jump;
 }
+
+#if 0
+static inline zone_return_t lex_svc_param(
+  zone_parser_t *parser, zone_token_t *token)
+{
+  size_t clear = 0, start;
+  zone_return_t result;
+
+do_jump:
+  start = *parser->file->indexer.head++;
+  switch (parser->file->buffer.data[start]) {
+    case '(':
+      if (parser->state.scanner & GROUPED)
+        SYNTAX_ERROR(parser, "Nested opening braces");
+      parser->state.scanner |= GROUPED;
+      goto do_jump;
+    case ')':
+      if (!(parser->state.scanner & GROUPED))
+        SYNTAX_ERROR(parser, "Closing brace without opening brace");
+      parser->state.scanner &= ~GROUPED;
+      goto do_jump;
+    case ' ':
+    case '\t':
+    case '\r':
+      goto do_jump;
+    case '\n':
+      parser->file->line++;
+      if (parser->state.scanner & GROUPED)
+        goto do_jump;
+      *token = (zone_token_t){ parser->file->line - 1, { .string = { 1, "\n" } } };
+      return '\n';
+    case '\0':
+      if ((result = step(parser, &clear)) > 0)
+        goto do_jump;
+      *token = (zone_token_t){ parser->file->line, { .string = { 1, "\0" } } };
+      return '\0';
+    case '\"':
+      return lex_quoted_svc_param(parser, token, &start);
+    default:
+      return lex_contiguous_svc_param(parser, token, &start);
+  }
+}
+#endif
 
 #endif // SCANNER_H
