@@ -12,11 +12,11 @@ simdzone, whose name is a play on simdjson, is a simple research project to
 determine if a similar performance boost can be achieved for parsing zone
 files.
 
-Currently, only tokenization is implemented and AVX2 is required.
+For now, SSE4.2 or AVX2 is required.
 
-The project uses quite some code from the simdjson project. That code remains
-licensed under the Apache-2.0 license. Credits and copyright reside with the
-original authors.
+The project uses some code from the simdjson project. That code remains
+licensed under the Apache-2.0 license (for now). Credits and copyright reside
+with the original authors.
 
 ## Early results
 Running `simdzone` on my system (Intel Core i7-1065G7) against an older
@@ -24,22 +24,12 @@ Running `simdzone` on my system (Intel Core i7-1065G7) against an older
 
 GCC 12.2.1, release mode:
 ```
-time ./simdzone ../../com.zone
-saw 1404916636 tokens
+$ time ./parser ../../zones/com.zone
+parsed 341535548 records
 
-real    0m8.661s
-user    0m7.432s
-sys     0m1.216s
-```
-
-Clang 14.0.5, release mode:
-```
-time ./simdzone ../../com.zone
-saw 1404916636 tokens
-
-real    0m8.449s
-user    0m7.321s
-sys     0m1.118s
+real    0m30.371s
+user    0m29.036s
+sys     0m1.180s
 ```
 
 There are bound to be bugs and quite possibly smarter ways of implementing
