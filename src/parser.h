@@ -67,7 +67,7 @@ static inline uint64_t is_unit(char c)
 
 #define MAYBE_ERROR(parser, code, ...) \
   do { \
-    if (parser->state & ZONE_RR) \
+    if (parser->state.scanner & ZONE_RR) \
       return 1; \
     zone_error(parser, __VA_ARGS__); \
     return code; \
@@ -173,7 +173,7 @@ static inline zone_return_t scan_name(
             descriptor->name);
         // fall through
       case '\0':
-        if (octet - label >= 63)
+        if ((octet - 1) - label > 63)
           SYNTAX_ERROR(parser, "Invalid name in %s, label exceeds maximum",
             descriptor->name);
         octets[label] = (octet - label) - 1;
@@ -211,7 +211,7 @@ unknown_type:
     goto bad_type;
 
   uint64_t v = 0;
-  for (size_t i=0; i < token->string.length; i++) {
+  for (size_t i=4; i < token->string.length; i++) {
     const uint64_t n = token->string.data[i] - '0';
     if (n > 9)
       goto bad_type;
@@ -521,6 +521,21 @@ static inline zone_return_t parse_string(
   return 0;
 }
 
+static inline zone_return_t parse_type(
+  zone_parser_t *parser,
+  const zone_field_info_t *descriptor,
+  zone_token_t *token)
+{
+  uint16_t code;
+  zone_return_t result;
+
+  if ((result = scan_type(parser, descriptor, token, &code)) < 0)
+    return result;
+  *((uint16_t *)&parser->rdata[parser->rdlength]) = htons((uint16_t)code);
+  parser->rdlength += sizeof(uint16_t);
+  return 0;
+}
+
 static inline zone_return_t accept_rr(
   zone_parser_t *parser, void *user_data)
 {
@@ -536,6 +551,10 @@ static inline zone_return_t accept_rr(
     user_data);
 }
 
+#include "base16.h"
+#include "base32.h"
+#include "base64.h"
+#include "nsec.h"
 #include "grammar.h"
 
 static inline zone_return_t parse_owner(
@@ -612,7 +631,7 @@ static inline zone_return_t parse_rr(
       return result;
   }
 
-  parser->state = ZONE_RR | (parser->state & GROUPED);
+  parser->state.scanner = ZONE_RR | (parser->state.scanner & GROUPED);
 
   int first = 0, last = 2;
   static const maybe_t maybe[3] =
@@ -629,7 +648,7 @@ static inline zone_return_t parse_rr(
         return item;
     }
 
-    parser->state &= ~item;
+    parser->state.scanner &= ~item;
 
     if (item == ZONE_TYPE)
       break;
@@ -639,16 +658,17 @@ static inline zone_return_t parse_rr(
       last = 1;
     else
       SEMANTIC_ERROR(parser, "Invalid item, expected %s",
-        expect[parser->state & (ZONE_TTL|ZONE_CLASS)]);
+        expect[parser->state.scanner & (ZONE_TTL|ZONE_CLASS)]);
 
     if ((result = lex(parser, token)) < 0)
       return result;
   } while (1);
 
-  parser->state = ZONE_RDATA | (parser->state & GROUPED);
+  parser->state.scanner = ZONE_RDATA | (parser->state.scanner & GROUPED);
 
   const struct type_descriptor *descriptor = &descriptors[*parser->items[TYPE].data.int16];
 
+  parser->rdlength = 0;
   return descriptor->parse(parser, descriptor, user_data);
 
 }

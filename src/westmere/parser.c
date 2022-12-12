@@ -8,6 +8,7 @@
  */
 #define _XOPEN_SOURCE
 #include <time.h>
+#undef _XOPEN_SOURCE
 #include "westmere/simd.h"
 #include "westmere/bits.h"
 #include "parser.h"

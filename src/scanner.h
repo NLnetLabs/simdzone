@@ -351,7 +351,7 @@ static inline zone_return_t step(zone_parser_t *parser, size_t *start)
 
   uint8_t buffer[64] = { 0 };
   memcpy(buffer, &file->buffer.data[file->buffer.index], count);
-  uint64_t bits = scan(parser, buffer) & ((1 << count) - 1);
+  uint64_t bits = scan(parser, buffer) & ((1llu << count) - 1);
   dump(parser, bits);
   file->buffer.index += count;
 
@@ -451,15 +451,15 @@ do_jump:
   }
 
 do_open_bracket:
-  if (parser->state & GROUPED)
+  if (parser->state.scanner & GROUPED)
     SYNTAX_ERROR(parser, "Nested opening brace");
-  parser->state |= GROUPED;
+  parser->state.scanner |= GROUPED;
   goto do_jump;
 
 do_close_bracket:
-  if (!(parser->state & GROUPED))
+  if (!(parser->state.scanner & GROUPED))
     SYNTAX_ERROR(parser, "Closing brace without opening brace");
-  parser->state &= ~GROUPED;
+  parser->state.scanner &= ~GROUPED;
   goto do_jump;
 
 do_blank:
@@ -467,13 +467,13 @@ do_blank:
 
 do_newline:
   parser->file->line++;
-  if (parser->state & GROUPED)
+  if (parser->state.scanner & GROUPED)
     goto do_jump;
   switch (parser->file->buffer.data[start+1]) {
     case ' ':
     case '\t':
     case '\n':
-      parser->file->start_of_line = false;
+        parser->file->start_of_line = false;
       break;
     default:
       parser->file->start_of_line = true;

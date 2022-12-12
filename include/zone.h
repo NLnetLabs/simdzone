@@ -265,7 +265,16 @@ typedef struct zone_parser zone_parser_t;
 struct zone_parser {
   zone_options_t options;
   zone_file_t first, *file;
-  zone_code_t state;
+  struct {
+    zone_code_t scanner;
+    uint32_t base16;
+    uint32_t base32;
+    uint32_t base64;
+    struct {
+      uint16_t highest_bit;
+      uint8_t bitmap[256][2 + 256 / 8];
+    } nsec;
+  } state;
   zone_field_t items[5]; // { owner, type, class, ttl, rdata }
   zone_field_t *rdata_items;
   size_t rdlength;
@@ -323,7 +332,7 @@ inline zone_field_t *
 zone_foreach(zone_parser_t *parser, zone_field_t *field)
 {
   assert(parser);
-  assert(parser->state & ZONE_RDATA);
+  assert(parser->state.scanner & ZONE_RDATA);
   assert(parser->rdata_items);
 
   if (!field)

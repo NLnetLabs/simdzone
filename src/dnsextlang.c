@@ -142,7 +142,7 @@ static const qualifier_t Z_quals[] = {
 };
 
 static const qualifier_t R_quals[] = {
-  { "L",    { "ZONE_NSEC", "0", "lex", "parse_nsec", "0", "accept_nsec" } },
+  { "L",    { "ZONE_NSEC", "0", "lex", "parse_nsec_field", "0", "accept_nsec_field" } },
   { 0, { 0, 0, 0, 0, 0, 0 } }
 };
 
@@ -156,8 +156,8 @@ static const field_type_t field_types[] = {
   { "N",    N_quals, { "ZONE_NAME",   nop,           "lex", "parse_name",   nop, nop } },
   { "S",    S_quals, { "ZONE_STRING", nop,           "lex", "parse_string", nop, nop } },
   { "B32",  0,       { "ZONE_BLOB",   "ZONE_BASE32", "lex", "parse_base32", nop, nop } },
-  { "B64",  0,       { "ZONE_BLOB",   "ZONE_BASE64", "lex", "parse_base64", nop, nop } },
-  { "X",    X_quals, { "ZONE_BLOB",   "ZONE_BASE16", "lex", "parse_base16", nop, nop } },
+  { "B64",  0,       { "ZONE_BLOB",   "ZONE_BASE64", "lex", "parse_base64", nop, "accept_base64" } },
+  { "X",    X_quals, { "ZONE_BLOB",   "ZONE_BASE16", "lex", "parse_base16", nop, "accept_base16" } },
   { "T",    T_quals, { "ZONE_INT32",  "ZONE_TIME",   "lex", "parse_time",   nop, nop } },
   { "Z",    Z_quals, { nop,           nop,           "lex", nop,            nop, nop } },
   { "R",    R_quals, { "ZONE_INT16",  "ZONE_TYPE",   "lex", "parse_type",   nop, nop } }
@@ -536,6 +536,9 @@ static const descriptor_t *field_descriptor(const field_t *field)
 
 static bool is_complex_field(const field_t *field)
 {
+  const descriptor_t *descriptor = field_descriptor(field);
+  if (descriptor->accept != nop)
+    return true;
   for (size_t i=0; i < field->qualifiers.size; i++)
     if (field->qualifiers.data[i]->descriptor.accept != nop)
       return true;
@@ -624,7 +627,10 @@ static int print_sequence_field(
   fprintf(output, PARSEFMT("    "), descriptor->parse, number);
   fputs("  } while (1);\n", output);
 
-  fprintf(output, FINISHFMT("  "), descriptor->accept);
+  if (descriptor->accept != nop)
+    fprintf(output, FINISHFMT("  "), descriptor->accept);
+  else
+    fprintf(output, "finish:\n");
 
   return 0;
 }

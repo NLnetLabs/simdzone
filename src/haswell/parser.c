@@ -8,6 +8,7 @@
  */
 #define _XOPEN_SOURCE
 #include <time.h>
+#undef _XOPEN_SOURCE
 #include "haswell/simd.h"
 #include "haswell/bits.h"
 #include "parser.h"

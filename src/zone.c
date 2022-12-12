@@ -218,7 +218,10 @@ zone_return_t zone_open(
   par->file = file;
   if (set_defaults(par, &opts) < 0)
     return ZONE_BAD_PARAMETER;
-  par->state = 0;
+  par->state.scanner = 0;
+  par->state.base16 = 0;
+  par->state.base32 = 0;
+  par->state.base64 = 0;
   // FIXME: magic numbers, bad
   par->items[1].data.int16 = &par->file->last_type;
   par->items[2].data.int16 = &par->file->last_class;
