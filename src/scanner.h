@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
- * See LICENSE for the license.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 #ifndef SCANNER_H
@@ -16,10 +16,13 @@
 
 #include "zone.h"
 
-#define zone_error(parser, ...) fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n")
-
 #define ERROR(parser, code, ...) \
-  do { zone_error(parser, __VA_ARGS__); return code; } while (0)
+  do { \
+    (void)parser; \
+    fprintf(stderr, __VA_ARGS__); \
+    fprintf(stderr, "\n"); \
+    return code; \
+  } while (0)
 
 #define SYNTAX_ERROR(parser, ...) \
   ERROR(parser, ZONE_SYNTAX_ERROR, __VA_ARGS__)
@@ -34,13 +37,12 @@
   return ZONE_OUT_OF_MEMORY
 
 // scanner states
-#define ZONE_INITIAL (0)
-// ZONE_TTL
-// ZONE_CLASS 
-// ZONE_TYPE
-#define ZONE_RR (ZONE_TTL|ZONE_CLASS|ZONE_TYPE)
-// ZONE_OWNER
-// ZONE_RDATA
+#define INITIAL (0)
+
+#define DELIMITER (0u)
+#define CONTIGUOUS (1u<<0)
+#define QUOTED (1u<<1)
+#define ESCAPED (1u<<2)
 
 // secondary scanner states
 #define GROUPED (1<<24)
@@ -108,31 +110,6 @@ static inline uint64_t find_escaped(
 // includes a semicolon (or newline for that matter) and/or a comment region
 // includes one (or more) quote characters. also, for comments, only newlines
 // directly following a non-escaped, non-quoted semicolon must be included
-//
-// * while lookup tables can be used to identify sequences, doing so seems
-//   more expensive going by the results of some preliminary experiments.
-//   two dfa-based approaches are possible:
-//   1. classify quote, comment, newline and non-special characters
-//      (requires 2 bits to differentiate characters) after discarding any
-//      escaped quotes and semicolons and pack them using pext. lookup the
-//      dense representation with some state and expand the result using
-//      pdep.
-//
-//      this approach requires interleaving three different masks after
-//      discarding escaped bits or converting the escaped mask back into a
-//      simd vector and then extract the required information. either
-//      mechanism requires quite a few instructions to to come up with a
-//      working key and work the result back into a mask. if more than two
-//      lookups worth of keys exist in the input, the scanner could branch.
-//
-//      (not implement/tested, seemed to expensive right of the bat)
-//
-//   2. classify all structural characters (requires 3 bits to differentiate
-//      between characters) and pack 4 characters together in 12 bits. use a
-//      precompiled state table indexed by key, lookup all keys and extract
-//      the correct values using the state from the last lookup.
-//
-//      (implemented, initial results were not promising enough)
 static inline void find_delimiters(
   uint64_t quotes,
   uint64_t semicolons,
@@ -195,21 +172,21 @@ static const table_t special_table = TABLE(
 
 static inline uint64_t scan(zone_parser_t *parser, const uint8_t *ptr)
 {
-  input_t input;
+  vector8x64_t input;
 
-  load(&input, ptr);
+  load_8x64(&input, ptr);
 
   // escaped newlines are classified as contiguous. however, escape sequences
   // have no meaning in comments and newlines, escaped or not, have no
   // special meaning in quoted
-  const uint64_t newline = find(&input, '\n');
-  const uint64_t backslash = find(&input, '\\');
+  const uint64_t newline = find_8x64(&input, '\n');
+  const uint64_t backslash = find_8x64(&input, '\\');
   const uint64_t escaped = find_escaped(
     backslash, &parser->file->indexer.is_escaped);
 
   uint64_t comment = 0;
-  uint64_t quoted = find(&input, '"') & ~escaped;
-  const uint64_t semicolon = find(&input, ';') & ~escaped;
+  uint64_t quoted = find_8x64(&input, '"') & ~escaped;
+  const uint64_t semicolon = find_8x64(&input, ';') & ~escaped;
 
   uint64_t in_quoted = parser->file->indexer.in_quoted;
   uint64_t in_comment = parser->file->indexer.in_comment;
@@ -228,9 +205,9 @@ static inline uint64_t scan(zone_parser_t *parser, const uint8_t *ptr)
   }
 
   const uint64_t space =
-    find_any(&input, space_table) & ~(escaped | in_quoted | in_comment);
+    find_any_8x64(&input, space_table) & ~(escaped | in_quoted | in_comment);
   const uint64_t special =
-    find_any(&input, special_table) & ~(escaped | in_quoted | in_comment);
+    find_any_8x64(&input, special_table) & ~(escaped | in_quoted | in_comment);
 
   const uint64_t contiguous =
     ~(space | special | quoted) & ~(in_quoted | in_comment);
@@ -273,7 +250,6 @@ static inline zone_return_t refill(zone_parser_t *parser)
   return 0;
 }
 
-#define unlikely(x) __builtin_expect(!!(x), 0)
 static inline void dump(zone_parser_t *parser, uint64_t bits)
 {
   int count = count_ones(bits);
@@ -284,14 +260,14 @@ static inline void dump(zone_parser_t *parser, uint64_t bits)
     bits = clear_lowest_bit(bits);
   }
 
-  if (unlikely(count > 6)) {
+  if (zone_unlikely(count > 6)) {
     for (int i=6; i < 12; i++) {
       parser->file->indexer.tail[i] =
         parser->file->buffer.index + trailing_zeroes(bits);
       bits = clear_lowest_bit(bits);
     }
 
-    if (unlikely(count > 12)) {
+    if (zone_unlikely(count > 12)) {
       for (int i=12; i < count; i++) {
         parser->file->indexer.tail[i] =
           parser->file->buffer.index + trailing_zeroes(bits);
@@ -303,7 +279,8 @@ static inline void dump(zone_parser_t *parser, uint64_t bits)
   parser->file->indexer.tail += count;
 }
 
-static inline zone_return_t step(zone_parser_t *parser, size_t *start)
+zone_never_inline()
+static zone_return_t step(zone_parser_t *parser, size_t *start)
 {
   parser->file->indexer.head = parser->file->indexer.tape;
   parser->file->indexer.tail = parser->file->indexer.tape;
@@ -368,14 +345,14 @@ static inline bool empty(const zone_parser_t *parser)
   return 1;
 }
 
-#define STRING(length, data) \
-  (zone_token_t){ .string = { length, data } }
-
+zone_always_inline()
 static inline zone_return_t lex_quoted(
   zone_parser_t *parser, zone_token_t *token, size_t start)
 {
   size_t end;
   zone_return_t result;
+
+  token->code = 0;
 
 do_jump:
   end = *parser->file->indexer.head++;
@@ -388,8 +365,10 @@ do_jump:
   }
 
 do_quote:
-  *token = STRING(end - start, &parser->file->buffer.data[start]);
-  return 'q'; // (q)uoted
+  token->code |= QUOTED;
+  token->string.data = &parser->file->buffer.data[start];
+  token->string.length = end - start;
+  return token->code;
 
 do_newline:
   parser->file->line++;
@@ -403,6 +382,7 @@ do_null:
   goto do_jump;
 
 do_escaped:
+  token->code |= ESCAPED;
   end = *parser->file->indexer.head++;
   switch (parser->file->buffer.data[end]) {
     case '\0': goto do_escaped_null;
@@ -421,11 +401,14 @@ do_panic:
   abort();
 }
 
+zone_always_inline()
 static inline zone_return_t lex_contiguous(
   zone_parser_t *parser, zone_token_t *token, size_t start)
 {
   size_t end;
   zone_return_t result;
+
+  token->code = 0;
 
 do_jump:
   end = *parser->file->indexer.head;
@@ -441,8 +424,10 @@ do_jump:
 do_blank:
   parser->file->indexer.head++;
 do_special:
-  *token = STRING(end - start, &parser->file->buffer.data[start]);
-  return 'c'; // (c)ontiguous
+  token->code |= CONTIGUOUS;
+  token->string.data = &parser->file->buffer.data[start];
+  token->string.length = end - start;
+  return token->code;
 
 do_null:
   if (empty(parser))
@@ -452,6 +437,7 @@ do_null:
   goto do_jump;
 
 do_escaped:
+  token->code = ESCAPED;
   parser->file->indexer.head++;
   end = *parser->file->indexer.head;
   switch (parser->file->buffer.data[end]) {
@@ -473,11 +459,14 @@ do_escaped_null:
   goto do_escaped;
 }
 
+zone_always_inline()
 static inline zone_return_t lex_escaped(
   zone_parser_t *parser, zone_token_t *token, size_t start)
 {
   size_t end;
   zone_return_t result;
+
+  token->code = ESCAPED;
 
 do_jump:
   end = *parser->file->indexer.head++;
@@ -500,8 +489,8 @@ do_null:
   goto do_jump;
 }
 
-static inline zone_return_t lex(
-  zone_parser_t *parser, zone_token_t *token)
+zone_always_inline()
+static inline zone_return_t lex(zone_parser_t *parser, zone_token_t *token)
 {
   size_t dummy = 0, start;
   zone_return_t result;
@@ -550,8 +539,8 @@ do_newline:
       parser->file->start_of_line = true;
       break;
   }
-  *token = STRING(1, "\n");
-  return '\n';
+  *token = (zone_token_t){ 0, { 1, &parser->file->buffer.data[start] } };
+  return DELIMITER;
 
 do_quoted:
   return lex_quoted(parser, token, start+1);
@@ -563,8 +552,9 @@ do_escaped:
   return lex_escaped(parser, token, start);
 
 do_null:
+  *token = (zone_token_t){ 0, { 1, &parser->file->buffer.data[start] } };
   if (empty(parser))
-    return '\0';
+    return DELIMITER;
   if ((result = step(parser, &dummy)) < 0)
     return result;
   goto do_jump;

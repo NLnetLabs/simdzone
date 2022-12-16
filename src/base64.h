@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
- * See LICENSE for the license.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 #ifndef ZONE_BASE64_H
@@ -51,14 +51,14 @@ static const uint8_t b64rmap_end = 0xfd;
 static const uint8_t b64rmap_space = 0xfe;
 
 static inline zone_return_t parse_base64(
-  zone_parser_t *parser,
-  const zone_field_info_t *descriptor,
-  zone_token_t *token)
+  zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
 {
   size_t i = 0;
 
+  (void)info;
+
   for (; i < token->string.length; i++) {
-    const uint_fast8_t ofs = b64rmap[token->string.data[i]];
+    const uint8_t ofs = b64rmap[(uint8_t)token->string.data[i]];
 
     if (ofs >= b64rmap_special) {
       // ignore whitespaces
@@ -108,7 +108,7 @@ static inline zone_return_t parse_base64(
         // fall through
       case 4:
         for (++i; i < token->string.length; i++) {
-          const uint_fast8_t ofs = b64rmap[token->string.data[i]];
+          const uint8_t ofs = b64rmap[(uint8_t)token->string.data[i]];
           if (ofs == b64rmap_space)
             continue;
           if (ofs == b64rmap_end)
@@ -125,7 +125,7 @@ static inline zone_return_t parse_base64(
         // fall through
       case 5:
         for (++i; i < token->string.length; i++) {
-          const uint_fast8_t ofs = b64rmap[token->string.data[i]];
+          const uint8_t ofs = b64rmap[(uint8_t)token->string.data[i]];
           if (ofs == b64rmap_space)
             continue;
           goto bad_char;
@@ -145,7 +145,7 @@ static inline zone_return_t accept_base64(
 {
   (void)user_data;
   if (parser->state.base64 != 0 && parser->state.base64 != 5)
-    SEMANTIC_ERROR(par, "Invalid base64 sequence");
+    SEMANTIC_ERROR(parser, "Invalid base64 sequence");
   parser->state.base64 = 0;
   return 0;// parser->options.accept.rdata(parser, field, user_data);
 }

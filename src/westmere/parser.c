@@ -15,6 +15,5 @@
 
 zone_return_t zone_parse_westmere(zone_parser_t *parser, void *user_data)
 {
-  //printf("using %s\n", __func__);
   return parse(parser, user_data);
 }

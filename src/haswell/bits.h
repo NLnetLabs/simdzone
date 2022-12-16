@@ -17,7 +17,7 @@ static inline bool add_overflow(uint64_t value1, uint64_t value2, uint64_t *resu
 }
 
 static inline uint64_t count_ones(uint64_t bits) {
-  return _popcnt64(bits);
+  return _mm_popcnt_u64(bits);
 }
 
 static inline uint64_t trailing_zeroes(uint64_t bits) {

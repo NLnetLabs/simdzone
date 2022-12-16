@@ -1,15 +1,17 @@
 /*
- * lookup.h -- some useful comment
+ * table.h -- some useful comment
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
- * See LICENSE for the license.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  */
-#ifndef ZONE_LOOKUP_H
-#define ZONE_LOOKUP_H
+#ifndef TABLE_H
+#define TABLE_H
 
 #include "zone.h"
+
+//zone_hash_tables
 
 static inline int zone_mapcmp(const void *key, const void *member)
 {
@@ -32,4 +34,4 @@ static inline zone_symbol_t *zone_lookup(
     &key, table->symbols, table->length, sizeof(table->symbols[0]), zone_mapcmp);
 }
 
-#endif // ZONE_LOOKUP_H
+#endif // TABLE_H

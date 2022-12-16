@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
- * See LICENSE for the license.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 #ifndef ZONE_BASE32_H
@@ -55,8 +55,10 @@ static inline zone_return_t parse_base32(
 {
   size_t i = 0;
 
+  (void)info;
+
   for (; i < token->string.length; i++) {
-    const uint_fast8_t ofs = b32rmap[token->string.data[i]];
+    const uint8_t ofs = b32rmap[(uint8_t)token->string.data[i]];
 
     if (ofs >= b32rmap_special) {
       // ignore whitespace
@@ -111,9 +113,9 @@ static inline zone_return_t parse_base32(
   if (i < token->string.length) {
     assert(token->string.data[i] == '=');
     for (; i < token->string.length ; i++) {
-      if (b32rmap[token->string.data[i]] == b32rmap_space)
+      if (b32rmap[(uint8_t)token->string.data[i]] == b32rmap_space)
         continue;
-      if (b32rmap[token->string.data[i]] != '=')
+      if (b32rmap[(uint8_t)token->string.data[i]] != '=')
         goto bad_char;
 
       switch (parser->state.base32) {
@@ -152,8 +154,9 @@ bad_char:
 static inline zone_return_t accept_base32(
   zone_parser_t *parser, void *user_data)
 {
+  (void)user_data;
   if (parser->state.base32 != 0 && parser->state.base32 != 8)
-    SEMANTIC_ERROR(par, "Invalid base32 sequence");
+    SEMANTIC_ERROR(parser, "Invalid base32 sequence");
   parser->state.base32 = 0;
   return 0;
 }

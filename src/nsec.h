@@ -3,14 +3,14 @@
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
- * See LICENSE for the license.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 #ifndef NSEC_H
 #define NSEC_H
 
-static zone_return_t parse_nsec_field(
-  zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
+static zone_return_t parse_nsec(
+  zone_parser_t *parser, const zone_field_info_t *info, const zone_token_t *token)
 {
   uint16_t code;
   zone_return_t result;
@@ -35,7 +35,7 @@ static zone_return_t parse_nsec_field(
   return 0;
 }
 
-static zone_return_t accept_nsec_field(
+static zone_return_t accept_nsec(
   zone_parser_t *parser, void *user_data)
 {
   // (mostly copied from NSD)
@@ -44,6 +44,8 @@ static zone_return_t accept_nsec_field(
 
   size_t length = 0;
   uint8_t *window;
+
+  (void)user_data;
 
   // iterate over and compress all (maybe 256) windows
   for (size_t i = 0, n = 1 + parser->state.nsec.highest_bit / 256; i < n; i++) {

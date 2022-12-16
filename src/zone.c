@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
- * See LICENSE for the license.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 #include <assert.h>
@@ -135,11 +135,14 @@ static zone_return_t set_defaults(
     par->options.default_ttl = 3600;
 
   // origin
-  zone_name_t *name = &par->file->origin.name;
-  if (parse_origin(par->options.origin, name->octets, &name->length) == -1)
+  //zone_name_t *name = &par->file->origin.name;
+  if (parse_origin(par->options.origin,
+        par->file->origin.name.octets,
+       &par->file->origin.name.length) < 0)
     return ZONE_BAD_PARAMETER;
   // owner (replicate origin)
-  memcpy(&par->file->owner, &par->file->origin, sizeof(par->file->owner));
+  par->file->owner = par->file->origin;
+  //memcpy(&par->file->owner, &par->file->origin, sizeof(par->file->owner));
   // ttl
   par->file->last_ttl = par->file->default_ttl = opts->default_ttl;
 
@@ -209,6 +212,7 @@ zone_return_t zone_open(
   file->buffer.data = window;
   file->start_of_line = 1;
   file->end_of_file = 0;
+  file->origin.name.octets = &file->names[256];
   file->indexer.head = file->indexer.tape;
   file->indexer.tail = file->indexer.tape;
   file->indexer.tape[0] = 0;

@@ -65,37 +65,7 @@ if(SANITIZER)
   endforeach()
 endif()
 
-
-add_executable(dnsextlang src/dnsextlang.c)
-
-# generate types from dnsextlang stanzas
-add_custom_command(
-  OUTPUT types.c
-  COMMAND dnsextlang
-  ARGS
-    "TYPE-TABLE"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
-    types.c
-  DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
-    dnsextlang)
-
-# generate descriptors from dnsextlang stanzas
-add_custom_command(
-  OUTPUT grammar.h
-  COMMAND dnsextlang
-  ARGS
-    "GRAMMAR"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
-    "grammar.h"
-  DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/type.stanzas"
-    dnsextlang)
-
-add_library(simdzone STATIC
-  src/zone.c
-  "${CMAKE_CURRENT_BINARY_DIR}/types.c"
-  "${CMAKE_CURRENT_BINARY_DIR}/grammar.h")
+add_library(simdzone STATIC src/zone.c src/types.c)
 
 target_include_directories(
   simdzone PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -133,7 +103,6 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
 endif()
 
 configure_file(config.h.in config.h)
-
 
 add_executable(parser src/main.c)
 target_link_libraries(parser PRIVATE simdzone)

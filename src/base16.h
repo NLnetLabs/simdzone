@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
- * See LICENSE for the license.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 #ifndef ZONE_BASE16_H
@@ -53,8 +53,9 @@ static const uint8_t b16rmap_space = 0xfe;
 static inline zone_return_t parse_base16(
   zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
 {
+  (void)info;
   for (size_t i=0; i < token->string.length; i++) {
-    const uint8_t ofs = b16rmap[token->string.data[i]];
+    const uint8_t ofs = b16rmap[(uint8_t)token->string.data[i]];
 
     if (ofs >= b16rmap_special) {
       // ignore whitespace
@@ -63,7 +64,7 @@ static inline zone_return_t parse_base16(
       // end of base16 characters
       if (ofs == b16rmap_end)
         break;
-      SEMANTIC_ERROR(par, "Invalid character in base16 encoding");
+      SEMANTIC_ERROR(parser, "Invalid character in base16 encoding");
     }
 
     if (parser->state.base16 == 0) {
@@ -86,7 +87,7 @@ static inline zone_return_t accept_base16(
 {
   (void)user_data;
   if (parser->state.base16 != 0)
-    SEMANTIC_ERROR(par, "Invalid base16 sequence");
+    SEMANTIC_ERROR(parser, "Invalid base16 sequence");
   parser->state.base16 = 0;
   return 0; //parser->options.accept.rdata(parser, field, user_data);
 }
