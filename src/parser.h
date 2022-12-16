@@ -474,7 +474,6 @@ static inline zone_return_t parse_name(
 {
   // a freestanding "@" denotes the current origin
   if (token->string.length == 1 && token->string.data[0] == '@') {
-    parser->items[RDATA].domain = parser->file->origin.domain;
     memcpy(
      &parser->rdata[parser->rdlength],
       parser->file->origin.name.octets,
@@ -539,7 +538,7 @@ static inline zone_return_t parse_type(
 static inline zone_return_t accept_rr(
   zone_parser_t *parser, void *user_data)
 {
-  return parser->options.accept.rr(
+  return parser->options.accept(
     parser,
    &parser->items[OWNER],
    &parser->items[TTL],
@@ -572,9 +571,7 @@ static inline zone_return_t parse_owner(
 
   // FIXME: definitely not correct
   parser->items[OWNER] = (zone_field_t){
-    .line = token->line,
     .code = ZONE_OWNER|ZONE_NAME,
-    .domain = parser->file->owner.domain,
     .length = parser->file->owner.name.length,
     .data = { .octets = parser->file->owner.name.octets } };
   return 0;
@@ -588,7 +585,6 @@ static zone_return_t maybe_type(zone_parser_t *parser, zone_token_t *token)
 
   if ((result = scan_type(parser, &info, token, &parser->file->last_type)) < 0)
     return result;
-  parser->items[TYPE].line = token->line;
   return ZONE_TYPE * !result;
 }
 
@@ -600,7 +596,6 @@ static zone_return_t maybe_class(zone_parser_t *parser, zone_token_t *token)
 
   if ((result = scan_class(parser, &info, token, &parser->file->last_class)) < 0)
     return result;
-  parser->items[CLASS].line = token->line;
   return ZONE_CLASS * !result;
 }
 
@@ -613,7 +608,6 @@ static zone_return_t maybe_ttl(
 
   if ((result = scan_ttl(parser, &info, token, &parser->file->last_ttl)) < 0)
     return result;
-  parser->items[TTL].line = token->line;
   return ZONE_TTL * !result;
 }
 
@@ -685,12 +679,10 @@ static inline zone_return_t parse_dollar_include(
 }
 
 static inline zone_return_t parse_origin(
-  zone_parser_t *parser,
-  const zone_field_info_t *descriptor,
-  zone_token_t *token)
+  zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
 {
   zone_return_t result = scan_name(
-    parser, descriptor, token,
+    parser, info, token,
     parser->file->origin.name.octets,
    &parser->file->origin.name.length);
   if (result < 0)
@@ -700,7 +692,7 @@ static inline zone_return_t parse_origin(
   const size_t length = parser->file->origin.name.length;
   if (length == 0 || parser->file->origin.name.octets[length - 1] != 0)
     SEMANTIC_ERROR(parser, "Invalid name in %s, not fully qualified",
-      descriptor->name);
+      info->name);
 
   return 0;
 }
@@ -715,28 +707,18 @@ static inline zone_return_t parse_dollar_origin(
 
   zone_return_t result;
 
+  (void)user_data;
+
   if ((result = lex(parser, token)) < 0)
     return result;
   if (result != 'c')
     SYNTAX_ERROR(par, "$ORIGIN directive takes a domain name");
   if ((result = parse_origin(parser, &info, token)) < 0)
     return result;
-
-  zone_field_t field = (zone_field_t){
-    .line = token->line,
-    .code = ZONE_DOLLAR_ORIGIN | ZONE_NAME,
-    .length = parser->file->origin.name.length,
-    .data = { .octets = parser->file->origin.name.octets } };
-
   if ((result = lex(parser, token)) < 0)
     return result;
   if (result != '\n' && result != '\0')
     SYNTAX_ERROR(par, "$ORIGIN directive takes just a single argument");
-
-  if (!parser->options.accept.name)
-    return 0;
-
-  parser->file->origin.domain = parser->options.accept.name(parser, &field, user_data);
 
   return 0;
 }
@@ -806,5 +788,24 @@ static inline zone_return_t parse(zone_parser_t *parser, void *user_data)
 
   return result;
 }
+
+#if 0
+static inline zone_return_t parse(zone_parser_t *parser, void *user_data)
+{
+  zone_token_t token;
+  zone_return_t result;
+
+  (void)user_data;
+
+  while ((result = lex(parser, &token)) > 0) {
+    if (result == '\n')
+      printf("token: <newline>\n");
+    else
+      printf("token: '%.*s'\n", (int)token.string.length, token.string.data);
+  }
+
+  return result;
+}
+#endif
 
 #endif // PARSER_H

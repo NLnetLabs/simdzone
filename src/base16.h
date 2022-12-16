@@ -100,7 +100,6 @@ static inline zone_return_t parse_salt(
   if (token->string.length == 1 && token->string.data[0] == '-') {
     // ignore
   } else {
-    zone_string_t dummy = { token->string.data + 1, token->string.length - 1 };
     if ((result = parse_base16(parser, info, token)) < 0)
       return result;
   }

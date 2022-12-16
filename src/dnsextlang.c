@@ -578,10 +578,8 @@ static bool is_optional_field(const field_t *field)
 
 #define FIELDFMT(indent) \
   indent "fields[%zu] = (zone_field_t){\n" \
-  indent "  .line = token.line,\n" \
   indent "  .code = ZONE_RDATA | %s | %s,\n" \
   indent "  .info = { .rdata = &descriptor->rdata[%zu].info },\n" \
-  indent "  .domain = NULL,\n" \
   indent "  .length = parser->rdlength - rdlength,\n" \
   indent "  .data = { .octets = parser->rdata + rdlength } };\n" \
   indent "rdlength = parser->rdlength;\n"
@@ -687,7 +685,7 @@ static int print_parse(FILE *output, const record_t *record)
   "  size_t rdlength = 0;\n"                              \
   "\n"                                                    \
   "  fields[%zu] = (zone_field_t){\n"                     \
-  "    0, 0, { NULL }, NULL, 0, { .octets = NULL } };\n"  \
+  "    0, { NULL }, 0, { .octets = NULL } };\n"           \
   "  parser->rdata_items = fields;\n"
 
 #define PARSEFTRFMT                                       \

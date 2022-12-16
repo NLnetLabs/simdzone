@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
   zone_parser_t parser = { 0 };
   zone_options_t options = { 0 };
 
-  options.accept.rr = &accept_rr;
+  options.accept = &accept_rr;
 
   if (argc != 2)
     return 1;

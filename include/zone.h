@@ -26,20 +26,10 @@ struct zone_string {
   const char *data;
 };
 
-typedef struct zone_svc_param zone_svc_param_t;
-struct zone_svc_param {
-  zone_string_t key;
-  zone_string_t value;
-};
-
 // @private
 typedef struct zone_token zone_token_t;
 struct zone_token {
-  size_t line;
-  union {
-    zone_string_t string;
-    zone_svc_param_t svc_param;
-  };
+  zone_string_t string;
 };
 
 typedef struct zone_symbol zone_symbol_t;
@@ -145,13 +135,11 @@ struct zone_type_info {
 
 typedef struct zone_field zone_field_t;
 struct zone_field {
-  size_t line;
   zone_code_t code; // OR'ed combination of type and item
   union {
     const zone_type_info_t *type; // type fields
     const zone_field_info_t *rdata; // rdata fields
   } info;
-  const void *domain;
   uint16_t length;
   // rdata is NOT stored in heap memory or allocated using a potentially
   // custom allocator. a scratch buffer specific to the parser is used to
@@ -210,16 +198,6 @@ struct zone_file {
 typedef struct zone_parser zone_parser_t;
 struct zone_parser;
 
-// accept name is invoked whenever a domain name, e.g. OWNER, ORIGIN or
-// CNAME, is encountered. the function must return a persistent reference to
-// the internal representation. the reference is passed as an argument if a
-// function is registered, otherwise the default behaviour is to pass the name
-// in wire format
-typedef const void *(*zone_accept_name_t)(
-  zone_parser_t *,
-  const zone_field_t *, // name
-  void *); // user daa
-
 // invoked for each record (host order). header (owner, type, class and ttl)
 // fields are passed individually for convenience. rdata fields can be visited
 // individually by means of the iterator
@@ -254,10 +232,7 @@ struct zone_options {
     zone_free_t free;
     void *arena;
   } allocator;
-  struct {
-    zone_accept_name_t name;
-    zone_accept_rr_t rr;
-  } accept;
+  zone_accept_rr_t accept;
 };
 
 // FIXME: add option to mmap?!
@@ -265,6 +240,7 @@ typedef struct zone_parser zone_parser_t;
 struct zone_parser {
   zone_options_t options;
   zone_file_t first, *file;
+  size_t line;
   struct {
     zone_code_t scanner;
     uint32_t base16;
