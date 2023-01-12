@@ -74,7 +74,6 @@ struct zone_table {
 // @private
 typedef struct zone_hash_map zone_hash_map_t;
 struct zone_hash_map {
-  uint64_t shift[2];
   uint8_t keys[16];
   const void *objects[16];
 };

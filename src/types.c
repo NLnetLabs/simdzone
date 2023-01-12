@@ -330,219 +330,187 @@ const size_t zone_type_count = sizeof(types)/sizeof(types[0]);
 
 static const zone_hash_map_t type_class_map[32] = {
   // A[A=1,AFSDB=18,AAAA=28,A6=38,APL=42], span
-  { { 40, 40 }, // span
-    { 1,5,4,2, 3,0,0,0, 0,0,0,0,0,0,0,0 },
+  { { 199,210,202,155, 22,0,0,0, 0,0,0,0,0,0,0,0 },
     { &types[ZONE_A], &types[0], &types[ZONE_AAAA], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // B
-  { { 40, 40 },
-    { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // C[CH=2,CS=3,CNAME=5,CERT=37,CDS=59,CDNSKEY=60,CSYNC=62,CAA=257]
-  { { 8, 16 }, // 2nd + 3rd + span
-    { 74,85,148,155, 154,153,167,133, 0,0,0,0, 0,0,0,0 },
+  { { 249,70,231,79, 71,117,217,201, 0,0,0,0, 0,0,0,0 },
     { &classes[ZONE_CH], &classes[ZONE_CS], &types[ZONE_CNAME], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // D[DNAME=39,DS=43,DNSKEY=48,DHCID=49,DLV=32769]
-  { { 8, 16 }, // 2nd + 3rd + span
-    { 148,85,167,144, 165,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 231,70,116,224, 92,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[ZONE_DS], &types[ZONE_DNSKEY], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // E[EUI48=108,EUI64=109]
-  { { 24, 40 } , // 4th + span
-    { 52,54,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 172,144,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // F
-  { { 40, 40 },
-    { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // G[GPOS=27]
-  { { 40, 40 }, // span
-    { 4,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 72,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // H[HS=4,HINFO=13,HIP=55,HTTPS=65]
-  { { 16, 40 }, // 3rd + span
-    { 0,78,80,84, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 70,45,50,73, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &classes[ZONE_HS], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // I[IN=2,ISDN=20,IPSECKEY=45]
-  { { 40, 40 }, // span
-    { 2,4,8,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 35,37,118,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &classes[ZONE_IN], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // J
-  { { 40, 40 },
-    { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // K[KEY=25,KX=36]
-  { { 40, 40 }, // span
-    { 3,2,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 113,105,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // L[LOC=29,L32=105,L64=106,LP=107]
-  { { 8, 40 }, // 2nd + span
-    { 79,51,54,112, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 215,128,142,49, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // M[MD=3,MF=4,MB=7,MG=8,MR=9,MINFO=14,MX=15]
-  { { 8, 40 }, // 2nd + span
-    { 70,72,68,73, 84,78,90,0, 0,0,0,0, 0,0,0,0 },
+  { { 221,235,207,242, 63,45,105,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[ZONE_MX], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // N[NS=2,NSAP=22,NSAP-PTR=23,NXT=30,NAPTR=35,NSEC=47,NSEC3=50,NSEC3PARAM=51,NID=104]
-  { { 8, 24 }, // 2nd + 4th + span
-    { 85,167,171,91, 70,154,155,160, 76,0,0,0, 0,0,0,0 },
+  { { 70,51,69,78, 66,216,137,36, 222,0,0,0, 0,0,0,0 },
     { &types[ZONE_NS], &types[0], &types[0], &types[0],
       &types[0], &types[ZONE_NSEC], &types[ZONE_NSEC3], &types[ZONE_NSEC3PARAM],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // O[OPENPGPKEY=69]
-  { { 40, 40 }, // span
-    { 10,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 120,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // P[PTR=12,PX=26]
-  { { 40, 40 }, // span
-    { 3,2,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 64,105,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // Q
-  { { 40, 40 }, // span
-    { 10,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // R[RP=17,RT=21,RRSIG=46]
-  { { 8, 40 }, // 2nd + span
-    { 82,86,87,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 49,77,245,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[ZONE_RRSIG], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // S[SOA=6,SIG=24,SRV=33,SSHFP=44,SMIMEA=53,SVCB=64,SPF=99]
-  { { 8, 24 }, // 2nd + 4th + span
-    { 82,76,85,158, 160,156,83,0, 0,0,0,0, 0,0,0,0  },
+  { { 201,243,92,52, 204,209,236,0, 0,0,0,0, 0,0,0,0  },
     { &types[ZONE_SOA], &types[0], &types[ZONE_SRV], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // T[TXT=16,TLSA=52]
-  { { 40, 40 }, // span
-    { 3,4,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 78,202,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[ZONE_TXT], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // U[URI=256]
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // V
-  { { 40, 40 }, // span
-    { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // W[WKS=11]
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 71,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // X[X25=19]
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 149,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // Y
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
   // Z
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0] } },
-  { { 40, 40 }, // span
-    { 3,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
+  { { 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 },
     { &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],
       &types[0], &types[0], &types[0], &types[0],

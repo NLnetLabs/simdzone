@@ -42,20 +42,11 @@ extern const zone_hash_map_t *zone_type_class_map;
 // FIXME: scan_type and scan_class_or_type require generic implementations
 
 zone_always_inline()
-static inline size_t min(size_t x, size_t y)
+static inline uint8_t subs(uint8_t x, uint8_t y)
 {
-  return y ^ ((x ^ y) & -(x < y));
-}
-
-zone_always_inline()
-static inline uint64_t load_64(const char *ptr)
-{
-  uint64_t x;
-  memcpy(&x, ptr, sizeof(x));
-#ifdef __BIG_ENDIAN__
-  x = __builtin_bswap32(x);
-#endif
-  return x;
+  uint8_t res = x - y;
+  res &= -(res <= x);
+  return res;
 }
 
 zone_always_inline()
@@ -65,22 +56,17 @@ static inline zone_return_t scan_type_or_class(
   const zone_token_t *token,
   uint16_t *code)
 {
-  static const uint64_t mask[6] = {
-    0u, 0xdfu, 0xdfdfu, 0xdfdfdfu, 0xdfdfdfdfu, 0xdfdfdfdfdfu };
+  const uint8_t n = subs(token->string.length & 0xdf, 0x01);
+  uint8_t k = ((uint8_t)(token->string.data[0] & 0xdf) - 0x41) & 0x1f;
+  uint8_t h = (token->string.data[n] & 0xdf);
+  h *= 0x07;
+  h += n;
 
-  const size_t length = min(token->string.length, 8u);
-  uint64_t prefix = load_64(token->string.data); // assume buffer is padded
-  prefix &= mask[length]; // convert to upper case and zero out padding
-
-  const zone_hash_map_t *map = &zone_type_class_map[((prefix & 0xff) - 'A') & 0x1fu];
-
-  uint8_t key = (uint8_t)token->string.length;
-  key += ((prefix >> map->shift[0]) & 0xff) +
-         ((prefix >> map->shift[1]) & 0xff);
+  const zone_hash_map_t *map = &zone_type_class_map[k];
 
   vector8x16_t keys;
   load_8x16(&keys, map->keys);
-  const uint64_t bits = find_8x16(&keys, key) | (1u << 15);
+  const uint64_t bits = find_8x16(&keys, h) | (1u << 15);
   assert(bits);
   const uint64_t slot = trailing_zeroes(bits);
   assert(slot <= 15);
@@ -108,10 +94,10 @@ static inline zone_return_t scan_type_or_class(
 
   size_t i = 0;
   zone_return_t item;
-  if (prefix >> 32 == 0x69808984 && token->string.length > 4) {
+  if (token->string.length > 4 && strncasecmp(token->string.data, "TYPE", 4) == 0) {
     item = ZONE_TYPE;
     i = 4;
-  } else if (prefix >> 24 == 0x8383647667 && token->string.length > 5) {
+  } else if (token->string.length > 5 && strncasecmp(token->string.data, "CLASS", 5) == 0) {
     item = ZONE_CLASS;
     i = 5;
   } else {
@@ -139,22 +125,17 @@ static inline zone_return_t scan_type(
   const zone_token_t *token,
   uint16_t *code)
 {
-  static const uint64_t mask[6] = {
-    0u, 0xdfu, 0xdfdfu, 0xdfdfdfu, 0xdfdfdfdfu, 0xdfdfdfdfdfu };
+  const uint8_t n = subs(token->string.length & 0xdf, 0x01);
+  uint8_t k = ((uint8_t)(token->string.data[0] & 0xdf) - 0x41) & 0x1f;
+  uint8_t h = (token->string.data[n] & 0xdf);
+  h *= 0x07;
+  h += n;
 
-  const size_t length = min(token->string.length, 5u);
-  uint64_t prefix = load_64(token->string.data); // assume buffer is padded
-  prefix &= mask[length]; // convert to upper case and zero out padding
-
-  const zone_hash_map_t *map = &zone_type_class_map[((prefix & 0xff) - 'A') & 0x1fu];
-
-  uint8_t key = (uint8_t)token->string.length;
-  key += ((prefix >> map->shift[0]) & 0xff) +
-         ((prefix >> map->shift[1]) & 0xff);
+  const zone_hash_map_t *map = &zone_type_class_map[k];
 
   vector8x16_t keys;
   load_8x16(&keys, map->keys);
-  const uint64_t bits = find_8x16(&keys, key) | (1u << 15);
+  const uint64_t bits = find_8x16(&keys, h) | (1u << 15);
   assert(bits);
   const uint64_t slot = trailing_zeroes(bits);
   assert(slot <= 15);
@@ -174,7 +155,7 @@ static inline zone_return_t scan_type(
   }
 
   zone_return_t item;
-  if (prefix >> 32 == 0x69808984 && token->string.length > 4)
+  if (token->string.length > 4 && strncasecmp(token->string.data, "TYPE", 4) == 0)
     item = ZONE_TYPE;
   else
     SEMANTIC_ERROR(parser, "Invalid type in %s", info->name.data);
