@@ -15,12 +15,6 @@
 #include "scanner.h"
 #include "table.h"
 
-#define OWNER (0)
-#define TYPE (1)
-#define CLASS (2)
-#define TTL (3)
-#define RDATA (4)
-
 static inline uint64_t is_unit(char c)
 {
   static const uint32_t s = 1u, m = 60u*s, h = 60u*m, d = 24u*h, w = 7u*d;
@@ -114,6 +108,150 @@ static inline zone_return_t scan_ttl(
       info->name.data);
   *seconds = value;
   return ZONE_TTL;
+}
+
+extern const zone_table_t *zone_identifiers;
+extern const zone_fast_table_t *zone_fast_identifiers;
+
+zone_always_inline()
+static inline uint8_t subs(uint8_t x, uint8_t y)
+{
+  uint8_t res = x - y;
+  res &= -(res <= x);
+  return res;
+}
+
+zone_always_inline()
+static inline zone_return_t scan_type_or_class(
+  zone_parser_t *parser,
+  const zone_field_info_t *info,
+  const zone_token_t *token,
+  uint16_t *code)
+{
+  const uint8_t n = subs(token->string.length & 0xdf, 0x01);
+  uint8_t k = ((uint8_t)(token->string.data[0] & 0xdf) - 0x41) & 0x1f;
+  uint8_t h = (token->string.data[n] & 0xdf);
+  h *= 0x07;
+  h += (uint8_t)token->string.length;
+
+  const zone_fast_table_t *table = &zone_fast_identifiers[k];
+
+  vector8x16_t keys;
+  load_8x16(&keys, table->keys);
+  const uint64_t bits = find_8x16(&keys, h) | (1u << 15);
+  const uint64_t index = trailing_zeroes(bits);
+  const zone_symbol_t *symbol = table->symbols[index];
+
+  if (symbol &&
+      token->string.length == symbol->key.length &&
+      strncasecmp(token->string.data, symbol->key.data, symbol->key.length) == 0)
+  {
+    *code = symbol->value & 0xffffu;
+    return symbol->value >> 16;
+  }
+
+  if (token->string.length > 4 &&
+      strncasecmp(token->string.data, "TYPE", 4) == 0)
+  {
+    uint64_t v = 0;
+    for (size_t i=4; i < token->string.length; i++) {
+      const uint64_t n = (uint8_t)token->string.data[i] - '0';
+      if (n > 9)
+        goto bad_type;
+      v = v * 10 + n;
+      if (v > UINT16_MAX)
+        goto bad_type;
+    }
+
+    *code = (uint16_t)v;
+    return ZONE_TYPE;
+bad_type:
+    SEMANTIC_ERROR(parser, "Invalid type in %s", info->name.data);
+  }
+
+  if (token->string.length > 5 &&
+      strncasecmp(token->string.data, "CLASS", 5) == 0)
+  {
+    uint64_t v = 0;
+    for (size_t i=5; i < token->string.length; i++) {
+      const uint64_t n = (uint8_t)token->string.data[i] - '0';
+      if (n > 9)
+        goto bad_class;
+      v = v * 10 + n;
+      if (v > UINT16_MAX)
+        goto bad_class;
+    }
+
+    *code = (uint16_t)v;
+    return ZONE_CLASS;
+bad_class:
+    SEMANTIC_ERROR(parser, "Invalid class in %s", info->name.data);
+  }
+
+  SEMANTIC_ERROR(parser, "Invalid type or class in %s", info->name.data);
+}
+
+zone_always_inline()
+static inline zone_return_t scan_type(
+  zone_parser_t *parser,
+  const zone_field_info_t *info,
+  const zone_token_t *token,
+  uint16_t *code)
+{
+  const uint8_t n = subs(token->string.length & 0xdf, 0x01);
+  uint8_t k = ((uint8_t)(token->string.data[0] & 0xdf) - 0x41) & 0x1f;
+  uint8_t h = (token->string.data[n] & 0xdf);
+  h *= 0x07;
+  h += (uint8_t)token->string.length;
+
+  const zone_fast_table_t *table = &zone_fast_identifiers[k];
+
+  vector8x16_t keys;
+  load_8x16(&keys, table->keys);
+  const uint64_t bits = find_8x16(&keys, h) | (1u << 15);
+  const uint64_t index = trailing_zeroes(bits);
+  const zone_symbol_t *symbol = table->symbols[index];
+
+  if (symbol &&
+      token->string.length == symbol->key.length &&
+      strncasecmp(token->string.data, symbol->key.data, symbol->key.length) == 0)
+  {
+    *code = symbol->value & 0xffff;
+    return symbol->value >> 16;
+  }
+
+  if (token->string.length > 4 &&
+      strncasecmp(token->string.data, "TYPE", 4) == 0)
+  {
+    uint64_t v = 0;
+    for (size_t i=4; i < token->string.length; i++) {
+      const uint64_t n = (uint8_t)token->string.data[i] - '0';
+      if (n > 9)
+        goto bad_type;
+      v = v * 10 + n;
+      if (v > UINT16_MAX)
+        goto bad_type;
+    }
+
+    *code = (uint16_t)v;
+    return ZONE_TYPE;
+  }
+
+bad_type:
+  SEMANTIC_ERROR(parser, "Invalid type in %s", info->name.data);
+}
+
+static inline zone_return_t parse_type(
+  zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
+{
+  uint16_t code;
+  zone_return_t result;
+
+  if ((result = scan_type(parser, info, token, &code)) < 0)
+    return result;
+  *((uint16_t *)&parser->rdata[parser->rdlength]) = htons((uint16_t)code);
+  parser->rdlength += sizeof(uint16_t);
+  return 0;
 }
 
 static inline zone_return_t scan_name(
@@ -503,29 +641,14 @@ static inline zone_return_t accept_rr(
   parser->rdata_items = fields;
   return parser->options.accept(
     parser,
-   &parser->items[OWNER],
-   &parser->items[TTL],
-   &parser->items[CLASS],
-   &parser->items[TYPE],
+   &parser->items[0],
+   &parser->items[3],
+   &parser->items[2],
+   &parser->items[1],
     parser->rdata_items,
     parser->rdlength,
     parser->rdata,
     user_data);
-}
-
-#include "types.h"
-
-static inline zone_return_t parse_type(
-  zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
-{
-  uint16_t code;
-  zone_return_t result;
-
-  if ((result = scan_type(parser, info, token, &code)) < 0)
-    return result;
-  *((uint16_t *)&parser->rdata[parser->rdlength]) = htons((uint16_t)code);
-  parser->rdlength += sizeof(uint16_t);
-  return 0;
 }
 
 #include "base16.h"
@@ -548,7 +671,7 @@ static zone_return_t parse_escaped_owner(
     return result;
 
   // FIXME: definitely not correct
-  parser->items[OWNER] = (zone_field_t){
+  parser->items[0] = (zone_field_t){
     .code = ZONE_OWNER|ZONE_NAME,
     .length = parser->file->owner.name.length,
     .data = { .octets = parser->file->owner.name.octets } };
@@ -619,8 +742,8 @@ static inline zone_return_t parse_owner(
 
   parser->file->owner.name.octets = octets;
   parser->file->owner.name.length = 1 + token->string.length;
-  parser->items[OWNER].data.octets = octets;
-  parser->items[OWNER].length = 1 + token->string.length;
+  parser->items[0].data.octets = octets;
+  parser->items[0].length = 1 + token->string.length;
 
   if (octets[label] == 0)
     return 0;
@@ -628,42 +751,12 @@ static inline zone_return_t parse_owner(
     goto bad_name;
 
   parser->file->owner.name.length += parser->file->origin.name.length;
-  parser->items[OWNER].length += parser->file->origin.name.length;
+  parser->items[0].length += parser->file->origin.name.length;
   return 0;
 bad_label:
   SEMANTIC_ERROR(parser, "Invalid name in owner");
 bad_name:
   SEMANTIC_ERROR(parser, "Invalid name in owner");
-}
-
-zone_always_inline()
-static inline zone_return_t parse_rdata(
-  zone_parser_t *parser, const zone_type_info_t *info, void *user_data)
-{
-  parser->rdlength = 0;
-
-  switch (info->code) {
-    case ZONE_A:          return parse_a_rdata(parser, info, user_data);
-    case ZONE_NS:         return parse_ns_rdata(parser, info, user_data);
-    case ZONE_CNAME:      return parse_cname_rdata(parser, info, user_data);
-    case ZONE_SOA:        return parse_soa_rdata(parser, info, user_data);
-    case ZONE_MX:         return parse_mx_rdata(parser, info, user_data);
-    case ZONE_TXT:        return parse_txt_rdata(parser, info, user_data);
-    case ZONE_AAAA:       return parse_aaaa_rdata(parser, info, user_data);
-    case ZONE_SRV:        return parse_srv_rdata(parser, info, user_data);
-    case ZONE_DS:         return parse_ds_rdata(parser, info, user_data);
-    case ZONE_RRSIG:      return parse_rrsig_rdata(parser, info, user_data);
-    case ZONE_NSEC:       return parse_nsec_rdata(parser, info, user_data);
-    case ZONE_DNSKEY:     return parse_dnskey_rdata(parser, info, user_data);
-    case ZONE_NSEC3:      return parse_nsec3_rdata(parser, info, user_data);
-    case ZONE_NSEC3PARAM: return parse_nsec3param_rdata(parser, info, user_data);
-    default:
-      break;
-  }
-
-  // verify it's unknown rdata. i.e. started through "\#" or throw
-  // a syntax error!
-  return parse_unknown_rdata(parser, info, user_data);
 }
 
 zone_always_inline()
@@ -754,7 +847,9 @@ type:
   parser->file->last_type = code;
 
 rdata:
-  return parse_rdata(parser, &zone_types[code], user_data);
+  // FIXME: check if record type is directly indexable
+  parser->rdlength = 0;
+  return types[code].parse(parser, &types[code].info, user_data);
 }
 
 // RFC1035 section 5.1
