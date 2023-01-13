@@ -20,16 +20,16 @@ with the original authors.
 
 ## Early results
 Running `simdzone` on my system (Intel Core i7-1065G7) against an older
-`.com` zone file of 12482791271 bytes under Linux (Fedora 36).
+`.com` zone file of 12482791271 bytes under Linux (Fedora 37).
 
 GCC 12.2.1, release mode:
 ```
 $ time ./parser ../../zones/com.zone
 parsed 341535548 records
 
-real    0m30.371s
-user    0m29.036s
-sys     0m1.180s
+real    0m19.652s
+user    0m18.494s
+sys     0m1.123s
 ```
 
 There are bound to be bugs and quite possibly smarter ways of implementing
