@@ -70,7 +70,7 @@ static void print_input(const char *label, const char *str, size_t len)
 static void print_mask(const char *label, uint64_t mask) {
   printf("%-12s: [ ", label);
   for(int i = 0, n = (sizeof(mask)*8)-1; i <= n; i++){
-    char c = (mask &(1LL<<i))? '1' : '0';
+    char c = (mask &(1ull<<i))? '1' : '0';
     putchar(c);
   }
   printf(" ]\n");
