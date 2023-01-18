@@ -416,7 +416,8 @@ do_jump:
     case '\0': goto do_null;
     case ' ':
     case '\t':
-    case '\r': goto do_blank;
+    case '\r':
+    case ';':  goto do_blank;
     case '\\': goto do_escaped;
     default:   goto do_special;
   }
