@@ -57,8 +57,8 @@ static inline zone_return_t parse_base32(
 
   (void)info;
 
-  for (; i < token->string.length; i++) {
-    const uint8_t ofs = b32rmap[(uint8_t)token->string.data[i]];
+  for (; i < token->length; i++) {
+    const uint8_t ofs = b32rmap[(uint8_t)token->data[i]];
 
     if (ofs >= b32rmap_special) {
       // ignore whitespace
@@ -110,12 +110,12 @@ static inline zone_return_t parse_base32(
     }
   }
 
-  if (i < token->string.length) {
-    assert(token->string.data[i] == '=');
-    for (; i < token->string.length ; i++) {
-      if (b32rmap[(uint8_t)token->string.data[i]] == b32rmap_space)
+  if (i < token->length) {
+    assert(token->data[i] == '=');
+    for (; i < token->length ; i++) {
+      if (b32rmap[(uint8_t)token->data[i]] == b32rmap_space)
         continue;
-      if (b32rmap[(uint8_t)token->string.data[i]] != '=')
+      if (b32rmap[(uint8_t)token->data[i]] != '=')
         goto bad_char;
 
       switch (parser->state.base32) {

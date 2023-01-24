@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <immintrin.h>
 
+// FIXME: rename to shuffle table
 typedef uint8_t table_t[32];
 
 #define TABLE(v00, v01, v02, v03, v04, v05, v06, v07, \

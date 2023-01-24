@@ -13,7 +13,7 @@ include(CheckCCompilerFlag)
 if(MSVC)
   add_compile_options(/W4 /WX)
 else()
-  add_compile_options(-Wall -Wextra -pedantic)
+  add_compile_options(-Wall -Wextra -pedantic -fjump-tables)
 endif()
 
 set(ANALYZER "" CACHE STRING "Analyzer to enable on the build.")

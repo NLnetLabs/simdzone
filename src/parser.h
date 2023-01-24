@@ -54,12 +54,12 @@ static inline zone_return_t scan_ttl(
   // FIXME: assert dsc refers to TTL!
 
   // ttls must start with a number
-  number = token->string.data[0] - '0';
+  number = token->data[0] - '0';
   if (number > 9)
     SYNTAX_ERROR(parser, "Invalid ttl in %s", info->name.data);
 
-  for (size_t i=1; i < token->string.length; i++) {
-    const uint64_t digit = token->string.data[i] - '0';
+  for (size_t i=1; i < token->length; i++) {
+    const uint64_t digit = token->data[i] - '0';
 
     switch (state) {
       case NUMBER:
@@ -68,15 +68,15 @@ static inline zone_return_t scan_ttl(
           if (value > INT32_MAX)
             SEMANTIC_ERROR(parser, "Invalid ttl in %s, exceeds maximum",
               info->name.data);
-        } else if ((factor = is_unit(token->string.data[i]))) {
+        } else if ((factor = is_unit(token->data[i]))) {
           // units must not be repeated e.g. 1m1m
           if (unit == factor)
             SYNTAX_ERROR(parser, "Invalid ttl in %s, reuse of unit %c",
-              info->name.data, token->string.data[i]);
+              info->name.data, token->data[i]);
           // greater units must precede smaller units. e.g. 1m1s, not 1s1m
           if (unit && unit < factor)
             SYNTAX_ERROR(parser, "Invalid ttl in %s, unit %c follows smaller unit",
-              info->name.data, token->string.data[i]);
+              info->name.data, token->data[i]);
           unit = factor;
           number = number * unit;
           state = UNIT;
@@ -128,11 +128,11 @@ static inline zone_return_t scan_type_or_class(
   const zone_token_t *token,
   uint16_t *code)
 {
-  const uint8_t n = subs(token->string.length & 0xdf, 0x01);
-  uint8_t k = ((uint8_t)(token->string.data[0] & 0xdf) - 0x41) & 0x1f;
-  uint8_t h = (token->string.data[n] & 0xdf);
+  const uint8_t n = subs(token->length & 0xdf, 0x01);
+  uint8_t k = ((uint8_t)(token->data[0] & 0xdf) - 0x41) & 0x1f;
+  uint8_t h = (token->data[n] & 0xdf);
   h *= 0x07;
-  h += (uint8_t)token->string.length;
+  h += (uint8_t)token->length;
 
   const zone_fast_table_t *table = &zone_fast_identifiers[k];
 
@@ -143,19 +143,19 @@ static inline zone_return_t scan_type_or_class(
   const zone_symbol_t *symbol = table->symbols[index];
 
   if (symbol &&
-      token->string.length == symbol->key.length &&
-      strncasecmp(token->string.data, symbol->key.data, symbol->key.length) == 0)
+      token->length == symbol->key.length &&
+      strncasecmp(token->data, symbol->key.data, symbol->key.length) == 0)
   {
     *code = symbol->value & 0xffffu;
     return symbol->value >> 16;
   }
 
-  if (token->string.length > 4 &&
-      strncasecmp(token->string.data, "TYPE", 4) == 0)
+  if (token->length > 4 &&
+      strncasecmp(token->data, "TYPE", 4) == 0)
   {
     uint64_t v = 0;
-    for (size_t i=4; i < token->string.length; i++) {
-      const uint64_t n = (uint8_t)token->string.data[i] - '0';
+    for (size_t i=4; i < token->length; i++) {
+      const uint64_t n = (uint8_t)token->data[i] - '0';
       if (n > 9)
         goto bad_type;
       v = v * 10 + n;
@@ -169,12 +169,12 @@ bad_type:
     SEMANTIC_ERROR(parser, "Invalid type in %s", info->name.data);
   }
 
-  if (token->string.length > 5 &&
-      strncasecmp(token->string.data, "CLASS", 5) == 0)
+  if (token->length > 5 &&
+      strncasecmp(token->data, "CLASS", 5) == 0)
   {
     uint64_t v = 0;
-    for (size_t i=5; i < token->string.length; i++) {
-      const uint64_t n = (uint8_t)token->string.data[i] - '0';
+    for (size_t i=5; i < token->length; i++) {
+      const uint64_t n = (uint8_t)token->data[i] - '0';
       if (n > 9)
         goto bad_class;
       v = v * 10 + n;
@@ -198,11 +198,11 @@ static inline zone_return_t scan_type(
   const zone_token_t *token,
   uint16_t *code)
 {
-  const uint8_t n = subs(token->string.length & 0xdf, 0x01);
-  uint8_t k = ((uint8_t)(token->string.data[0] & 0xdf) - 0x41) & 0x1f;
-  uint8_t h = (token->string.data[n] & 0xdf);
+  const uint8_t n = subs(token->length & 0xdf, 0x01);
+  uint8_t k = ((uint8_t)(token->data[0] & 0xdf) - 0x41) & 0x1f;
+  uint8_t h = (token->data[n] & 0xdf);
   h *= 0x07;
-  h += (uint8_t)token->string.length;
+  h += (uint8_t)token->length;
 
   const zone_fast_table_t *table = &zone_fast_identifiers[k];
 
@@ -213,19 +213,19 @@ static inline zone_return_t scan_type(
   const zone_symbol_t *symbol = table->symbols[index];
 
   if (symbol &&
-      token->string.length == symbol->key.length &&
-      strncasecmp(token->string.data, symbol->key.data, symbol->key.length) == 0)
+      token->length == symbol->key.length &&
+      strncasecmp(token->data, symbol->key.data, symbol->key.length) == 0)
   {
     *code = symbol->value & 0xffff;
     return symbol->value >> 16;
   }
 
-  if (token->string.length > 4 &&
-      strncasecmp(token->string.data, "TYPE", 4) == 0)
+  if (token->length > 4 &&
+      strncasecmp(token->data, "TYPE", 4) == 0)
   {
     uint64_t v = 0;
-    for (size_t i=4; i < token->string.length; i++) {
-      const uint64_t n = (uint8_t)token->string.data[i] - '0';
+    for (size_t i=4; i < token->length; i++) {
+      const uint64_t n = (uint8_t)token->data[i] - '0';
       if (n > 9)
         goto bad_type;
       v = v * 10 + n;
@@ -265,7 +265,7 @@ static inline zone_return_t scan_name(
 
   (void)parser;
 
-  for (size_t i=0; i < token->string.length; i++) {
+  for (size_t i=0; i < token->length; i++) {
     if (octet >= 255)
       SYNTAX_ERROR(parser, "Invalid name in %s, name exceeds maximum",
         info->name.data);
@@ -274,7 +274,7 @@ static inline zone_return_t scan_name(
     //   >> actually, we should only end up in this functions if escape
     //      characters occur!!!!
 
-    switch (token->string.data[i]) {
+    switch (token->data[i]) {
       case '.':
         if (octet - 1 == label)
           SYNTAX_ERROR(parser, "Invalid name in %s, empty label",
@@ -285,13 +285,13 @@ static inline zone_return_t scan_name(
           SYNTAX_ERROR(parser, "Invalid name in %s, label exceeds maximum",
             info->name.data);
         octets[label] = (octet - label) - 1;
-        if (token->string.data[i] != '.')
+        if (token->data[i] != '.')
           break;
         label = octet;
         octets[octet++] = 0;
         break;
       default:
-        octets[octet++] = token->string.data[i];
+        octets[octet++] = token->data[i];
         break;
     }
   }
@@ -361,10 +361,10 @@ static inline zone_return_t parse_time(
 {
   char buf[] = "YYYYmmddHHMMSS";
 
-  if (token->string.length >= sizeof(buf))
+  if (token->length >= sizeof(buf))
     SYNTAX_ERROR(parser, "Invalid time in %s", info->name.data);
-  memcpy(buf, token->string.data, token->string.length);
-  buf[token->string.length] = '\0';
+  memcpy(buf, token->data, token->length);
+  buf[token->length] = '\0';
 
   const char *end = NULL;
   struct tm tm;
@@ -381,8 +381,8 @@ static inline zone_return_t parse_int8(
   uint64_t v = 0;
   zone_symbol_t *symbol;
 
-  for (size_t i=0; i < token->string.length; i++) {
-    const uint64_t n = token->string.data[i] - '0';
+  for (size_t i=0; i < token->length; i++) {
+    const uint64_t n = token->data[i] - '0';
     if (n > 9)
       goto parse_symbol;
     v = (v * 10) + n;
@@ -394,7 +394,7 @@ static inline zone_return_t parse_int8(
   parser->rdlength += sizeof(uint8_t);
   return 0;
 parse_symbol:
-  if (!(symbol = zone_lookup(&info->symbols, &token->string)))
+  if (!(symbol = zone_lookup(&info->symbols, token)))
     SYNTAX_ERROR(parser, "Invalid integer in %s", info->name.data);
   assert(symbol->value <= UINT8_MAX);
   parser->rdata[parser->rdlength] = (uint8_t)symbol->value;
@@ -408,8 +408,8 @@ static inline zone_return_t parse_int16(
   uint64_t v = 0;
   zone_symbol_t *symbol;
 
-  for (size_t i=0; i < token->string.length; i++) {
-    const uint64_t n = token->string.data[i] - '0';
+  for (size_t i=0; i < token->length; i++) {
+    const uint64_t n = token->data[i] - '0';
     if (n > 9)
       goto parse_symbol;
     v = (v * 10) + n;
@@ -421,7 +421,7 @@ static inline zone_return_t parse_int16(
   parser->rdlength += sizeof(uint16_t);
   return 0;
 parse_symbol:
-  if (!(symbol = zone_lookup(&info->symbols, &token->string)))
+  if (!(symbol = zone_lookup(&info->symbols, token)))
     SYNTAX_ERROR(parser, "Invalid integer in %s", info->name.data);
   assert(symbol->value <= UINT16_MAX);
   *((uint16_t *)&parser->rdata[parser->rdlength]) = htons((uint16_t)symbol->value);
@@ -436,8 +436,8 @@ static inline zone_return_t parse_int32(
   zone_symbol_t *symbol;
 
   // FIXME: can make this switched based too?!?!
-  for (size_t i=0; i < token->string.length; i++) {
-    const uint64_t n = token->string.data[i] - '0';
+  for (size_t i=0; i < token->length; i++) {
+    const uint64_t n = token->data[i] - '0';
     if (n > 9)
       goto parse_symbol;
     v = (v * 10) + n;
@@ -449,7 +449,7 @@ static inline zone_return_t parse_int32(
   parser->rdlength += sizeof(uint32_t);
   return 0;
 parse_symbol:
-  if (!(symbol = zone_lookup(&info->symbols, &token->string)))
+  if (!(symbol = zone_lookup(&info->symbols, token)))
     SYNTAX_ERROR(parser, "Invalid integer in %s", info->name.data);
   assert(symbol->value <= UINT16_MAX);
   *((uint32_t *)&parser->rdata[parser->rdlength]) = htonl((uint32_t)symbol->value);
@@ -462,10 +462,10 @@ static inline zone_return_t parse_ip4(
 {
   char buf[INET_ADDRSTRLEN + 1];
 
-  if (token->string.length > INET_ADDRSTRLEN)
+  if (token->length > INET_ADDRSTRLEN)
     SYNTAX_ERROR(parser, "Invalid IPv4 address in %s", info->name.data);
-  memcpy(buf, token->string.data, token->string.length);
-  buf[token->string.length] = '\0';
+  memcpy(buf, token->data, token->length);
+  buf[token->length] = '\0';
   if (inet_pton(AF_INET, buf, &parser->rdata[parser->rdlength]) != 1)
     SYNTAX_ERROR(parser, "Invalid IPv4 address in %s", info->name.data);
   parser->rdlength += sizeof(struct in_addr);
@@ -477,10 +477,10 @@ static inline zone_return_t parse_ip6(
 {
   char buf[INET6_ADDRSTRLEN + 1];
 
-  if (token->string.length > INET6_ADDRSTRLEN)
+  if (token->length > INET6_ADDRSTRLEN)
     SYNTAX_ERROR(parser, "Invalid IPv6 address in %s", info->name.data);
-  memcpy(buf, token->string.data, token->string.length);
-  buf[token->string.length] = '\0';
+  memcpy(buf, token->data, token->length);
+  buf[token->length] = '\0';
   if (inet_pton(AF_INET6, buf, &parser->rdata[parser->rdlength]) != 1)
     SYNTAX_ERROR(parser, "Invalid IPv6 address in %s", info->name.data);
   parser->rdlength += sizeof(struct in6_addr);
@@ -540,13 +540,15 @@ zone_always_inline()
 static inline zone_return_t parse_name(
   zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
 {
-  if (token->code & ESCAPED) {
-    return parse_escaped_name(parser, info, token);
-  } else if (token->string.length == 0) {
+  // FIXME: properly handle escaped names
+  //if (token->code & ESCAPED) {
+  //  return parse_escaped_name(parser, info, token);
+  //} else
+  if (token->length == 0) {
     SEMANTIC_ERROR(parser, "Invalid name in %s, empty", info->name.data);
-  } else if (token->string.length == 1) {
+  } else if (token->length == 1) {
     // a freestanding "@" denotes the current origin
-    if (token->string.data[0] == '@') {
+    if (token->data[0] == '@') {
       memcpy(
        &parser->rdata[parser->rdlength],
         parser->file->origin.name.octets,
@@ -554,38 +556,38 @@ static inline zone_return_t parse_name(
       parser->rdlength += parser->file->origin.name.length;
       return 0;
     // a freestanding "." denotes root
-    } else if (token->string.data[0] == '.') {
+    } else if (token->data[0] == '.') {
       parser->rdata[parser->rdlength] = 0;
       parser->rdlength += 1;
       return 0;
     }
-  } else if (token->string.length > 255) {
+  } else if (token->length > 255) {
     goto bad_name;
   }
 
   uint32_t *head = parser->state.name.tape, *tail = parser->state.name.tape;
   size_t block = 0;
-  const uint32_t blocks = token->string.length / VECTOR8X_SIZE;
+  const uint32_t blocks = token->length / VECTOR8X_SIZE;
   vector8x_t input;
 
   for (; block < blocks; block += VECTOR8X_SIZE) {
-    load_8x(&input, (uint8_t*)token->string.data+block);
+    load_8x(&input, (uint8_t*)token->data+block);
     const uint64_t dot = find_8x(&input, '.');
     tail = dump_8x(tail, block, dot);
   }
 
   // (1 << 0) - 1 == 0
-  const uint64_t mask = (1llu << (token->string.length - block)) - 1;
-  load_8x(&input, (uint8_t*)token->string.data+block);
+  const uint64_t mask = (1llu << (token->length - block)) - 1;
+  load_8x(&input, (uint8_t*)token->data+block);
   const uint64_t dot = find_8x(&input, '.') & mask;
   tail = dump_8x(tail, block, dot);
 
-  *tail = token->string.length;
+  *tail = token->length;
 
   uint8_t *octets = &parser->rdata[parser->rdlength];
   uint32_t label = 0, length;
 
-  memcpy(octets+1, token->string.data, token->string.length);
+  memcpy(octets+1, token->data, token->length);
   for (; head != tail; head++) {
     length = *head - label;
     if (!length || length > 63)
@@ -600,12 +602,12 @@ static inline zone_return_t parse_name(
     goto bad_label;
   octets[label] = length;
 
-  parser->rdlength += 1 + token->string.length;
+  parser->rdlength += 1 + token->length;
 
   if (octets[label] == 0)
     return 0;
 
-  if (parser->file->origin.name.length > 256 - token->string.length)
+  if (parser->file->origin.name.length > 256 - token->length)
     goto bad_name;
 
   memcpy(&parser->rdata[parser->rdlength],
@@ -623,15 +625,15 @@ bad_name:
 static inline zone_return_t parse_string(
   zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
 {
-  if (token->string.length > 255)
+  if (token->length > 255)
     SEMANTIC_ERROR(parser, "String in %s exceeds maximum length", info->name.data);
 
   // FIXME: check for newlines >> no need to check for newlines anymore specifically
   //        do need to check if escaped!!!!
 
-  memcpy(&parser->rdata[parser->rdlength+1], token->string.data, token->string.length);
-  parser->rdata[parser->rdlength] = (uint8_t)token->string.length;
-  parser->rdlength += token->string.length + 1;
+  memcpy(&parser->rdata[parser->rdlength+1], token->data, token->length);
+  parser->rdata[parser->rdlength] = (uint8_t)token->length;
+  parser->rdlength += token->length + 1;
   return 0;
 }
 
@@ -686,46 +688,47 @@ static inline zone_return_t parse_owner(
   //        uint8_t will suffice!
   uint32_t *head = parser->state.name.tape, *tail = parser->state.name.tape;
   size_t block = 0;
-  const uint32_t blocks = token->string.length / VECTOR8X_SIZE;
+  const uint32_t blocks = token->length / VECTOR8X_SIZE;
   vector8x_t input;
   //zone_return_t result;
 
-  if (token->code & ESCAPED) {
-    return parse_escaped_owner(parser, token);
-  } else if (token->string.length == 0) {
+  //if (token->code & ESCAPED) {
+  //  return parse_escaped_owner(parser, token);
+  //} else
+  if (token->length == 0) {
     SEMANTIC_ERROR(parser, "Invalid name in owner");
-  } else if (token->string.length == 1) {
+  } else if (token->length == 1) {
     // a freestanding "@" denotes the origin
-    if (token->string.data[0] == '@') {
+    if (token->data[0] == '@') {
       parser->file->owner = parser->file->origin;
       return 0;
-    } else if (token->string.data[0] == '.') {
+    } else if (token->data[0] == '.') {
       parser->file->names[0] = 0;
       parser->file->owner.name.octets = parser->file->names;
       parser->file->owner.name.length = 1;
       return 0;
     }
-  } else if (zone_unlikely(token->string.length > 255)) {
+  } else if (zone_unlikely(token->length > 255)) {
     SYNTAX_ERROR(parser, "Invalid name in owner");
   }
 
   for (; block < blocks; block += VECTOR8X_SIZE) {
-    load_8x(&input, (uint8_t*)token->string.data+block);
+    load_8x(&input, (uint8_t*)token->data+block);
     const uint64_t dot = find_8x(&input, '.');
     tail = dump_8x(tail, block, dot);
   }
 
-  const uint64_t mask = (1llu << (token->string.length - block)) - 1;
-  load_8x(&input, (uint8_t*)token->string.data+block);
+  const uint64_t mask = (1llu << (token->length - block)) - 1;
+  load_8x(&input, (uint8_t*)token->data+block);
   const uint64_t dot = find_8x(&input, '.') & mask;
   tail = dump_8x(tail, block, dot);
 
-  *tail = token->string.length;
+  *tail = token->length;
 
-  uint8_t *octets = parser->file->names + (255 - token->string.length);
+  uint8_t *octets = parser->file->names + (255 - token->length);
   uint32_t label = 0, length;
 
-  memcpy(octets+1, token->string.data, token->string.length);
+  memcpy(octets+1, token->data, token->length);
   for (; head != tail; head++) {
     length = *head - label;
     if (!length || length > 63)
@@ -741,13 +744,13 @@ static inline zone_return_t parse_owner(
   octets[label] = length;
 
   parser->file->owner.name.octets = octets;
-  parser->file->owner.name.length = 1 + token->string.length;
+  parser->file->owner.name.length = 1 + token->length;
   parser->items[0].data.octets = octets;
-  parser->items[0].length = 1 + token->string.length;
+  parser->items[0].length = 1 + token->length;
 
   if (octets[label] == 0)
     return 0;
-  if (parser->file->origin.name.length > 255 - token->string.length)
+  if (parser->file->origin.name.length > 255 - token->length)
     goto bad_name;
 
   parser->file->owner.name.length += parser->file->origin.name.length;
@@ -780,7 +783,7 @@ static inline zone_return_t parse_rr(
       return result;
   }
 
-  if ((uint8_t)token->string.data[0] - '0' > 9)
+  if ((uint8_t)token->data[0] - '0' > 9)
     result = scan_type_or_class(parser, &type_info, token, &code);
   else
     result = scan_ttl(parser, &ttl_info, token, &ttl);
@@ -804,7 +807,7 @@ static inline zone_return_t parse_rr(
 ttl_or_type:
   if ((result = lex(parser, token)) < 0)
     return result;
-  if ((uint8_t)token->string.data[0] - '0' > 9)
+  if ((uint8_t)token->data[0] - '0' > 9)
     result = scan_type(parser, &type_info, token, &code);
   else
     result = scan_ttl(parser, &ttl_info, token, &ttl);
@@ -940,26 +943,26 @@ static inline zone_return_t parse(zone_parser_t *parser, void *user_data)
 
   do {
     switch ((result = lex(parser, &token))) {
-      case CONTIGUOUS: // contiguous
-        if (!parser->file->start_of_line || token.string.data[0] != '$')
+      case ZONE_CONTIGUOUS: // contiguous
+        if (!parser->file->start_of_line || token.data[0] != '$')
           result = parse_rr(parser, &token, user_data);
-        else if (token.string.length == sizeof(include) - 1 &&
-                 strncasecmp(token.string.data, include, sizeof(include)-1) == 0)
+        else if (token.length == sizeof(include) - 1 &&
+                 strncasecmp(token.data, include, sizeof(include)-1) == 0)
           result = parse_dollar_include(parser, &token, user_data);
-        else if (token.string.length == sizeof(origin) - 1 &&
-                 strncasecmp(token.string.data, origin, sizeof(origin) - 1) == 0)
+        else if (token.length == sizeof(origin) - 1 &&
+                 strncasecmp(token.data, origin, sizeof(origin) - 1) == 0)
           result = parse_dollar_origin(parser, &token, user_data);
-        else if (token.string.length == sizeof(ttl) - 1 &&
-                 strncasecmp(token.string.data, ttl, sizeof(ttl) - 1) == 0)
+        else if (token.length == sizeof(ttl) - 1 &&
+                 strncasecmp(token.data, ttl, sizeof(ttl) - 1) == 0)
           result = parse_dollar_ttl(parser, &token, user_data);
         else
           result = parse_rr(parser, &token, user_data);
         break;
-      case 'q': // quoted (never a directive)
+      case ZONE_QUOTED: // quoted (never a directive)
         result = parse_rr(parser, &token, user_data);
         break;
-      case '\0':
-        if (!token.string.data[0])
+      case ZONE_DELIMITER:
+        if (!token.data[0])
           return 0;
         break;
       default:

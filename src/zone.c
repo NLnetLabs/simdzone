@@ -197,25 +197,27 @@ zone_return_t zone_open(
     goto err_abspath;
   if ((fd = open(buf, O_RDONLY)) == -1)
     goto err_open;
-  if (!(window = zone_malloc(&opts, 1)))
+  if (!(window = zone_malloc(&opts, 2)))
     goto err_window;
-  memset(window, 0, 1);
+  window[0] = '\n';
+  window[1] = '\0';
 
   memset(par, 0, sizeof(*par));// - sizeof(par->rdata));
   file = &par->first;
   file->name = relpath;
   file->path = abspath;
   file->handle = fd;
-  file->buffer.index = 0;
-  file->buffer.length = 0;
-  file->buffer.size = 0;
+  file->buffer.index = 1;
+  file->buffer.length = 1;
+  file->buffer.size = 2;
   file->buffer.data = window;
   file->start_of_line = 1;
   file->end_of_file = 0;
   file->origin.name.octets = &file->names[256];
-  file->indexer.head = file->indexer.tape;
-  file->indexer.tail = file->indexer.tape;
-  file->indexer.tape[0] = 0;
+  file->indexer.head = &file->indexer.tape[1];
+  file->indexer.tail = &file->indexer.tape[1];
+  file->indexer.tape[0] = window;
+  file->indexer.tape[1] = window+1;
   file->last_type = 0;
   file->last_class = opts.default_class;
   file->last_ttl = opts.default_ttl;

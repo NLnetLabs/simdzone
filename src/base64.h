@@ -57,8 +57,8 @@ static inline zone_return_t parse_base64(
 
   (void)info;
 
-  for (; i < token->string.length; i++) {
-    const uint8_t ofs = b64rmap[(uint8_t)token->string.data[i]];
+  for (; i < token->length; i++) {
+    const uint8_t ofs = b64rmap[(uint8_t)token->data[i]];
 
     if (ofs >= b64rmap_special) {
       // ignore whitespaces
@@ -96,8 +96,8 @@ static inline zone_return_t parse_base64(
     }
   }
 
-  assert(i == token->string.length || token->string.data[i] == Pad64);
-  if (i < token->string.length) {
+  assert(i == token->length || token->data[i] == Pad64);
+  if (i < token->length) {
     switch (parser->state.base64) {
       case 0: // invalid, pad character in first position
       case 1: // invalid, pad character in second position
@@ -107,8 +107,8 @@ static inline zone_return_t parse_base64(
         parser->state.base64 = 4;
         // fall through
       case 4:
-        for (++i; i < token->string.length; i++) {
-          const uint8_t ofs = b64rmap[(uint8_t)token->string.data[i]];
+        for (++i; i < token->length; i++) {
+          const uint8_t ofs = b64rmap[(uint8_t)token->data[i]];
           if (ofs == b64rmap_space)
             continue;
           if (ofs == b64rmap_end)
@@ -116,7 +116,7 @@ static inline zone_return_t parse_base64(
           goto bad_char;
         }
 
-        if (i == token->string.length)
+        if (i == token->length)
           break;
         // fall through
 
@@ -124,8 +124,8 @@ static inline zone_return_t parse_base64(
         parser->state.base64 = 5;
         // fall through
       case 5:
-        for (++i; i < token->string.length; i++) {
-          const uint8_t ofs = b64rmap[(uint8_t)token->string.data[i]];
+        for (++i; i < token->length; i++) {
+          const uint8_t ofs = b64rmap[(uint8_t)token->data[i]];
           if (ofs == b64rmap_space)
             continue;
           goto bad_char;

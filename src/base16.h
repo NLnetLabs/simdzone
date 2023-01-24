@@ -54,8 +54,8 @@ static inline zone_return_t parse_base16(
   zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
 {
   (void)info;
-  for (size_t i=0; i < token->string.length; i++) {
-    const uint8_t ofs = b16rmap[(uint8_t)token->string.data[i]];
+  for (size_t i=0; i < token->length; i++) {
+    const uint8_t ofs = b16rmap[(uint8_t)token->data[i]];
 
     if (ofs >= b16rmap_special) {
       // ignore whitespace
@@ -98,7 +98,7 @@ static inline zone_return_t parse_salt(
   zone_return_t result;
 
   size_t rdlength = parser->rdlength++;
-  if (token->string.length == 1 && token->string.data[0] == '-') {
+  if (token->length == 1 && token->data[0] == '-') {
     // ignore
   } else {
     if ((result = parse_base16(parser, info, token)) < 0)
