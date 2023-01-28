@@ -27,9 +27,9 @@ GCC 12.2.1, release mode:
 $ time ./parser ../../zones/com.zone
 parsed 341535548 records
 
-real    0m19.652s
-user    0m18.494s
-sys     0m1.123s
+real    0m17.755s
+user    0m16.602s
+sys     0m1.105s
 ```
 
 There are bound to be bugs and quite possibly smarter ways of implementing
