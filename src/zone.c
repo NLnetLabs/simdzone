@@ -216,8 +216,8 @@ zone_return_t zone_open(
   file->origin.name.octets = &file->names[256];
   file->indexer.head = &file->indexer.tape[1];
   file->indexer.tail = &file->indexer.tape[1];
-  file->indexer.tape[0] = window;
-  file->indexer.tape[1] = window+1;
+  file->indexer.tape[0] = (zone_transition_t){ window,   0 };
+  file->indexer.tape[1] = (zone_transition_t){ window+1, 0 };
   file->last_type = 0;
   file->last_class = opts.default_class;
   file->last_ttl = opts.default_ttl;

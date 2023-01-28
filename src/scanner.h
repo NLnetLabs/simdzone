@@ -258,29 +258,61 @@ static inline void tokenize(zone_parser_t *parser, const block_t *block)
 {
   uint64_t bits = block->bits;
   uint64_t count = count_ones(bits);
-
   const char *base = parser->file->buffer.data + parser->file->buffer.index;
 
-  for (uint64_t i=0; i < 6; i++) {
-    parser->file->indexer.tail[i] = base + trailing_zeroes(bits);
-    bits = clear_lowest_bit(bits);
-  }
+  uint64_t newline = block->newline;
+  const uint64_t in_string = block->contiguous | block->in_quoted;
 
-  if (zone_unlikely(count > 6)) {
-    for (uint64_t i=6; i < 12; i++) {
-      parser->file->indexer.tail[i] = base + trailing_zeroes(bits);
+  // take slow path if (escaped) newlines appear in contiguous or quoted.
+  // edge case, but must be supported and handled in the scanner for ease of
+  // use and to accommodate for parallel processing in the parser. note that
+  // escaped newlines may have been present in the last block
+  if (zone_unlikely(parser->file->indexer.newlines || (newline & in_string))) {
+    for (uint64_t i=0; i < count; i++) {
+      uint64_t bit = -bits & bits;
+      bits ^= bit;
+      if (bit & newline) {
+        parser->file->indexer.tail[i] =
+          (zone_transition_t){
+            base + trailing_zeroes(bit), parser->file->indexer.newlines };
+        parser->file->indexer.newlines = 0;
+        newline &= -bit;
+      } else {
+        // count newlines here so number of newlines remains correct if last
+        // token is start of contiguous or quoted and index must be reset
+        parser->file->indexer.tail[i] =
+          (zone_transition_t){ base + trailing_zeroes(bit), 0 };
+        parser->file->indexer.newlines += count_ones(newline & ~(-bit));
+        newline &= -bit;
+      }
+    }
+
+    parser->file->indexer.tail += count;
+  } else {
+    for (uint64_t i=0; i < 6; i++) {
+      parser->file->indexer.tail[i] =
+        (zone_transition_t){ base + trailing_zeroes(bits), 0 };
       bits = clear_lowest_bit(bits);
     }
 
-    if (zone_unlikely(count > 12)) {
-      for (uint64_t i=12; i < count; i++) {
-        parser->file->indexer.tail[i] = base + trailing_zeroes(bits);
+    if (zone_unlikely(count > 6)) {
+      for (uint64_t i=6; i < 12; i++) {
+        parser->file->indexer.tail[i] =
+          (zone_transition_t){ base + trailing_zeroes(bits), 0 };
         bits = clear_lowest_bit(bits);
       }
-    }
-  }
 
-  parser->file->indexer.tail += count;
+      if (zone_unlikely(count > 12)) {
+        for (uint64_t i=12; i < count; i++) {
+          parser->file->indexer.tail[i] =
+            (zone_transition_t){ base + trailing_zeroes(bits), 0 };
+          bits = clear_lowest_bit(bits);
+        }
+      }
+    }
+
+    parser->file->indexer.tail += count;
+  }
 }
 
 static const uint8_t forward[256] = {
@@ -328,22 +360,19 @@ zone_never_inline()
 zone_nonnull_all()
 static zone_return_t step(zone_parser_t *parser, zone_token_t *token)
 {
-  block_t block;
+  block_t block = { 0 };
   zone_file_t *file = parser->file;
-  const char *start;
-  block.bits = 0;
+  const char *base;
+  bool start_of_line;
 
-  // before everythink is reset, check if newline came just before
-  bool start_of_line = false;
-  if (*file->indexer.tail[-1] == '\n') {
-    if ((file->indexer.tail[-1] - file->buffer.data) + 1 == file->buffer.index)
-      start_of_line = true;
-  }
+  // check if next token is located at start of line
+  assert(file->indexer.tail > file->indexer.tape);
+  base = file->indexer.tail[-1].pointer;
+  start_of_line =
+    base[0] == '\n' && &base[1] == file->buffer.data + file->buffer.index;
 
   file->indexer.head = file->indexer.tape;
   file->indexer.tail = file->indexer.tape;
-
-  // FIXME: implement closing of file etc (account for string operation)
 
   // refill buffer if required
   if (file->buffer.length - file->buffer.index <= ZONE_BLOCK_SIZE) {
@@ -359,7 +388,7 @@ shuffle:
       return result;
   }
 
-  start = file->buffer.data+file->buffer.index;
+  base = file->buffer.data + file->buffer.index;
 
   while (file->buffer.length - file->buffer.index >= ZONE_BLOCK_SIZE) {
     if ((file->indexer.tape + ZONE_TAPE_SIZE) - file->indexer.tail < ZONE_BLOCK_SIZE)
@@ -380,12 +409,14 @@ shuffle:
     goto terminate;
 
   uint8_t buffer[ZONE_BLOCK_SIZE] = { 0 };
-  const uint64_t clear = (1llu << length) - 1;
+  memcpy(buffer, &file->buffer.data[file->buffer.index], length);
+  const uint64_t clear = ~((1llu << length) - 1);
   print_input("input", &file->buffer.data[file->buffer.index], length);
   load_8x64(&block.input, buffer);
   scan(parser, &block);
+  block.bits &= ~clear;
+  block.contiguous &= ~clear;
   print_mask("bits", block.bits);
-  block.bits &= clear;
   tokenize(parser, &block);
   file->buffer.index += length;
   file->end_of_file = ZONE_NO_MORE_DATA;
@@ -402,18 +433,19 @@ terminate:
     file->indexer.in_quoted = 0;
     file->indexer.is_escaped = 0;
     file->indexer.follows_contiguous = 0;
-    file->buffer.index = file->indexer.tail[0] - file->buffer.data;
+    file->buffer.index =
+      file->indexer.tail[0].pointer - file->buffer.data;
   }
 
-  file->indexer.tail[0] = file->buffer.data + file->buffer.length;
-  file->indexer.tail[1] = file->buffer.data + file->buffer.length;
-
-  if (*file->indexer.head == start)
-    file->start_of_line = start_of_line;
+  file->indexer.tail[0] =
+    (zone_transition_t) { file->buffer.data + file->buffer.length, 0 };
+  file->indexer.tail[1] =
+    (zone_transition_t) { file->buffer.data + file->buffer.length, 0 };
+  file->start_of_line = file->indexer.head[0].pointer == base && start_of_line;
 
   do {
-    const char *begin = parser->file->indexer.head[0];
-    const char *end   = parser->file->indexer.head[1];
+    const char *begin = file->indexer.head[0].pointer;
+    const char *end   = file->indexer.head[1].pointer;
 
     switch (jump[ (uint8_t)*begin ]) {
       case 0: // contiguous
@@ -422,12 +454,12 @@ terminate:
         file->indexer.head += forward[ (uint8_t)*end ];
         return ZONE_CONTIGUOUS;
       case 1: // quoted
-        *token = (zone_token_t){ end - begin, begin+1 };
+        *token = (zone_token_t){end - begin, begin + 1 };
         // discard index for closing quote
         file->indexer.head += 2;
         return ZONE_QUOTED;
-      case 2: // line feed
-        file->line++;
+      case 2: // newline
+        file->line += file->indexer.head[0].newlines + 1;
         file->indexer.head++;
         if (file->grouped)
           break;
@@ -437,8 +469,10 @@ terminate:
       case 3: // end of file
         if (file->end_of_file != ZONE_NO_MORE_DATA)
           goto shuffle;
+        if (file->grouped)
+          SYNTAX_ERROR(parser, "Missing closing brace");
         assert(begin == file->buffer.data + file->buffer.length);
-        assert(end   == file->buffer.data + file->buffer.length);
+        assert(end == file->buffer.data + file->buffer.length);
         *token = (zone_token_t){ 1, begin };
         return ZONE_DELIMITER;
       case 4: // left parenthesis
@@ -462,23 +496,23 @@ zone_nonnull_all()
 static inline zone_return_t lex(zone_parser_t *parser, zone_token_t *token)
 {
   do {
-    // safe, as tape is double terminated
-    const char *begin = parser->file->indexer.head[0];
-    const char *end   = parser->file->indexer.head[1];
+    // safe, as tape is doubly terminated
+    const char *begin = parser->file->indexer.head[0].pointer;
+    const char *end   = parser->file->indexer.head[1].pointer;
 
     switch (jump[ (uint8_t)*begin ]) {
       case 0: // contiguous
         *token = (zone_token_t){ end - begin, begin };
         // discard index for blank or semicolon
-        parser->file->indexer.head += forward[*end];
+        parser->file->indexer.head += forward[ (uint8_t)*end ];
         return ZONE_CONTIGUOUS;
       case 1: // quoted
-        *token = (zone_token_t){ end - begin, begin+1 };
+        *token = (zone_token_t){ end - begin, begin + 1 };
         // discard index for closing quote
         parser->file->indexer.head += 2;
         return ZONE_QUOTED;
-      case 2: // line feed
-        parser->file->line++;
+      case 2: // newline
+        parser->file->line += parser->file->indexer.head[0].newlines + 1;
         parser->file->indexer.head++;
         if (parser->file->grouped)
           break;
