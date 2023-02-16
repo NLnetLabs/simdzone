@@ -15,58 +15,7 @@
 #include <stdio.h>
 
 #include "zone.h"
-
-#define ERROR(parser, code, ...) \
-  do { \
-    (void)parser; \
-    fprintf(stderr, __VA_ARGS__); \
-    fprintf(stderr, "\n"); \
-    return code; \
-  } while (0)
-
-#define SYNTAX_ERROR(parser, ...) \
-  ERROR(parser, ZONE_SYNTAX_ERROR, __VA_ARGS__)
-
-#define SEMANTIC_ERROR(parser, ...) \
-  ERROR(parser, ZONE_SEMANTIC_ERROR, __VA_ARGS__)
-
-#define NOT_IMPLEMENTED(parser, ...) \
-  ERROR(parser, ZONE_NOT_IMPLEMENTED, __VA_ARGS__)
-
-#define OUT_OF_MEMORY(parser) \
-  return ZONE_OUT_OF_MEMORY
-
-#ifndef NDEBUG
-static void print_input(const char *label, const char *str, size_t len)
-{
-  char bar[120];
-  memset(bar, '=', sizeof(bar));
-  bar[sizeof(bar)-1] = '\0';
-  printf("%-.12s%-.70s\n", bar, bar);
-  printf("%-12s: ' ", label);
-  for (size_t i=0; i < len; i++) {
-    if (str[i] == '\n' || str[i] == '\r')
-      putchar('_');
-    else if (str[i] == '\t')
-      putchar(' ');
-    else
-      putchar(str[i]);
-  }   
-  printf(" '\n");
-}
-
-static void print_mask(const char *label, uint64_t mask) {
-  printf("%-12s: [ ", label);
-  for(int i = 0, n = (sizeof(mask)*8)-1; i <= n; i++){
-    char c = (mask &(1ull<<i))? '1' : '0';
-    putchar(c);
-  }
-  printf(" ]\n");
-}
-#else
-#define print_input(label, str, len)
-#define print_mask(label, mask)
-#endif
+#include "generic/error.h"
 
 extern void *zone_malloc(zone_options_t *opts, size_t size);
 extern void *zone_realloc(zone_options_t *opts, void *ptr, size_t size);
@@ -144,14 +93,14 @@ static inline uint64_t follows(const uint64_t match, uint64_t *overflow)
   return result;
 }
 
-static const table_t blank_table = TABLE(
+static const simd_table_t blank_table = SIMD_TABLE(
   0x20, 0x00, 0x00, 0x00, // " " = 0x20
   0x00, 0x00, 0x00, 0x00,
   0x00, 0x09, 0x00, 0x00, // "\t" = 0x09
   0x00, 0x0d, 0x00, 0x00  // "\r" = 0x0d
 );
 
-static const table_t special_table = TABLE(
+static const simd_table_t special_table = SIMD_TABLE(
   0xff, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00,
   0x28, 0x29, 0x0a, 0x00, // "(" = 0x28, ")" = 0x29, "\n" = 0x0a
@@ -160,7 +109,7 @@ static const table_t special_table = TABLE(
 
 typedef struct block block_t;
 struct block {
-  vector8x64_t input;
+  simd_8x64_t input;
   uint64_t newline;
   uint64_t backslash;
   uint64_t escaped;
@@ -182,14 +131,14 @@ static inline void scan(zone_parser_t *parser, block_t *block)
   // escaped newlines are classified as contiguous. however, escape sequences
   // have no meaning in comments and newlines, escaped or not, have no
   // special meaning in quoted
-  block->newline = find_8x64(&block->input, '\n');
-  block->backslash = find_8x64(&block->input, '\\');
+  block->newline = simd_find_8x64(&block->input, '\n');
+  block->backslash = simd_find_8x64(&block->input, '\\');
   block->escaped = find_escaped(
     block->backslash, &parser->file->indexer.is_escaped);
 
   block->comment = 0;
-  block->quoted = find_8x64(&block->input, '"') & ~block->escaped;
-  block->semicolon = find_8x64(&block->input, ';') & ~block->escaped;
+  block->quoted = simd_find_8x64(&block->input, '"') & ~block->escaped;
+  block->semicolon = simd_find_8x64(&block->input, ';') & ~block->escaped;
 
   block->in_quoted = parser->file->indexer.in_quoted;
   block->in_comment = parser->file->indexer.in_comment;
@@ -214,9 +163,9 @@ static inline void scan(zone_parser_t *parser, block_t *block)
   }
 
   block->blank =
-    find_any_8x64(&block->input, blank_table) & ~(block->escaped | block->in_quoted | block->in_comment);
+    simd_find_any_8x64(&block->input, blank_table) & ~(block->escaped | block->in_quoted | block->in_comment);
   block->special =
-    find_any_8x64(&block->input, special_table) & ~(block->escaped | block->in_quoted | block->in_comment);
+    simd_find_any_8x64(&block->input, special_table) & ~(block->escaped | block->in_quoted | block->in_comment);
 
   block->contiguous =
     ~(block->blank | block->special | block->quoted) & ~(block->in_quoted | block->in_comment);
@@ -245,7 +194,7 @@ static inline zone_return_t refill(zone_parser_t *parser)
                        file->buffer.data + file->buffer.length,
                        file->buffer.size - file->buffer.length);
   if (count < 0)
-    return ZONE_READ_ERROR;
+    return ZONE_IO_ERROR;
   // always null-terminate so terminating token can point to something
   file->buffer.length += (size_t)count;
   file->buffer.data[file->buffer.length] = '\0';
@@ -315,46 +264,8 @@ static inline void tokenize(zone_parser_t *parser, const block_t *block)
   }
 }
 
-static const uint8_t forward[256] = {
-  // "\t" = 0x09, "\r" = 0x0d, "\0" = 0x00 (if nothing follows contiguous)
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 2, 1, 1, 1, 2, 1, 1, // 0x00 - 0x0f
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0x10 - 0x1f
-  // " " = 0x20
-  2, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0x20 - 0x2f
-  // ";" = 0x3b (if comment directly follows contiguous, e.g. "foo;bar")
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 2, 1, 1, 1, 1, // 0x30 - 0x3f
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0x40 - 0x4f
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0x50 - 0x5f
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0x60 - 0x6f
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0x70 - 0x7f
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0x80 - 0x8f
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0x90 - 0x9f
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0xa0 - 0xaf
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0xb0 - 0xbf
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0xc0 - 0xcf
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0xd0 - 0xdf
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1, // 0xe0 - 0xef
-  1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1  // 0xf0 - 0xff
-};
-
-static const uint8_t jump[256] = {
-  3, 0, 0, 0, 0, 0, 0, 0,   0, 0, 2, 0, 0, 0, 0, 0, // 0x00 - 0x0f
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0x10 - 0x1f
-  0, 0, 1, 0, 0, 0, 0, 0,   4, 5, 0, 0, 0, 0, 0, 0, // 0x20 - 0x2f
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0x30 - 0x3f
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0x40 - 0x4f
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0x50 - 0x5f
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0x60 - 0x6f
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0x70 - 0x7f
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0x80 - 0x8f
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0x90 - 0x9f
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0xa0 - 0xaf
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0xb0 - 0xbf
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0xc0 - 0xcf
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0xd0 - 0xdf
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, // 0xe0 - 0xef
-  0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0  // 0xf0 - 0xff
-};
+extern const uint8_t *zone_forward;
+extern const uint8_t *zone_jump;
 
 zone_never_inline()
 zone_nonnull_all()
@@ -367,7 +278,7 @@ static zone_return_t step(zone_parser_t *parser, zone_token_t *token)
 
   // check if next token is located at start of line
   assert(file->indexer.tail > file->indexer.tape);
-  base = file->indexer.tail[-1].pointer;
+  base = file->indexer.tail[-1].address;
   start_of_line =
     base[0] == '\n' && &base[1] == file->buffer.data + file->buffer.index;
 
@@ -393,10 +304,8 @@ shuffle:
   while (file->buffer.length - file->buffer.index >= ZONE_BLOCK_SIZE) {
     if ((file->indexer.tape + ZONE_TAPE_SIZE) - file->indexer.tail < ZONE_BLOCK_SIZE)
       goto terminate;
-    print_input("input", &file->buffer.data[file->buffer.index], 64);
-    load_8x64(&block.input, &file->buffer.data[file->buffer.index]);
+    simd_loadu_8x64(&block.input, (uint8_t *)&file->buffer.data[file->buffer.index]);
     scan(parser, &block);
-    print_mask("bits", block.bits);
     tokenize(parser, &block);
     file->buffer.index += ZONE_BLOCK_SIZE;
   }
@@ -405,18 +314,16 @@ shuffle:
   assert(length <= ZONE_BLOCK_SIZE);
   if (!file->end_of_file)
     goto terminate;
-  if (length > (file->indexer.tape + ZONE_TAPE_SIZE) - file->indexer.tail)
+  if (length > (size_t)((file->indexer.tape + ZONE_TAPE_SIZE) - file->indexer.tail))
     goto terminate;
 
   uint8_t buffer[ZONE_BLOCK_SIZE] = { 0 };
   memcpy(buffer, &file->buffer.data[file->buffer.index], length);
   const uint64_t clear = ~((1llu << length) - 1);
-  print_input("input", &file->buffer.data[file->buffer.index], length);
-  load_8x64(&block.input, buffer);
+  simd_loadu_8x64(&block.input, buffer);
   scan(parser, &block);
   block.bits &= ~clear;
   block.contiguous &= ~clear;
-  print_mask("bits", block.bits);
   tokenize(parser, &block);
   file->buffer.index += length;
   file->end_of_file = ZONE_NO_MORE_DATA;
@@ -434,24 +341,24 @@ terminate:
     file->indexer.is_escaped = 0;
     file->indexer.follows_contiguous = 0;
     file->buffer.index =
-      file->indexer.tail[0].pointer - file->buffer.data;
+      file->indexer.tail[0].address - file->buffer.data;
   }
 
   file->indexer.tail[0] =
     (zone_transition_t) { file->buffer.data + file->buffer.length, 0 };
   file->indexer.tail[1] =
     (zone_transition_t) { file->buffer.data + file->buffer.length, 0 };
-  file->start_of_line = file->indexer.head[0].pointer == base && start_of_line;
+  file->start_of_line = file->indexer.head[0].address == base && start_of_line;
 
   do {
-    const char *begin = file->indexer.head[0].pointer;
-    const char *end   = file->indexer.head[1].pointer;
+    const char *begin = file->indexer.head[0].address;
+    const char *end   = file->indexer.head[1].address;
 
-    switch (jump[ (uint8_t)*begin ]) {
+    switch (zone_jump[ (unsigned char)*begin ]) {
       case 0: // contiguous
         *token = (zone_token_t){ end - begin, begin };
         // discard index for blank or semicolon
-        file->indexer.head += forward[ (uint8_t)*end ];
+        file->indexer.head += zone_forward[ (unsigned char)*end ];
         return ZONE_CONTIGUOUS;
       case 1: // quoted
         *token = (zone_token_t){end - begin, begin + 1 };
@@ -486,52 +393,6 @@ terminate:
           SYNTAX_ERROR(parser, "Closing brace without opening brace");
         file->grouped = false;
         file->indexer.head++;
-        break;
-    }
-  } while (1);
-}
-
-zone_always_inline()
-zone_nonnull_all()
-static inline zone_return_t lex(zone_parser_t *parser, zone_token_t *token)
-{
-  do {
-    // safe, as tape is doubly terminated
-    const char *begin = parser->file->indexer.head[0].pointer;
-    const char *end   = parser->file->indexer.head[1].pointer;
-
-    switch (jump[ (uint8_t)*begin ]) {
-      case 0: // contiguous
-        *token = (zone_token_t){ end - begin, begin };
-        // discard index for blank or semicolon
-        parser->file->indexer.head += forward[ (uint8_t)*end ];
-        return ZONE_CONTIGUOUS;
-      case 1: // quoted
-        *token = (zone_token_t){ end - begin, begin + 1 };
-        // discard index for closing quote
-        parser->file->indexer.head += 2;
-        return ZONE_QUOTED;
-      case 2: // newline
-        parser->file->line += parser->file->indexer.head[0].newlines + 1;
-        parser->file->indexer.head++;
-        if (parser->file->grouped)
-          break;
-        parser->file->start_of_line = (end - begin) == 1;
-        *token = (zone_token_t){ 1, begin };
-        return ZONE_DELIMITER;
-      case 3: // end of file
-        return step(parser, token);
-      case 4: // left parenthesis
-        if (parser->file->grouped)
-          SYNTAX_ERROR(parser, "Nested opening brace");
-        parser->file->indexer.head++;
-        parser->file->grouped = true;
-        break;
-      case 5: // right parenthesis
-        if (!parser->file->grouped)
-          SYNTAX_ERROR(parser, "Closing brace without opening brace");
-        parser->file->indexer.head++;
-        parser->file->grouped = false;
         break;
     }
   } while (1);

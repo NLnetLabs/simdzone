@@ -5,8 +5,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef HASWELL_BITS_H
-#define HASWELL_BITS_H
+#ifndef BITS_H
+#define BITS_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -41,4 +41,4 @@ static inline uint64_t prefix_xor(const uint64_t bitmask) {
   return _mm_cvtsi128_si64(result);
 }
 
-#endif // HASWELL_BITS_H
+#endif // BITS_H

@@ -1,5 +1,5 @@
 /*
- * zone.c -- zone parser.
+ * zone.c -- zone parser
  *
  * Copyright (c) 2022, NLnet Labs. All rights reserved.
  *
@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <setjmp.h>
 
 #include "zone.h"
 #include "isadetection.h"
@@ -137,8 +138,8 @@ static zone_return_t set_defaults(
   // origin
   //zone_name_t *name = &par->file->origin.name;
   if (parse_origin(par->options.origin,
-        par->file->origin.name.octets,
-       &par->file->origin.name.length) < 0)
+        par->file->origin.octets,
+       &par->file->origin.length) < 0)
     return ZONE_BAD_PARAMETER;
   // owner (replicate origin)
   par->file->owner = par->file->origin;
@@ -184,8 +185,7 @@ zone_return_t zone_open(
   char buf[PATH_MAX];
   char *window = NULL, *relpath = NULL, *abspath = NULL;
 
-  if (!path)
-    return ZONE_BAD_PARAMETER;
+  assert(path);
   if ((ret = check_options(&opts)) < 0)
     return ret;
   if (!realpath(path, buf))
@@ -213,7 +213,6 @@ zone_return_t zone_open(
   file->buffer.data = window;
   file->start_of_line = 1;
   file->end_of_file = 0;
-  file->origin.name.octets = &file->names[256];
   file->indexer.head = &file->indexer.tape[1];
   file->indexer.tail = &file->indexer.tape[1];
   file->indexer.tape[0] = (zone_transition_t){ window,   0 };
@@ -224,10 +223,6 @@ zone_return_t zone_open(
   par->file = file;
   if (set_defaults(par, &opts) < 0)
     return ZONE_BAD_PARAMETER;
-  par->state.scanner = 0;
-  par->state.base16 = 0;
-  par->state.base32 = 0;
-  par->state.base64 = 0;
   // FIXME: magic numbers, bad
   par->items[1].data.int16 = &par->file->last_type;
   par->items[2].data.int16 = &par->file->last_class;
@@ -273,59 +268,76 @@ void zone_close(zone_parser_t *par)
 #include "isadetection.h"
 
 #if ZONE_SUPPORTS_HASWELL
-extern zone_return_t zone_parse_haswell(zone_parser_t *, void *);
+extern zone_return_t zone_haswell_parse(zone_parser_t *, void *);
 #endif
 
 #if ZONE_SUPPORTS_WESTMERE
-extern zone_return_t zone_parse_westmere(zone_parser_t *, void *);
+extern zone_return_t zone_westmere_parse(zone_parser_t *, void *);
 #endif
 
-typedef struct {
+extern zone_return_t zone_fallback_parse(zone_parser_t *, void *);
+
+typedef struct target target_t;
+struct target {
   const char *name;
   uint32_t instruction_set;
   zone_return_t (*parse)(zone_parser_t *, void *);
-} implementation_t;
-
-static const implementation_t implementations[] = {
-#if ZONE_SUPPORTS_HASWELL
-  { "haswell", AVX2, &zone_parse_haswell },
-#endif
-#if ZONE_SUPPORTS_WESTMERE
-  { "westmere", SSE42, &zone_parse_westmere },
-#endif
-  { "generic", 0, 0 } // generic implementation pending
 };
 
-static inline const implementation_t *
-select_implementation(void)
+static const target_t targets[] = {
+#if ZONE_SUPPORTS_HASWELL
+  { "haswell", AVX2, &zone_haswell_parse },
+#endif
+#if ZONE_SUPPORTS_WESTMERE
+  { "westmere", SSE42, &zone_westmere_parse },
+#endif
+  { "fallback", 0, &zone_fallback_parse }
+};
+
+static inline const target_t *
+select_target(void)
 {
   const char *preferred;
   const uint32_t supported = detect_supported_architectures();
-  const size_t length = sizeof(implementations)/sizeof(implementations[0]);
+  const size_t length = sizeof(targets)/sizeof(targets[0]);
   size_t count = 0;
 
-  if ((preferred = getenv("ZONE_IMPLEMENTATION"))) {
+  if ((preferred = getenv("ZONE_TARGET"))) {
     for (; count < length; count++)
-      if (strcasecmp(preferred, implementations[count].name) == 0)
+      if (strcasecmp(preferred, targets[count].name) == 0)
         break;
     if (count == length)
       count = 0;
   }
 
   for (; count < length; count++)
-    if (implementations[count].instruction_set & supported)
-      return &implementations[count];
+    if (!targets[count].instruction_set || (targets[count].instruction_set & supported))
+      return &targets[count];
 
-  return &implementations[length - 1];
+  return &targets[length - 1];
 }
 
 zone_return_t zone_parse(zone_parser_t *parser, void *user_data)
 {
-  const implementation_t *implementation;
+  const target_t *target;
+  volatile jmp_buf environment;
+  zone_return_t result;
 
-  // FIXME: do setjmp here so longjmp can be used?
+  target = select_target();
+  assert(target);
 
-  implementation = select_implementation();
-  assert(implementation);
-  return implementation->parse(parser, user_data);
+  switch ((result = setjmp((void *)environment))) {
+    case 0:
+      parser->environment = environment;
+      result = target->parse(parser, user_data);
+      assert(result == ZONE_SUCCESS);
+      break;
+    default:
+      assert(result < 0);
+      assert(parser->environment == environment);
+      // FIXME: cleanup
+      break;
+  }
+
+  return result;
 }

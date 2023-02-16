@@ -6,78 +6,86 @@
  * See LICENSE for the license.
  *
  */
-#ifndef WESTMERE_SIMD_H
-#define WESTMERE_SIMD_H
+#ifndef SIMD_H
+#define SIMD_H
 
 #include <stdint.h>
 #include <immintrin.h>
 
-typedef uint8_t table_t[16];
+#define SIMD_8X_SIZE (16)
 
-#define TABLE(v00, v01, v02, v03, v04, v05, v06, v07, \
-              v08, v09, v0a, v0b, v0c, v0d, v0e, v0f) \
-  {                                                   \
-    v00, v01, v02, v03, v04, v05, v06, v07,           \
-    v08, v09, v0a, v0b, v0c, v0d, v0e, v0f            \
+typedef uint8_t simd_table_t[SIMD_8X_SIZE];
+
+#define SIMD_TABLE(v00, v01, v02, v03, v04, v05, v06, v07, \
+                   v08, v09, v0a, v0b, v0c, v0d, v0e, v0f) \
+  {                                                        \
+    v00, v01, v02, v03, v04, v05, v06, v07,                \
+    v08, v09, v0a, v0b, v0c, v0d, v0e, v0f                 \
   }
 
-#define VECTOR8X_SIZE (16)
+typedef struct { __m128i chunks[1]; } simd_8x_t;
 
-typedef __m128i vector8x_t;
+typedef simd_8x_t simd_8x16_t;
 
-static inline void load_8x(vector8x_t *input, const uint8_t *ptr)
+typedef struct { __m128i chunks[4]; } simd_8x64_t;
+
+zone_always_inline()
+zone_nonnull_all()
+static inline void simd_loadu_8x(simd_8x_t *simd, const uint8_t *address)
 {
-  *input = _mm_loadu_si128((const __m128i *)(ptr));
+  simd->chunks[0] = _mm_loadu_si128((const __m128i *)address);
 }
 
-static inline uint64_t find_8x(const vector8x_t *input, uint8_t key)
+zone_always_inline()
+zone_nonnull_all()
+static inline void simd_storeu_8x(uint8_t *address, const simd_8x_t *simd)
+{
+  _mm_storeu_si128((__m128i *)address, simd->chunks[0]);
+}
+
+zone_always_inline()
+zone_nonnull_all()
+static inline uint64_t simd_find_8x(const simd_8x_t *simd, uint8_t key)
 {
   const __m128i k = _mm_set1_epi8(key);
-  const __m128i r = _mm_cmpeq_epi8(*input, k);
+  const __m128i r = _mm_cmpeq_epi8(simd->chunks[0], k);
   return (uint16_t)_mm_movemask_epi8(r);
 }
 
-static inline uint64_t find_any_8x(
-  const vector8x_t *input, const table_t table)
+zone_always_inline()
+zone_nonnull_all()
+static inline uint64_t simd_find_any_8x(
+  const simd_8x_t *simd, const simd_table_t table)
 {
   const __m128i t = _mm_loadu_si128((const __m128i *)table);
-  const __m128i r = _mm_cmpeq_epi8(_mm_shuffle_epi8(t, *input), *input);
+  const __m128i r = _mm_cmpeq_epi8(
+    _mm_shuffle_epi8(t, simd->chunks[0]), simd->chunks[0]);
   return (uint16_t)_mm_movemask_epi8(r);
 }
 
-typedef __m128i vector8x16_t;
+#define simd_loadu_8x16(simd, address) simd_loadu_8x(simd, address)
+#define simd_find_8x16(simd, key) simd_find_8x(simd, key)
 
-static inline void load_8x16(vector8x16_t *vector, const uint8_t *ptr)
+zone_always_inline()
+zone_nonnull_all()
+static inline void simd_loadu_8x64(simd_8x64_t *simd, const uint8_t *address)
 {
-  *vector = _mm_loadu_si128((const __m128i *)ptr);
+  simd->chunks[0] = _mm_loadu_si128((const __m128i *)(address));
+  simd->chunks[1] = _mm_loadu_si128((const __m128i *)(address+16));
+  simd->chunks[2] = _mm_loadu_si128((const __m128i *)(address+32));
+  simd->chunks[3] = _mm_loadu_si128((const __m128i *)(address+48));
 }
 
-static inline uint64_t find_8x16(vector8x16_t *vector, uint8_t key)
-{
-  const __m128i k = _mm_set1_epi8(key);
-  const __m128i r = _mm_cmpeq_epi8(*vector, k);
-  return (uint16_t)_mm_movemask_epi8(r);
-}
-
-// scanner operates on 64-bit blocks. always.
-typedef struct { __m128i chunks[4]; } vector8x64_t;
-
-static inline void load_8x64(vector8x64_t *input, const uint8_t *ptr)
-{
-  input->chunks[0] = _mm_loadu_si128((const __m128i *)ptr);
-  input->chunks[1] = _mm_loadu_si128((const __m128i *)(ptr+16));
-  input->chunks[2] = _mm_loadu_si128((const __m128i *)(ptr+32));
-  input->chunks[3] = _mm_loadu_si128((const __m128i *)(ptr+48));
-}
-
-static inline uint64_t find_8x64(const vector8x64_t *input, uint8_t key)
+zone_always_inline()
+zone_nonnull_all()
+static inline uint64_t simd_find_8x64(const simd_8x64_t *simd, uint8_t key)
 {
   const __m128i k = _mm_set1_epi8(key);
 
-  const __m128i r0 = _mm_cmpeq_epi8(input->chunks[0], k);
-  const __m128i r1 = _mm_cmpeq_epi8(input->chunks[1], k);
-  const __m128i r2 = _mm_cmpeq_epi8(input->chunks[2], k);
-  const __m128i r3 = _mm_cmpeq_epi8(input->chunks[3], k);
+  const __m128i r0 = _mm_cmpeq_epi8(simd->chunks[0], k);
+  const __m128i r1 = _mm_cmpeq_epi8(simd->chunks[1], k);
+  const __m128i r2 = _mm_cmpeq_epi8(simd->chunks[2], k);
+  const __m128i r3 = _mm_cmpeq_epi8(simd->chunks[3], k);
 
   const uint64_t m0 = (uint16_t)_mm_movemask_epi8(r0);
   const uint64_t m1 = (uint16_t)_mm_movemask_epi8(r1);
@@ -87,19 +95,21 @@ static inline uint64_t find_8x64(const vector8x64_t *input, uint8_t key)
   return m0 | (m1 << 16) | (m2 << 32) | (m3 << 48);
 }
 
-static inline uint64_t find_any_8x64(
-  const vector8x64_t *input, const table_t table)
+zone_always_inline()
+zone_nonnull_all()
+static inline uint64_t simd_find_any_8x64(
+  const simd_8x64_t *simd, const simd_table_t table)
 {
   const __m128i t = _mm_loadu_si128((const __m128i *)table);
 
   const __m128i r0 = _mm_cmpeq_epi8(
-    _mm_shuffle_epi8(t, input->chunks[0]), input->chunks[0]);
+    _mm_shuffle_epi8(t, simd->chunks[0]), simd->chunks[0]);
   const __m128i r1 = _mm_cmpeq_epi8(
-    _mm_shuffle_epi8(t, input->chunks[1]), input->chunks[1]);
+    _mm_shuffle_epi8(t, simd->chunks[1]), simd->chunks[1]);
   const __m128i r2 = _mm_cmpeq_epi8(
-    _mm_shuffle_epi8(t, input->chunks[2]), input->chunks[2]);
+    _mm_shuffle_epi8(t, simd->chunks[2]), simd->chunks[2]);
   const __m128i r3 = _mm_cmpeq_epi8(
-    _mm_shuffle_epi8(t, input->chunks[3]), input->chunks[3]);
+    _mm_shuffle_epi8(t, simd->chunks[3]), simd->chunks[3]);
 
   const uint64_t m0 = (uint16_t)_mm_movemask_epi8(r0);
   const uint64_t m1 = (uint16_t)_mm_movemask_epi8(r1);
@@ -109,4 +119,4 @@ static inline uint64_t find_any_8x64(
   return m0 | (m1 << 16) | (m2 << 32) | (m3 << 48);
 }
 
-#endif // WESTMERE_SIMD_H
+#endif // SIMD_H
