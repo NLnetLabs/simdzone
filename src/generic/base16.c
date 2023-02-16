@@ -1,15 +1,12 @@
 /*
- * base16.h -- some useful comment
+ * generic/base16.c -- some useful comment
  *
- * Copyright (c) 2022, NLnet Labs. All rights reserved.
+ * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
-#ifndef ZONE_BASE16_H
-#define ZONE_BASE16_H
-
-#include "zone.h"
+#include <stdint.h>
 
 static const uint8_t b16rmap[256] = {
   0xfd, 0xff, 0xff, 0xff,  0xff, 0xff, 0xff, 0xff,  /*   0 -   7 */
@@ -46,66 +43,4 @@ static const uint8_t b16rmap[256] = {
   0xff, 0xff, 0xff, 0xff,  0xff, 0xff, 0xff, 0xff,  /* 248 - 255 */
 };
 
-static const uint8_t b16rmap_special = 0xf0;
-static const uint8_t b16rmap_end = 0xfd;
-static const uint8_t b16rmap_space = 0xfe;
-
-static inline zone_return_t parse_base16(
-  zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
-{
-  (void)info;
-  for (size_t i=0; i < token->length; i++) {
-    const uint8_t ofs = b16rmap[(uint8_t)token->data[i]];
-
-    if (ofs >= b16rmap_special) {
-      // ignore whitespace
-      if (ofs == b16rmap_space)
-        continue;
-      // end of base16 characters
-      if (ofs == b16rmap_end)
-        break;
-      SEMANTIC_ERROR(parser, "Invalid character in base16 encoding");
-    }
-
-    if (parser->state.base16 == 0) {
-      parser->rdata[parser->rdlength]  = ofs << 4;
-      parser->state.base16 = 1;
-    } else if (parser->state.base16 == 1) {
-      parser->rdata[parser->rdlength] |= ofs;
-      parser->state.base16 = 0;
-      if (parser->rdlength == UINT16_MAX - 1)
-        SEMANTIC_ERROR(parser, "Invalid base16 sequence");
-      parser->rdlength++;
-    }
-  }
-
-  return 0;
-}
-
-static inline zone_return_t accept_base16(
-  zone_parser_t *parser, void *user_data)
-{
-  (void)user_data;
-  if (parser->state.base16 != 0)
-    SEMANTIC_ERROR(parser, "Invalid base16 sequence");
-  parser->state.base16 = 0;
-  return 0; //parser->options.accept.rdata(parser, field, user_data);
-}
-
-static inline zone_return_t parse_salt(
-  zone_parser_t *parser, const zone_field_info_t *info, zone_token_t *token)
-{
-  zone_return_t result;
-
-  size_t rdlength = parser->rdlength++;
-  if (token->length == 1 && token->data[0] == '-') {
-    // ignore
-  } else {
-    if ((result = parse_base16(parser, info, token)) < 0)
-      return result;
-  }
-  parser->rdata[rdlength] = (parser->rdlength - rdlength) - 1;
-  return 0;
-}
-
-#endif // ZONE_BASE16_H
+const uint8_t *zone_b16rmap = b16rmap;

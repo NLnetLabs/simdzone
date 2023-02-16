@@ -1,14 +1,25 @@
-cmake_minimum_required(VERSION 3.18)
+#
+# Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+cmake_minimum_required(VERSION 3.10)
 project(
   simdzone
   LANGUAGES C
   VERSION 0.1.0
   DESCRIPTION "Fast and standards compliant DNS zone file parser")
 
+if(CMAKE_VERSION VERSION_LESS 3.12)
+  # GENERATE_EXPORT_HEADER requires a C++ compiler up to version 3.12
+  enable_language(CXX)
+endif()
+
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
 include(CheckIncludeFile)
 include(CheckCCompilerFlag)
+include(GenerateExportHeader)
 
 if(MSVC)
   add_compile_options(/W4 /WX)
@@ -65,12 +76,34 @@ if(SANITIZER)
   endforeach()
 endif()
 
-add_library(simdzone STATIC src/zone.c src/types.c)
+add_library(simdzone STATIC)
+
+generate_export_header(
+  simdzone BASE_NAME ZONE EXPORT_FILE_NAME include/zone/export.h)
 
 target_include_directories(
   simdzone PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
            PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
                    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+
+target_sources(simdzone PRIVATE
+  src/zone.c
+  src/types.c
+  src/generic/table.c
+  src/generic/base16.c
+  src/generic/base32.c
+  src/generic/base64.c
+  src/generic/error.c
+  src/generic/parser.c
+  src/generic/scanner.c
+  src/fallback/parser.c)
+
+add_executable(zone-bench src/bench.c src/fallback/bench.c)
+target_include_directories(
+  zone-bench PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+                     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+target_link_libraries(zone-bench PRIVATE simdzone)
 
 # Multiple instruction sets may be supported by a specific architecture.
 # e.g. x86_64 may (or may not) support any of SSE42, AVX2 and AVX-512. The
@@ -78,7 +111,6 @@ target_include_directories(
 # may or may not support generating code for an instruction set
 
 string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" architecture)
-
 # FIXME: probably need an option to select which implementations to use(?)
 # FIXME: likely too GCC/Clang specific
 
@@ -92,6 +124,9 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
     set_source_files_properties(
       src/westmere/parser.c PROPERTIES COMPILE_FLAGS "-march=westmere")
     target_sources(simdzone PRIVATE src/westmere/parser.c)
+    set_source_files_properties(
+      src/westmere/bench.c PROPERTIES COMPILE_FLAGS "-march=westmere")
+    target_sources(zone-bench PRIVATE src/westmere/bench.c)
   endif()
 
   if(HAVE_IMMINTRIN_H AND HAVE_MARCH_HASWELL)
@@ -99,18 +134,10 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
     set_source_files_properties(
       src/haswell/parser.c PROPERTIES COMPILE_FLAGS "-march=haswell")
     target_sources(simdzone PRIVATE src/haswell/parser.c)
+    set_source_files_properties(
+      src/haswell/bench.c PROPERTIES COMPILE_FLAGS "-march=haswell")
+    target_sources(zone-bench PRIVATE src/haswell/bench.c)
   endif()
 endif()
 
 configure_file(config.h.in config.h)
-
-add_executable(parser src/main.c)
-target_link_libraries(parser PRIVATE simdzone)
-
-#option(BUILD_TESTING "Build the testing tree." OFF)
-#
-#include(CTest)
-#
-#if(BUILD_TESTING)
-#  add_subdirectory(tests)
-#endif()

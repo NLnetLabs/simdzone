@@ -27,11 +27,11 @@ static const zone_symbol_t x[] = {
   /* 11 */  CLASS("CS", ZONE_CS),
   /* 12 */  TYPE("CSYNC", ZONE_CSYNC),
 
-  /* 13 */  TYPE("DNAME", ZONE_DNAME),
-  /* 14 */  TYPE("DS", ZONE_DS),
-  /* 15 */  TYPE("DNSKEY", ZONE_DNSKEY),
-  /* 16 */  TYPE("DHCID", ZONE_DHCID),
-  /* 17 */  TYPE("DLV", ZONE_DLV),
+  /* 13 */  TYPE("DHCID", ZONE_DHCID),
+  /* 14 */  TYPE("DLV", ZONE_DLV),
+  /* 15 */  TYPE("DNAME", ZONE_DNAME),
+  /* 16 */  TYPE("DNSKEY", ZONE_DNSKEY),
+  /* 17 */  TYPE("DS", ZONE_DS),
 
   /* 18 */  TYPE("EUI48", ZONE_EUI48),
   /* 19 */  TYPE("EUI64", ZONE_EUI64),
@@ -118,8 +118,8 @@ static const zone_fast_table_t fast_identifiers[32] = {
   // C[CAA,CDS,CDNSKEY,CERT,CH,CNAME,CS,CSYNC]
   { { 202, 72, 118, 80, 250, 232, 71, 218 },
     { &x[5], &x[6], &x[7], &x[8], &x[9], &x[10], &x[11], &x[12] } },
-  // D[DNAME, DS, DNSKEY, DHCID, DLV]
-  { { 232, 71, 117, 225, 93 },
+  // D[DHCID, DLV, DNAME, DNSKEY, DS]
+  { { 225, 93, 232, 117, 71 },
     { &x[13], &x[14], &x[15], &x[16], &x[17] } },
   // E[EUI48=108,EUI64=109]
   { { 173, 145 },
