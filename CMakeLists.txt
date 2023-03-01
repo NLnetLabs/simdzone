@@ -8,23 +8,58 @@ project(
   simdzone
   LANGUAGES C
   VERSION 0.1.0
-  DESCRIPTION "Fast and standards compliant DNS zone file parser")
+  DESCRIPTION "Fast and standards compliant DNS zone parser")
+
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
 if(CMAKE_VERSION VERSION_LESS 3.12)
   # GENERATE_EXPORT_HEADER requires a C++ compiler up to version 3.12
   enable_language(CXX)
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
+if(CMAKE_VERSION VERSION_LESS 3.24)
+  # COMPILE_WARNING_AS_ERROR property was added in version 3.24. Mimic the
+  # option in prior versions.
+  option(CMAKE_COMPILE_WARNING_AS_ERROR "Treat compiler warnings as errors." OFF)
+  if(CMAKE_COMPILE_WARNING_AS_ERROR)
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+      add_compile_options(-Werror)
+    elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+      add_compile_options(/WX)
+    endif()
+  endif()
+endif()
+
+#find_package(Doxygen)
+#find_package(Sphinx)
+
+# Building the testing tree is enabled by including CTest, but as it is not
+# strictly required to build the product itself, switch to off by default.
+option(BUILD_TESTING "Build the testing tree." OFF)
+option(BUILD_DOCUMENTATION "Build documentation." OFF)
 
 include(CheckIncludeFile)
 include(CheckCCompilerFlag)
 include(GenerateExportHeader)
+include(GNUInstallDirs)
+include(CTest)
 
-if(MSVC)
-  add_compile_options(/W4 /WX)
-else()
-  add_compile_options(-Wall -Wextra -pedantic -fjump-tables)
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  add_compile_options(
+    -Wall -Wextra -Wconversion -Wunused -Wmissing-prototypes
+    -Winfinite-recursion -Wassign-enum -Wcomma -Wdocumentation
+    -Wstrict-prototypes -Wconditional-uninitialized -Wshadow)
+  if(CMAKE_GENERATOR STREQUAL "Ninja")
+    add_compile_options(-Xclang -fcolor-diagnostics)
+  endif()
+elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  add_compile_options(
+    -Wall -Wextra -pedantic)
+  if(CMAKE_GENERATOR STREQUAL "Ninja")
+    add_compile_options(-fdiagnostics-color=always)
+  endif()
+elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+  add_compile_options(/W4)
 endif()
 
 set(ANALYZER "" CACHE STRING "Analyzer to enable on the build.")
@@ -45,7 +80,7 @@ if(ANALYZER)
     # https://clang.llvm.org/extra/clang-tidy/checks/list.html
     message(STATUS "Enabling analyzer: clang-tidy")
     set(CMAKE_C_CLANG_TIDY "clang-tidy;-checks=-*,clang-analyzer-*,-clang-analyzer-security.insecureAPI.strcpy,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling")
-    if(WERROR)
+    if(CMAKE_COMPILE_WARNING_AS_ERROR)
       set(CMAKE_C_CLANG_TIDY "${CMAKE_C_CLANG_TIDY};--warnings-as-errors=*")
     endif()
   elseif(ANALYZER STREQUAL "on")

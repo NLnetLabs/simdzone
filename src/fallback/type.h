@@ -42,14 +42,12 @@ static inline zone_return_t scan_type_or_class(
 
     *code = (uint16_t)v;
     return ZONE_TYPE;
-bad_type:
-    SEMANTIC_ERROR(parser, "Invalid type in %s", field->name.data);
   } else if (token->length > 5 && strncasecmp(token->data, "CLASS", 5) == 0) {
     uint64_t v = 0;
     for (size_t i=5; i < token->length; i++) {
       const uint64_t n = (uint8_t)token->data[i] - '0';
       if (n > 9)
-        goto bad_class;
+        goto bad_type;
       v = v * 10 + n;
       if (v > UINT16_MAX)
         goto bad_type;
@@ -57,11 +55,11 @@ bad_type:
 
     *code = (uint16_t)v;
     return ZONE_CLASS;
-bad_class:
-    SEMANTIC_ERROR(parser, "Invalid class in %s", field->name.data);
   }
 
-  SEMANTIC_ERROR(parser, "Invalid type or class in %s", field->name.data);
+bad_type:
+  SEMANTIC_ERROR(parser, "Invalid %s in %s",
+                 field->name.data, type->name.data);
 }
 
 zone_always_inline()
@@ -96,7 +94,8 @@ static inline zone_return_t scan_type(
   }
 
 bad_type:
-  SEMANTIC_ERROR(parser, "Invalid type in %s", field->name.data);
+  SEMANTIC_ERROR(parser, "Invalid %s in %s",
+                 field->name.data, type->name.data);
 }
 
 zone_always_inline()

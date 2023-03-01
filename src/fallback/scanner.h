@@ -228,7 +228,7 @@ shuffle:
   }
 
   const size_t length = file->buffer.length - file->buffer.index;
-  if (!file->end_of_file || (tail - file->indexer.tail) < length)
+  if (!file->end_of_file || (size_t)(tail - file->indexer.tail) < length)
     goto terminate;
 
   start = &file->buffer.data[file->buffer.index];
