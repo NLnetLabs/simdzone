@@ -1,0 +1,45 @@
+name: build-test
+
+on: [ push, pull_request ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cc: gcc
+            build_type: Debug
+            build_tool_options: -j 4
+            analyzer: on
+          - os: ubuntu-22.04
+            cc: clang
+            build_type: Debug
+            build_tool_options: -j 4
+            analyzer: on
+          - os: macos-12
+            build_type: Debug
+            build_tool_options: -j 4
+          - os: windows-2022
+            generator: "Visual Studio 17 2022"
+            build_type: Debug
+            build_tool_options: "-nologo -verbosity:minimal -maxcpucount:4 -p:CL_MPCount=4"
+    steps:
+      - uses: actions/checkout@v3
+      - shell: bash
+        env:
+          CC: ${{matrix.cc}}
+          ANALYZER: ${{matrix.analyzer}}
+          GENERATOR: ${{matrix.generator}}
+          BUILD_TYPE: ${{matrix.build_type}}
+          BUILD_TOOL_OPTIONS: ${{matrix.build_tool_options}}
+        run: |
+          set -e -x
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RelWithDebInfo} \
+                -DCMAKE_COMPILE_WARNING_AS_ERROR=on \
+                -DANALYZER=${ANALYZER:-off} \
+                ${GENERATOR:+-G} ${GENERATOR:+"${GENERATOR}"} ..
+          cmake --build . --config ${BUILD_TYPE:-RelWithDebInfo} -- ${BUILD_TOOL_OPTIONS}
