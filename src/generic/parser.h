@@ -21,7 +21,7 @@ static inline zone_return_t accept_rr(
    &parser->items[2],
    &parser->items[1],
     parser->rdata_items,
-    parser->rdlength,
+    (uint16_t)parser->rdlength,
     parser->rdata,
     user_data);
 }

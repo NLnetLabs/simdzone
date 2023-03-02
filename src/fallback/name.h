@@ -40,14 +40,14 @@ static inline zone_return_t scan_name(
         if ((octet - 1) - label > 63)
           SYNTAX_ERROR(parser, "Invalid name in %s, label exceeds maximum",
             field->name.data);
-        octets[label] = (octet - label) - 1;
+        octets[label] = (uint8_t)((octet - label) - 1);
         if (token->data[i] != '.')
           break;
         label = octet;
         octets[octet++] = 0;
         break;
       default:
-        octets[octet++] = token->data[i];
+        octets[octet++] = (unsigned char)token->data[i];
         break;
     }
   }

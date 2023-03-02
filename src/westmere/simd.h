@@ -45,7 +45,7 @@ static inline void simd_storeu_8x(uint8_t *address, const simd_8x_t *simd)
 
 zone_always_inline()
 zone_nonnull_all()
-static inline uint64_t simd_find_8x(const simd_8x_t *simd, uint8_t key)
+static inline uint64_t simd_find_8x(const simd_8x_t *simd, char key)
 {
   const __m128i k = _mm_set1_epi8(key);
   const __m128i r = _mm_cmpeq_epi8(simd->chunks[0], k);
@@ -78,7 +78,7 @@ static inline void simd_loadu_8x64(simd_8x64_t *simd, const uint8_t *address)
 
 zone_always_inline()
 zone_nonnull_all()
-static inline uint64_t simd_find_8x64(const simd_8x64_t *simd, uint8_t key)
+static inline uint64_t simd_find_8x64(const simd_8x64_t *simd, char key)
 {
   const __m128i k = _mm_set1_epi8(key);
 
@@ -90,7 +90,7 @@ static inline uint64_t simd_find_8x64(const simd_8x64_t *simd, uint8_t key)
   const uint64_t m0 = (uint16_t)_mm_movemask_epi8(r0);
   const uint64_t m1 = (uint16_t)_mm_movemask_epi8(r1);
   const uint64_t m2 = (uint16_t)_mm_movemask_epi8(r2);
-  const uint64_t m3 = _mm_movemask_epi8(r3);
+  const uint64_t m3 = (uint16_t)_mm_movemask_epi8(r3);
 
   return m0 | (m1 << 16) | (m2 << 32) | (m3 << 48);
 }
@@ -114,7 +114,7 @@ static inline uint64_t simd_find_any_8x64(
   const uint64_t m0 = (uint16_t)_mm_movemask_epi8(r0);
   const uint64_t m1 = (uint16_t)_mm_movemask_epi8(r1);
   const uint64_t m2 = (uint16_t)_mm_movemask_epi8(r2);
-  const uint64_t m3 = _mm_movemask_epi8(r3);
+  const uint64_t m3 = (uint16_t)_mm_movemask_epi8(r3);
 
   return m0 | (m1 << 16) | (m2 << 32) | (m3 << 48);
 }

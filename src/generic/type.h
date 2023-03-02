@@ -44,7 +44,7 @@ static inline zone_return_t scan_type_or_class(
 
   simd_8x16_t keys;
   simd_loadu_8x16(&keys, table->keys);
-  const uint64_t bits = simd_find_8x16(&keys, h) | (1u << 15);
+  const uint64_t bits = simd_find_8x16(&keys, (char)h) | (1u << 15);
   const uint64_t index = trailing_zeroes(bits);
   const zone_symbol_t *symbol = table->symbols[index];
 
@@ -61,10 +61,10 @@ static inline zone_return_t scan_type_or_class(
   {
     uint64_t v = 0;
     for (size_t i=4; i < token->length; i++) {
-      const uint64_t n = (uint8_t)token->data[i] - '0';
-      if (n > 9)
+      const uint64_t x = (uint8_t)token->data[i] - '0';
+      if (x > 9)
         goto bad_type;
-      v = v * 10 + n;
+      v = v * 10 + x;
       if (v > UINT16_MAX)
         goto bad_type;
     }
@@ -81,10 +81,10 @@ bad_type:
   {
     uint64_t v = 0;
     for (size_t i=5; i < token->length; i++) {
-      const uint64_t n = (uint8_t)token->data[i] - '0';
-      if (n > 9)
+      const uint64_t x = (uint8_t)token->data[i] - '0';
+      if (x > 9)
         goto bad_class;
-      v = v * 10 + n;
+      v = v * 10 + x;
       if (v > UINT16_MAX)
         goto bad_class;
     }
@@ -119,7 +119,7 @@ static inline zone_return_t scan_type(
 
   simd_8x16_t keys;
   simd_loadu_8x16(&keys, table->keys);
-  const uint64_t bits = simd_find_8x16(&keys, h) | (1u << 15);
+  const uint64_t bits = simd_find_8x16(&keys, (char)h) | (1u << 15);
   const uint64_t index = trailing_zeroes(bits);
   const zone_symbol_t *symbol = table->symbols[index];
 
@@ -137,10 +137,10 @@ static inline zone_return_t scan_type(
   {
     uint64_t v = 0;
     for (size_t i=4; i < token->length; i++) {
-      const uint64_t n = (uint8_t)token->data[i] - '0';
-      if (n > 9)
+      const uint64_t x = (uint8_t)token->data[i] - '0';
+      if (x > 9)
         goto bad_type;
-      v = v * 10 + n;
+      v = v * 10 + x;
       if (v > UINT16_MAX)
         goto bad_type;
     }

@@ -29,7 +29,12 @@
 #include "generic/nsec.h"
 #include "generic/parser.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-prototypes"
+
 zone_return_t zone_westmere_parse(zone_parser_t *parser, void *user_data)
 {
   return parse(parser, user_data);
 }
+
+#pragma clang diagnostic pop

@@ -49,20 +49,20 @@ static inline void scan_name(
   *label = 0;
 
   while (text < limit) {
-    copy_name_block(&block, text, limit - text, wire);
+    copy_name_block(&block, text, (size_t)(limit - text), wire);
 
     if (block.escape_bits) {
       const uint64_t count = trailing_zeroes(block.escape_bits);
       uint8_t digits[3];
-      digits[0] = text[count + 1] - '0';
+      digits[0] = (unsigned char)text[count + 1] - '0';
 
       if (digits[0] > 2) {
-        wire[count] = text[count + 1];
+        wire[count] = (unsigned char)text[count + 1];
         wire += count + 1;
         text += count + 2;
       } else {
-        digits[1] = text[count + 2] - '0';
-        digits[2] = text[count + 3] - '0';
+        digits[1] = (unsigned char)text[count + 2] - '0';
+        digits[2] = (unsigned char)text[count + 3] - '0';
         if (digits[0] < 2) {
           if (digits[1] > 9 || digits[2] > 9)
             SEMANTIC_ERROR(parser, "Bad escape sequence in %s of %s record",
@@ -118,7 +118,7 @@ static inline void scan_name(
                    field->name.data, type->name.data);
   }
 
-  *length = wire - octets;
+  *length = (size_t)(wire - octets);
 }
 
 zone_always_inline()

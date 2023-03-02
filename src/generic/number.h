@@ -23,7 +23,7 @@ static inline zone_return_t parse_int8(
   zone_symbol_t *symbol;
 
   for (size_t i=0; i < token->length; i++) {
-    const uint64_t n = token->data[i] - '0';
+    const uint64_t n = (unsigned char)token->data[i] - '0';
     if (n > 9)
       goto parse_symbol;
     v = (v * 10) + n;
@@ -58,7 +58,7 @@ static inline zone_return_t parse_int16(
   zone_symbol_t *symbol;
 
   for (size_t i=0; i < token->length; i++) {
-    const uint64_t n = token->data[i] - '0';
+    const uint64_t n = (unsigned char)token->data[i] - '0';
     if (n > 9)
       goto parse_symbol;
     v = (v * 10) + n;
@@ -95,7 +95,7 @@ static inline zone_return_t parse_int32(
   zone_symbol_t *symbol;
 
   for (size_t i=0; i < token->length; i++) {
-    const uint64_t n = token->data[i] - '0';
+    const uint64_t n = (unsigned char)token->data[i] - '0';
     if (n > 9)
       goto parse_symbol;
     v = (v * 10) + n;

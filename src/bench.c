@@ -70,7 +70,7 @@ static zone_return_t bench_lex(zone_parser_t *parser, const target_t *target)
   return result;
 }
 
-zone_return_t bench_accept(
+static zone_return_t bench_accept(
   zone_parser_t *parser,
   const zone_field_t *owner,
   const zone_field_t *ttl,
@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
   if (optind > argc || argc - optind < 2)
     usage(program);
 
-  zone_return_t (*bench)(zone_parser_t *, const target_t *);
+  zone_return_t (*bench)(zone_parser_t *, const target_t *) = 0;
   if (strcasecmp(argv[optind], "lex") == 0)
     bench = &bench_lex;
   else if (strcasecmp(argv[optind], "parse") == 0)

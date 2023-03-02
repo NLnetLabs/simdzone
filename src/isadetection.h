@@ -145,7 +145,7 @@ static inline void cpuid(
 #endif
 }
 
-static inline uint32_t detect_supported_architectures() {
+static inline uint32_t detect_supported_architectures(void) {
   uint32_t eax, ebx, ecx, edx;
   uint32_t host_isa = 0x0;
 

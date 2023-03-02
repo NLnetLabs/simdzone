@@ -239,7 +239,7 @@ typedef enum {
 typedef struct zone_field_info zone_field_info_t;
 struct zone_field_info {
   zone_string_t name;
-  zone_type_t type;
+  uint32_t type;
   uint32_t qualifiers;
   zone_table_t symbols;
 };
@@ -381,7 +381,7 @@ struct zone_options {
   uint32_t flags;
   const char *origin;
   uint32_t default_ttl;
-  uint32_t default_class;
+  uint16_t default_class;
   struct {
     zone_malloc_t malloc;
     zone_realloc_t realloc;
@@ -422,8 +422,6 @@ struct zone_parser {
  * @param[in]  line      Line number in source file
  * @param[in]  function  Name of function
  * @param[in]  format    Format string compatible with printf
- *
- * @return void
  */
 ZONE_EXPORT void zone_error(
   zone_parser_t *parser,
@@ -495,6 +493,27 @@ zone_parse(
   zone_parser_t *parser,
   void *user_data)
 zone_nonnull((1));
+
+ZONE_EXPORT void zone_free(
+  zone_options_t *options, void *ptr)
+zone_nonnull((1));
+
+ZONE_EXPORT void *zone_malloc(
+  zone_options_t *options, size_t size)
+zone_nonnull((1))
+zone_allocator(zone_free, 2)
+zone_attribute((alloc_size(2)));
+
+ZONE_EXPORT void *zone_realloc(
+  zone_options_t *options, void *ptr, size_t size)
+zone_nonnull((1))
+zone_allocator(zone_free, 2)
+zone_attribute((alloc_size(3)));
+
+ZONE_EXPORT char *zone_strdup(
+  zone_options_t *options, const char *str)
+zone_nonnull_all()
+zone_allocator(zone_free, 2);
 
 #if 0
 /**

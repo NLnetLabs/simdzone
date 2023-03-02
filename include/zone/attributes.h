@@ -46,6 +46,8 @@
 # define zone_always_inline() __forceinline
 # define zone_never_inline() __declspec(noinline)
 # define zone_noreturn() __declspec(noreturn)
+# define zone_allocator(...)
+
 # define zone_unlikely(x)
 
 # define zone_format(params)
@@ -61,12 +63,23 @@
 #else // _MSC_VER
 # define zone_always_inline() zone_attribute((always_inline))
 # define zone_never_inline() zone_attribute((noinline))
-# define zone_unlikely(params) __builtin_expect((params), 0)
 # if zone_has_attribute(noreturn)
 #   define zone_noreturn() zone_attribute((noreturn))
 # else
 #   define zone_noreturn()
 # endif
+
+# if zone_has_attribute(malloc)
+#   if zone_gcc
+#     define zone_allocator(...) zone_attribute((malloc(__VA_ARGS__)))
+#   else
+#     define zone_allocator(...) zone_attribute((malloc))
+#   endif
+# else
+#   define zone_allocator(...)
+# endif
+
+# define zone_unlikely(params) __builtin_expect((params), 0)
 
 # define zone_format_string(params) params
 # if zone_has_attribute(format)

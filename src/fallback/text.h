@@ -24,11 +24,11 @@ static inline void parse_string(
   while (text < end && wire < limit) {
     if (*text == '\\') {
       uint8_t digits[3];
-      digits[0] = text[1] - '0';
+      digits[0] = (unsigned char)text[1] - '0';
 
       if (digits[0] > 2) {
-        digits[1] = text[2] - '0';
-        digits[2] = text[3] - '0';
+        digits[1] = (unsigned char)text[2] - '0';
+        digits[2] = (unsigned char)text[3] - '0';
         if (digits[0] < 2) {
           if (digits[1] > 9 || digits[2] > 9)
             SEMANTIC_ERROR(parser, "Invalid %s in %s, bad escape sequence",
@@ -43,12 +43,12 @@ static inline void parse_string(
         wire += 1;
         text += 4;
       } else {
-        wire[0] = text[1];
+        wire[0] = (unsigned char)text[1];
         wire += 1;
         text += 2;
       }
     } else {
-      wire[0] = text[0];
+      wire[0] = (unsigned char)text[0];
       text += 1;
       wire += 1;
     }
@@ -58,8 +58,8 @@ static inline void parse_string(
     SYNTAX_ERROR(parser, "Invalid string in %s",
                  field->name.data);
 
-  parser->rdata[parser->rdlength] = (wire - parser->rdata) - 1;
-  parser->rdlength += wire - parser->rdata;
+  parser->rdata[parser->rdlength] = (uint8_t)((wire - parser->rdata) - 1);
+  parser->rdlength += (size_t)(wire - parser->rdata);
 }
 
 #endif // TEXT_H

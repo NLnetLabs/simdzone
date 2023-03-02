@@ -72,7 +72,8 @@ static inline void parse_time(
   if (!(end = strptime(buf, "%Y%m%d%H%M%S", &tm)) || *end != 0)
     SYNTAX_ERROR(parser, "Invalid %s in %s",
                  field->name.data, type->name.data);
-  *((uint32_t *)&parser->rdata[parser->rdlength]) = htonl(mktime_from_utc(&tm));
+  uint32_t time = htonl((uint32_t)mktime_from_utc(&tm));
+  memcpy(&parser->rdata[parser->rdlength], &time, sizeof(time));
   parser->rdlength += sizeof(uint32_t);
 }
 
