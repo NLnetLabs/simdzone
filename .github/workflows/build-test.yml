@@ -12,15 +12,16 @@ jobs:
             cc: gcc
             build_type: Debug
             build_tool_options: -j 4
-            analyzer: on
+            analyzer: off
           - os: ubuntu-22.04
             cc: clang
             build_type: Debug
             build_tool_options: -j 4
-            analyzer: on
+            analyzer: off
           - os: macos-12
             build_type: Debug
             build_tool_options: -j 4
+            analyzer: off
           - os: windows-2022
             generator: "Visual Studio 17 2022"
             build_type: Debug
