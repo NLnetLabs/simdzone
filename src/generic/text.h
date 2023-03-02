@@ -43,20 +43,20 @@ static inline void parse_string(
   const char *text = token->data, *limit = token->data + token->length;
 
   while (text < limit) {
-    copy_string_block(&block, text, limit - text, wire);
+    copy_string_block(&block, text, (size_t)(limit - text), wire);
 
     if (block.escape_bits) {
       const uint64_t count = trailing_zeroes(block.escape_bits);
       uint8_t digits[3];
-      digits[0] = text[count + 1] - '0';
+      digits[0] = (unsigned char)text[count + 1] - '0';
 
       if (digits[0] > 2) {
-        wire[count] = text[count + 1];
+        wire[count] = (unsigned char)text[count + 1];
         wire += count + 1;
         text += count + 2;
       } else {
-        digits[1] = text[count + 2] - '0';
-        digits[2] = text[count + 3] - '0';
+        digits[1] = (unsigned char)text[count + 2] - '0';
+        digits[2] = (unsigned char)text[count + 3] - '0';
         if (digits[0] < 2) {
           if (digits[1] > 9 || digits[2] > 9)
             SEMANTIC_ERROR(parser, "Invalid %s in %s, bad escape sequence",
@@ -81,8 +81,8 @@ static inline void parse_string(
                      field->name.data, type->name.data);
   }
 
-  parser->rdata[parser->rdlength] = (wire - parser->rdata) - 1;
-  parser->rdlength += wire - parser->rdata;
+  parser->rdata[parser->rdlength] = (uint8_t)((wire - parser->rdata) - 1);
+  parser->rdlength += (size_t)(wire - parser->rdata);
 }
 
 #endif // TEXT_H

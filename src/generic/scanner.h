@@ -17,11 +17,6 @@
 #include "zone.h"
 #include "generic/error.h"
 
-extern void *zone_malloc(zone_options_t *opts, size_t size);
-extern void *zone_realloc(zone_options_t *opts, void *ptr, size_t size);
-extern void zone_free(zone_options_t *opts, void *ptr);
-extern char *zone_strdup(zone_options_t *opts, const char *str);
-
 static inline uint64_t find_escaped(
   uint64_t backslash, uint64_t *is_escaped)
 {
@@ -341,7 +336,7 @@ terminate:
     file->indexer.is_escaped = 0;
     file->indexer.follows_contiguous = 0;
     file->buffer.index =
-      file->indexer.tail[0].address - file->buffer.data;
+      (size_t)(file->indexer.tail[0].address - file->buffer.data);
   }
 
   file->indexer.tail[0] =
@@ -351,17 +346,18 @@ terminate:
   file->start_of_line = file->indexer.head[0].address == base && start_of_line;
 
   do {
-    const char *begin = file->indexer.head[0].address;
+    const char *start = file->indexer.head[0].address;
     const char *end   = file->indexer.head[1].address;
+    assert(start < end || (start == end && *start == '\0' && *end == '\0'));
 
-    switch (zone_jump[ (unsigned char)*begin ]) {
+    switch (zone_jump[ (unsigned char)*start ]) {
       case 0: // contiguous
-        *token = (zone_token_t){ end - begin, begin };
+        *token = (zone_token_t){ (size_t)(end - start), start };
         // discard index for blank or semicolon
         file->indexer.head += zone_forward[ (unsigned char)*end ];
         return ZONE_CONTIGUOUS;
       case 1: // quoted
-        *token = (zone_token_t){end - begin, begin + 1 };
+        *token = (zone_token_t){ (size_t)(end - start), start + 1 };
         // discard index for closing quote
         file->indexer.head += 2;
         return ZONE_QUOTED;
@@ -370,17 +366,17 @@ terminate:
         file->indexer.head++;
         if (file->grouped)
           break;
-        file->start_of_line = (end - begin) == 1;
-        *token = (zone_token_t){ 1, begin };
+        file->start_of_line = (end - start) == 1;
+        *token = (zone_token_t){ 1, start };
         return ZONE_DELIMITER;
       case 3: // end of file
         if (file->end_of_file != ZONE_NO_MORE_DATA)
           goto shuffle;
         if (file->grouped)
           SYNTAX_ERROR(parser, "Missing closing brace");
-        assert(begin == file->buffer.data + file->buffer.length);
+        assert(start == file->buffer.data + file->buffer.length);
         assert(end == file->buffer.data + file->buffer.length);
-        *token = (zone_token_t){ 1, begin };
+        *token = (zone_token_t){ 1, start };
         return ZONE_DELIMITER;
       case 4: // left parenthesis
         if (file->grouped)

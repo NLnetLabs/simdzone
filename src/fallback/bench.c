@@ -11,6 +11,9 @@
 #include "fallback/scanner.h"
 #include "generic/lexer.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-prototypes"
+
 zone_return_t zone_bench_fallback_lex(zone_parser_t *parser, size_t *tokens)
 {
   zone_token_t token;
@@ -22,3 +25,5 @@ zone_return_t zone_bench_fallback_lex(zone_parser_t *parser, size_t *tokens)
 
   return result;
 }
+
+#pragma clang diagnostic pop

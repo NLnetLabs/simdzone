@@ -56,7 +56,7 @@ static inline void parse_nsec(
     const uint8_t blocks = 1 + bitmap[window][1] / 8;
     if (!blocks)
       continue;
-    data[length] = window;
+    data[length] = (uint8_t)window;
     data[length+1] = blocks;
     memmove(&data[length+2], &bitmap[window][2], blocks);
   }

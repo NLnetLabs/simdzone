@@ -18,17 +18,18 @@ static inline zone_return_t lex(zone_parser_t *parser, zone_token_t *token)
 {
   do {
     // safe, as tape is doubly terminated
-    const char *begin = parser->file->indexer.head[0].address;
+    const char *start = parser->file->indexer.head[0].address;
     const char *end   = parser->file->indexer.head[1].address;
+    assert(start < end || (start == end && *start == '\0' && *end == '\0'));
 
-    switch (zone_jump[ (uint8_t)*begin ]) {
+    switch (zone_jump[ (unsigned char)*start ]) {
       case 0: // contiguous
-        *token = (zone_token_t){ end - begin, begin };
+        *token = (zone_token_t){ (size_t)(end - start), start };
         // discard index for blank or semicolon
-        parser->file->indexer.head += zone_forward[ (uint8_t)*end ];
+        parser->file->indexer.head += zone_forward[ (unsigned char)*end ];
         return ZONE_CONTIGUOUS;
       case 1: // quoted
-        *token = (zone_token_t){ end - begin, begin + 1 };
+        *token = (zone_token_t){ (size_t)(end - start), start + 1 };
         // discard index for closing quote
         parser->file->indexer.head += 2;
         return ZONE_QUOTED;
@@ -37,8 +38,8 @@ static inline zone_return_t lex(zone_parser_t *parser, zone_token_t *token)
         parser->file->indexer.head++;
         if (parser->file->grouped)
           break;
-        parser->file->start_of_line = (end - begin) == 1;
-        *token = (zone_token_t){ 1, begin };
+        parser->file->start_of_line = (end - start) == 1;
+        *token = (zone_token_t){ 1, start };
         return ZONE_DELIMITER;
       case 3: // end of file
         return step(parser, token);

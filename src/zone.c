@@ -96,7 +96,7 @@ static int parse_origin(const char *origin, uint8_t str[255], size_t *len)
         return -1;
       else if ((oct - lab) - 1 > 63)
         return -1;
-      str[lab] = (oct - lab) - 1;
+      str[lab] = (uint8_t)((oct - lab) - 1);
       if (chr != '.')
         break;
       lab = oct++;

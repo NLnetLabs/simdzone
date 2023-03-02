@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
+#include <assert.h>
 #include <string.h>
 #include <arpa/inet.h>
 
@@ -15,6 +16,7 @@
 static inline zone_return_t accept_rr(
   zone_parser_t *parser, zone_field_t *fields, void *user_data)
 {
+  assert(parser->rdlength <= UINT16_MAX);
   parser->rdata_items = fields;
   return parser->options.accept(
     parser,
@@ -23,7 +25,7 @@ static inline zone_return_t accept_rr(
    &parser->items[2],
    &parser->items[1],
     parser->rdata_items,
-    parser->rdlength,
+    (uint16_t)parser->rdlength,
     parser->rdata,
     user_data);
 }
@@ -171,6 +173,10 @@ static inline size_t check_nsec(
                    field->name.data, type->name.data);
   return count;
 }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wimplicit-function-declaration"
+#pragma clang diagnostic ignored "-Wmissing-prototypes"
 
 zone_nonnull((1,2))
 void zone_check_a_rdata(
@@ -364,6 +370,9 @@ void zone_check_nsec_rdata(
   count += check_name(parser, type, &fields[0], data, length);
   count += check_nsec(parser, type, &fields[1], data, length);
 
+  if (count <= length)
+    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
+
   accept_rr(parser, NULL, user_data);
 }
 
@@ -435,3 +444,5 @@ void zone_check_unknown_rdata(
 
   // implement
 }
+
+#pragma clang diagnostic pop

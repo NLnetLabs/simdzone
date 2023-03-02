@@ -41,7 +41,7 @@ static inline void parse_base16(
       }
 
       if (state == 0) {
-        parser->rdata[parser->rdlength] = ofs << 4;
+        parser->rdata[parser->rdlength] = (uint8_t)(ofs << 4);
         state = 1;
       } else {
         parser->rdata[parser->rdlength++] |= ofs;
@@ -70,6 +70,10 @@ static inline void parse_salt(
     return;
   }
 
+  if (token->length > 2 * 255)
+    SEMANTIC_ERROR(parser, "Invalid %s in %s",
+                   field->name.data, type->name.data);
+
   size_t rdlength = parser->rdlength++;
 
   for (size_t i=0; i < token->length; i++) {
@@ -87,7 +91,7 @@ static inline void parse_salt(
     }
 
     if (state == 0) {
-      parser->rdata[parser->rdlength] = ofs << 4;
+      parser->rdata[parser->rdlength] = (uint8_t)(ofs << 4);
       state = 1;
     } else {
       parser->rdata[parser->rdlength++] |= ofs;
@@ -99,7 +103,7 @@ static inline void parse_salt(
     SEMANTIC_ERROR(parser, "Invalid %s in %s record",
                    field->name.data, type->name.data);
 
-  parser->rdata[rdlength] = parser->rdlength - rdlength;
+  parser->rdata[rdlength] = (uint8_t)(parser->rdlength - rdlength);
 }
 
 #endif // BASE16_H

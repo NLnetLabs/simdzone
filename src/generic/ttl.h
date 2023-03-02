@@ -47,16 +47,14 @@ static inline zone_return_t scan_ttl(
   uint64_t value = 0, unit = 0, number, factor = 0;
   enum { NUMBER, UNIT } state = NUMBER;
 
-  // FIXME: assert dsc refers to TTL!
-
   // ttls must start with a number
-  number = token->data[0] - '0';
+  number = (unsigned char)token->data[0] - '0';
   if (number > 9)
     SYNTAX_ERROR(parser, "Invalid %s in %s",
                  field->name.data, type->name.data);
 
   for (size_t i=1; i < token->length; i++) {
-    const uint64_t digit = token->data[i] - '0';
+    const uint64_t digit = (unsigned char)token->data[i] - '0';
 
     switch (state) {
       case NUMBER:
@@ -104,7 +102,7 @@ static inline zone_return_t scan_ttl(
   if (value > INT32_MAX)
     SEMANTIC_ERROR(parser, "Invalid %s in %s, value exceeds maximum",
                    field->name.data, type->name.data);
-  *seconds = value;
+  *seconds = (uint32_t)value;
   return ZONE_TTL;
 }
 
