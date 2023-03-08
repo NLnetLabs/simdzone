@@ -28,12 +28,12 @@
 #include "generic/nsec.h"
 #include "generic/parser.h"
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-prototypes"
+zone_diagnostic_push()
+zone_clang_diagnostic_ignored(missing-prototypes)
 
 zone_return_t zone_fallback_parse(zone_parser_t *parser, void *user_data)
 {
   return parse(parser, user_data);
 }
 
-#pragma clang diagnostic pop
+zone_diagnostic_pop()
