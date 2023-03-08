@@ -12,8 +12,8 @@
 #include "generic/scanner.h"
 #include "generic/lexer.h"
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-prototypes"
+zone_diagnostic_push()
+zone_clang_diagnostic_ignored(missing-prototypes)
 
 zone_return_t zone_bench_westmere_lex(zone_parser_t *parser, size_t *tokens)
 {
@@ -27,4 +27,4 @@ zone_return_t zone_bench_westmere_lex(zone_parser_t *parser, size_t *tokens)
   return result;
 }
 
-#pragma clang diagnostic pop
+zone_diagnostic_pop()

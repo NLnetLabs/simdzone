@@ -15,6 +15,7 @@
 #include <stdbool.h>
 
 #include "zone/attributes.h"
+#include "zone/macros.h"
 #include "zone/export.h"
 
 #if defined (__cplusplus)

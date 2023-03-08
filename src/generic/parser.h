@@ -400,8 +400,9 @@ struct zone_type_descriptor {
   void (*parse)(zone_parser_t *, const zone_type_info_t *, zone_token_t *, void *);
 };
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+zone_diagnostic_push()
+zone_gcc_diagnostic_ignored(missing-field-initializers)
+zone_clang_diagnostic_ignored(missing-field-initializers)
 
 static const zone_field_info_t a_rdata_fields[] = {
   FIELD("address", ZONE_IP4, 0)
@@ -697,7 +698,7 @@ static const zone_type_descriptor_t types[] = {
 #undef UNKNOWN_TYPE
 #undef TYPE
 
-#pragma GCC diagnostic pop
+zone_diagnostic_pop()
 zone_always_inline()
 static inline void parse_rr(
   zone_parser_t *parser, zone_token_t *token, void *user_data)

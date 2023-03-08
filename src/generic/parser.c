@@ -174,9 +174,9 @@ static inline size_t check_nsec(
   return count;
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wimplicit-function-declaration"
-#pragma clang diagnostic ignored "-Wmissing-prototypes"
+zone_diagnostic_push()
+zone_clang_diagnostic_ignored(implicit-function-declaration)
+zone_clang_diagnostic_ignored(missing-prototypes)
 
 zone_nonnull((1,2))
 void zone_check_a_rdata(
@@ -445,4 +445,4 @@ void zone_check_unknown_rdata(
   // implement
 }
 
-#pragma clang diagnostic pop
+zone_diagnostic_pop()
