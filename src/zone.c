@@ -9,9 +9,7 @@
 #include <assert.h>
 #include <string.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <stdarg.h>
-#include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <stdlib.h>
@@ -181,7 +179,7 @@ zone_return_t zone_open(
   zone_return_t ret;
   zone_file_t *file;
   zone_options_t opts = *ropts;
-  int fd = -1;
+  FILE *handle = NULL;
   char buf[PATH_MAX];
   char *window = NULL, *relpath = NULL, *abspath = NULL;
 
@@ -195,7 +193,7 @@ zone_return_t zone_open(
     goto err_relpath;
   if (!(abspath = zone_strdup(&opts, buf)))
     goto err_abspath;
-  if ((fd = open(buf, O_RDONLY)) == -1)
+  if (!(handle = fopen(buf, "rb")))
     goto err_open;
   if (!(window = zone_malloc(&opts, 2)))
     goto err_window;
@@ -206,7 +204,7 @@ zone_return_t zone_open(
   file = &par->first;
   file->name = relpath;
   file->path = abspath;
-  file->handle = fd;
+  file->handle = handle;
   file->buffer.index = 1;
   file->buffer.length = 1;
   file->buffer.size = 2;
@@ -217,6 +215,7 @@ zone_return_t zone_open(
   file->indexer.tail = &file->indexer.tape[1];
   file->indexer.tape[0] = (zone_transition_t){ window,   0 };
   file->indexer.tape[1] = (zone_transition_t){ window+1, 0 };
+  file->indexer.tape[2] = (zone_transition_t){ window+1, 0 };
   file->last_type = 0;
   file->last_class = opts.default_class;
   file->last_ttl = opts.default_ttl;
@@ -229,7 +228,7 @@ zone_return_t zone_open(
   par->items[3].data.int32 = &par->file->last_ttl;
   return 0;
 err_window:
-  close(fd);
+  fclose(handle);
 err_open:
   zone_free(&opts, abspath);
 err_abspath:
@@ -245,14 +244,14 @@ void zone_close(zone_parser_t *par)
 
   for (zone_file_t *file = par->file, *includer; file; file = includer) {
     includer = file->includer;
-    if (file->handle != -1) {
+    if (file->handle != NULL) {
       if (file->buffer.data)
         zone_free(&par->options, file->buffer.data);
       assert(file->name != not_a_file);
       assert(file->path != not_a_file);
       zone_free(&par->options, (char *)file->name);
       zone_free(&par->options, (char *)file->path);
-      (void)close(file->handle);
+      (void)fclose(file->handle);
       if (file != &par->first)
         zone_free(&par->options, file);
     } else {
