@@ -30,8 +30,15 @@ if(CMAKE_VERSION VERSION_LESS 3.24)
   endif()
 endif()
 
-#find_package(Doxygen)
-#find_package(Sphinx)
+# Set a default build type if none was specified
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to 'RelWithDebInfo' as none was specified.")
+  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE
+      STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
 
 # Building the testing tree is enabled by including CTest, but as it is not
 # strictly required to build the product itself, switch to off by default.
