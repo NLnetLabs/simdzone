@@ -10,14 +10,21 @@
 #include <string.h>
 #include <fcntl.h>
 #include <stdarg.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <setjmp.h>
+#if _WIN32
+# include <windows.h>
+#endif
 
 #include "zone.h"
 #include "isadetection.h"
+
+#if _WIN32
+#define strcasecmp(s1, s2) _stricmp(s1, s2)
+#define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+#endif
 
 #ifndef NDEBUG
 static const char not_a_file[] = "<string>";
@@ -180,14 +187,20 @@ zone_return_t zone_open(
   zone_file_t *file;
   zone_options_t opts = *ropts;
   FILE *handle = NULL;
-  char buf[PATH_MAX];
+  char buf[1024]; // FIXME: remove magic number
   char *window = NULL, *relpath = NULL, *abspath = NULL;
 
   assert(path);
   if ((ret = check_options(&opts)) < 0)
     return ret;
+#if _WIN32
+  size_t count = GetFullPathName(path, sizeof(buf), buf, NULL);
+  if (!count || count >= sizeof(buf))
+    return ZONE_BAD_PARAMETER;
+#else
   if (!realpath(path, buf))
     return ZONE_BAD_PARAMETER;
+#endif
 
   if (!(relpath = zone_strdup(&opts, path)))
     goto err_relpath;

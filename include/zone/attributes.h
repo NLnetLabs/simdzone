@@ -51,7 +51,7 @@
 # define zone_unlikely(x)
 
 # define zone_format(params)
-# define zone_format_printf(params)
+# define zone_format_printf(string_index, first_to_check)
 # if _MSC_VER >= 1400
 #   include <sal.h>
 #   if _MSC_VER > 1400

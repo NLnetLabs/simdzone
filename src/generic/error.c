@@ -11,10 +11,11 @@
 #include <stdio.h>
 #include <setjmp.h>
 
+#include "zone.h"
 #include "generic/error.h"
 
 zone_nonnull((1,2))
-static void vprint(
+static void vlog(
   zone_parser_t *parser,
   const char *format,
   va_list ap)
@@ -41,7 +42,7 @@ void zone_error(
   (void)function;
 
   va_start(ap, format);
-  vprint(parser, format, ap);
+  vlog(parser, format, ap);
   va_end(ap);
 }
 
@@ -61,7 +62,7 @@ void zone_raise_error(
   (void)function;
 
   va_start(ap, format);
-  vprint(parser, format, ap);
+  vlog(parser, format, ap);
   va_end(ap);
   longjmp((void *)parser->environment, code);
 }

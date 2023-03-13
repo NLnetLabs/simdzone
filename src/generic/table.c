@@ -9,6 +9,10 @@
 #include <assert.h>
 #include <string.h>
 
+#if _WIN32
+#define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+#endif
+
 #include "zone.h"
 
 int zone_compare(const void *p1, const void *p2)

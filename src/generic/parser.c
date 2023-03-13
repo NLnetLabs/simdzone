@@ -8,7 +8,12 @@
  */
 #include <assert.h>
 #include <string.h>
+#if _WIN32
+#include <winsock2.h>
+#include <ws2ipdef.h>
+#else
 #include <arpa/inet.h>
+#endif
 
 #include "zone.h"
 #include "generic/error.h"

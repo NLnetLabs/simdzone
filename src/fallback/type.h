@@ -9,7 +9,12 @@
 #ifndef TYPE_H
 #define TYPE_H
 
+#include <string.h>
+#if _WIN32
+#define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+#else
 #include <strings.h>
+#endif
 
 #include "zone.h"
 

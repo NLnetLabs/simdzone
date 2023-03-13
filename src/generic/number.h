@@ -9,7 +9,11 @@
 #ifndef NUMBER_H
 #define NUMBER_H
 
+#if _WIN32
+#include <winsock2.h>
+#else
 #include <arpa/inet.h>
+#endif
 
 zone_always_inline()
 zone_nonnull_all()

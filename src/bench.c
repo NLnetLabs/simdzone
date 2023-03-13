@@ -10,12 +10,22 @@
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <strings.h>
+#include <string.h>
+#if _WIN32
+# include "getopt.h"
+#else
+# include <unistd.h>
+# include <strings.h>
+#endif
 
 #include "zone.h"
 #include "config.h"
 #include "isadetection.h"
+
+#if _WIN32
+#define strcasecmp(s1, s2) _stricmp(s1, s2)
+#define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+#endif
 
 #if ZONE_SUPPORTS_HASWELL
 extern zone_return_t zone_bench_haswell_lex(zone_parser_t *, size_t *);

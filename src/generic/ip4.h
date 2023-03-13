@@ -9,7 +9,11 @@
 #ifndef IP4_H
 #define IP4_H
 
+#if _WIN32
+#include <ws2tcpip.h>
+#else
 #include <netinet/in.h>
+#endif
 
 zone_always_inline()
 zone_nonnull_all()
