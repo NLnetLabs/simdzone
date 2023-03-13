@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "zone/attributes.h"
 #include "zone/macros.h"
@@ -331,7 +332,7 @@ struct zone_file {
   size_t line;
   const char *name;
   const char *path;
-  int handle;
+  FILE *handle;
   bool grouped;
   bool start_of_line;
   enum { ZONE_HAVE_DATA, ZONE_READ_ALL_DATA, ZONE_NO_MORE_DATA } end_of_file;

@@ -171,7 +171,7 @@ static inline void scan(zone_parser_t *parser, block_t *block)
   block->bits = (block->contiguous ^ block->follows_contiguous) | block->quoted | block->special;
 }
 
-static inline zone_return_t refill(zone_parser_t *parser)
+static inline void refill(zone_parser_t *parser)
 {
   zone_file_t *file = parser->file;
 
@@ -180,21 +180,23 @@ static inline zone_return_t refill(zone_parser_t *parser)
     size_t size = file->buffer.size + 16384; // should be a compile time constant!
     char *data = file->buffer.data;
     if (!(data = zone_realloc(&parser->options, data, size + 1)))
-      return ZONE_OUT_OF_MEMORY;
+      SYNTAX_ERROR(parser, "actually out of memory");
     file->buffer.size = size;
     file->buffer.data = data;
   }
 
-  ssize_t count = read(file->handle,
-                       file->buffer.data + file->buffer.length,
-                       file->buffer.size - file->buffer.length);
-  if (count < 0)
-    return ZONE_IO_ERROR;
+  size_t count = fread(file->buffer.data + file->buffer.length,
+                       sizeof(file->buffer.data[0]),
+                       file->buffer.size - file->buffer.length,
+                       file->handle);
+
+  if (count == 0 && ferror(file->handle))
+    SYNTAX_ERROR(parser, "actually a read error");
+
   // always null-terminate so terminating token can point to something
   file->buffer.length += (size_t)count;
   file->buffer.data[file->buffer.length] = '\0';
-  file->end_of_file = count == 0;
-  return 0;
+  file->end_of_file = feof(file->handle) != 0;
 }
 
 zone_always_inline()
@@ -288,10 +290,7 @@ shuffle:
             file->buffer.length - file->buffer.index);
     file->buffer.length -= file->buffer.index;
     file->buffer.index = 0;
-
-    zone_return_t result;
-    if ((result = refill(parser)) < 0)
-      return result;
+    refill(parser);
   }
 
   base = file->buffer.data + file->buffer.index;

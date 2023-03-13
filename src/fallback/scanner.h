@@ -156,24 +156,27 @@ static inline void refill(zone_parser_t *parser)
 
   // grow buffer if necessary
   if (file->buffer.length == file->buffer.size) {
-    size_t size = file->buffer.size + 16384; // should be a compile time constant!
+    // FIXME: make window length a macro
+    size_t size = file->buffer.size + 16384;
     char *data = file->buffer.data;
     if (!(data = zone_realloc(&parser->options, data, size + 1)))
-      SYNTAX_ERROR(parser, "actually out of memory");//return ZONE_OUT_OF_MEMORY;
+      SYNTAX_ERROR(parser, "actually out of memory");
     file->buffer.size = size;
     file->buffer.data = data;
   }
 
-  ssize_t count = read(file->handle,
-                       file->buffer.data + file->buffer.length,
-                       file->buffer.size - file->buffer.length);
-  if (count < 0)
-    SYNTAX_ERROR(parser, "some error, blabla");
-//    return ZONE_IO_ERROR;
+  size_t count = fread(file->buffer.data + file->buffer.length,
+                       sizeof(file->buffer.data[0]),
+                       file->buffer.size - file->buffer.length,
+                       file->handle);
+
+  if (count == 0 && ferror(file->handle))
+    SYNTAX_ERROR(parser, "actually a read error");
+
   // always null-terminate so terminating token can point to something
   file->buffer.length += (size_t)count;
   file->buffer.data[file->buffer.length] = '\0';
-  file->end_of_file = count == 0;
+  file->end_of_file = feof(file->handle) != 0;
 }
 
 extern const uint8_t *zone_forward;
