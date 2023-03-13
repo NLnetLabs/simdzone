@@ -1,18 +1,19 @@
-simdzone : Parsing zone files really fast
-=========================================
+![Build Status](https://github.com/NLnetLabs/simdzone/actions/workflows/build-test.yml/badge.svg)
 
-Fast and standards compliant DNS zone file parser library.
+simdzone: Parsing zone files really fast
+========================================
+
+Fast and standards compliant DNS zone parser library.
 
 Zone files can become quite large and for some operators the parser included
-with NSD leaves something to be desired. Replacing the Flex and Bison based
-parser with a hand written one, should speedup loading of zone files
-significantly. simdjson demonstrates that applying SIMD instructions for
-parsing structured text can quite significantly boost performance too.
-simdzone, whose name is a play on simdjson, is a simple research project to
-determine if a similar performance boost can be achieved for parsing zone
+with NSD left something to be desired. Replacing the Flex and Bison based
+parser with a hand written one sped up loading of zone files significantly.
+simdjson demonstrates that applying SIMD instructions for parsing structured
+text can quite significantly boost performance too. simdzone, whose name is a
+play on simdjson, aims to achieve a similar performance boost for parsing zone
 files.
 
-For now, SSE4.2 or AVX2 is required.
+For now, SSE4.2 and AVX2 are supported, a fallback is used otherwise.
 
 The project uses some code from the simdjson project. That code remains
 licensed under the Apache-2.0 license (for now). Credits and copyright reside
@@ -94,8 +95,3 @@ to simply copy the data and leverage SIMD operations where possible. There is
 quite a lot research in applying SIMD operations for base64 decoding and it
 seems converting domain names to wire format can benefit from SIMD treatment
 as well.
-
-Apart from that, the current implementation applies a table to lookup the
-parse function for each field. I have a hunch that instead of generating a
-table we can benefit from simply generating the parse function for each
-record type instead. That will probably speedup the process a lot.
