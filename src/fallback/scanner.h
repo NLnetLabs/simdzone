@@ -12,7 +12,6 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
-#include <unistd.h>
 
 zone_always_inline()
 zone_nonnull_all()

@@ -11,7 +11,7 @@
 
 static inline uint64_t is_unit(char c)
 {
-  static const uint32_t s = 1u, m = 60u*s, h = 60u*m, d = 24u*h, w = 7u*d;
+  static const uint32_t s = 1u, m = 60u*1u, h = 60u*60u, d = 24u*60u*60u, w = 7u*24u*60u*60u;
 
   switch (c) {
     case 's':

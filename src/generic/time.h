@@ -67,11 +67,15 @@ static inline void parse_time(
   memcpy(buf, token->data, token->length);
   buf[token->length] = '\0';
 
-  const char *end = NULL;
+  int matched;
   struct tm tm;
-  if (!(end = strptime(buf, "%Y%m%d%H%M%S", &tm)) || *end != 0)
+  matched = sscanf(buf, "%4d%2d%2d%2d%2d%2d",
+    &tm.tm_year, &tm.tm_mon, &tm.tm_mday, &tm.tm_hour, &tm.tm_min, &tm.tm_sec);
+  if (matched != 6 || matched == EOF)
     SYNTAX_ERROR(parser, "Invalid %s in %s",
                  field->name.data, type->name.data);
+  tm.tm_year -= 1900;
+  tm.tm_mon -= 1;
   uint32_t time = htonl((uint32_t)mktime_from_utc(&tm));
   memcpy(&parser->rdata[parser->rdlength], &time, sizeof(time));
   parser->rdlength += sizeof(uint32_t);

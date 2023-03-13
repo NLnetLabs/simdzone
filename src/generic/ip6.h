@@ -9,7 +9,11 @@
 #ifndef IP6_H
 #define IP6_H
 
+#if _WIN32
+#include <ws2tcpip.h>
+#else
 #include <netinet/in.h>
+#endif
 
 zone_always_inline()
 zone_nonnull_all()

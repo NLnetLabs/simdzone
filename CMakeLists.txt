@@ -59,7 +59,7 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-fdiagnostics-color=always)
   endif()
 elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-  add_compile_options(/W4)
+  add_compile_options(/W3)
 endif()
 
 set(ANALYZER "" CACHE STRING "Analyzer to enable on the build.")
@@ -112,6 +112,9 @@ if(SANITIZER)
 endif()
 
 add_library(simdzone STATIC)
+if(WIN32)
+  target_link_libraries(simdzone INTERFACE ws2_32)
+endif()
 
 generate_export_header(
   simdzone BASE_NAME ZONE EXPORT_FILE_NAME include/zone/export.h)
@@ -139,6 +142,13 @@ target_include_directories(
   zone-bench PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
                      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 target_link_libraries(zone-bench PRIVATE simdzone)
+
+check_include_file(unistd.h HAVE_UNISTD_H)
+if(NOT HAVE_UNISTD_H)
+  target_include_directories(
+    zone-bench PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/compat>)
+  target_sources(zone-bench PRIVATE compat/getopt.c)
+endif()
 
 # Multiple instruction sets may be supported by a specific architecture.
 # e.g. x86_64 may (or may not) support any of SSE42, AVX2 and AVX-512. The

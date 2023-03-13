@@ -22,10 +22,11 @@ jobs:
             build_type: Debug
             build_tool_options: -j 4
             analyzer: off
-#         - os: windows-2022
-#           generator: "Visual Studio 17 2022"
-#           build_type: Debug
-#           build_tool_options: "-nologo -verbosity:minimal -maxcpucount:4 -p:CL_MPCount=4"
+          - os: windows-2022
+            generator: "Visual Studio 17 2022"
+            build_type: Debug
+            build_tool_options: "-nologo -verbosity:minimal -maxcpucount:4 -p:CL_MPCount=4"
+            warnings_as_errors: off
     steps:
       - uses: actions/checkout@v3
       - shell: bash
@@ -35,12 +36,13 @@ jobs:
           GENERATOR: ${{matrix.generator}}
           BUILD_TYPE: ${{matrix.build_type}}
           BUILD_TOOL_OPTIONS: ${{matrix.build_tool_options}}
+          WARNINGS_AS_ERRORS: ${{matrix.warnings_as_errors}}
         run: |
           set -e -x
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RelWithDebInfo} \
-                -DCMAKE_COMPILE_WARNING_AS_ERROR=on \
+                -DCMAKE_COMPILE_WARNING_AS_ERROR=${WARNINGS_AS_ERRORS:-on} \
                 -DANALYZER=${ANALYZER:-off} \
                 ${GENERATOR:+-G} ${GENERATOR:+"${GENERATOR}"} ..
           cmake --build . --config ${BUILD_TYPE:-RelWithDebInfo} -- ${BUILD_TOOL_OPTIONS}

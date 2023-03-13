@@ -14,7 +14,9 @@
 
 #include "zone.h"
 
-ZONE_EXPORT void zone_raise_error(
+ZONE_EXPORT
+zone_noreturn()
+void zone_raise_error(
   zone_parser_t *parser,
   zone_return_t code,
   const char *file,
@@ -23,8 +25,7 @@ ZONE_EXPORT void zone_raise_error(
   zone_format_string(const char *format),
   ...)
 zone_nonnull((1,3,5,6))
-zone_format_printf(6,7)
-zone_noreturn();
+zone_format_printf(6,7);
 
 #define RAISE_ERROR(parser, code, ...) \
   zone_raise_error(parser, code, __FILE__, __LINE__, __func__, __VA_ARGS__)
