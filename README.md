@@ -1,4 +1,5 @@
 ![Build Status](https://github.com/NLnetLabs/simdzone/actions/workflows/build-test.yml/badge.svg)
+[![Coverity Status](https://scan.coverity.com/projects/27509/badge.svg)](https://scan.coverity.com/projects/nlnetlabs-simdzone)
 
 simdzone: Parsing zone files really fast
 ========================================
