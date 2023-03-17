@@ -1,0 +1,100 @@
+#
+# coverity-scan.yml -- Github Actions workflow for Coverity Scan analysis
+#
+# Copyright (c) 2023, NLnet Labs. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+#
+name: coverity-scan
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cc: gcc
+            build_type: Debug
+            build_tool_options: -j 4
+    steps:
+      - uses: actions/checkout@v3
+      - id: setup_coverity
+        shell: bash
+        env:
+          token: ${{ secrets.COVERITY_SCAN_TOKEN }}
+        run: |
+          set -e -x
+          headers=$(basename $(mktemp "$(pwd)/cov.XXXXXXXX"))
+          code=$(curl -X HEAD -s -S -F project="${GITHUB_REPOSITORY}" \
+                                    -F token="${token}" \
+                                    -o /dev/null -D ${headers} -w '%{http_code}' \
+                                    'https://scan.coverity.com/download/cxx/linux64')
+          [ "${code}" != "200" ] && echo "cURL exited with ${code}" 1>&2 && exit 1
+          file=$(sed -n -E 's/.*filename="([^"]+)".*/\1/p' ${headers})
+          echo "cov_archive=${file}" >> $GITHUB_OUTPUT
+          echo "$(pwd)/cov-analysis/bin" >> $GITHUB_PATH
+          rm -f ${headers}
+      - id: cache_coverity
+        uses: actions/cache/restore@v3
+        with:
+          key: coverity | 1 | "$(cov_archive)"
+          path: cov-analysis
+      - id: install_coverity
+        if: steps.cache_coverity.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          token: ${{ secrets.COVERITY_SCAN_TOKEN }}
+        run: |
+          set -e -x
+          headers=$(basename $(mktemp "$(pwd)/cov.XXXXXXXX"))
+          code=$(curl -s -S -F project="${GITHUB_REPOSITORY}" \
+                            -F token="${token}" \
+                            -O -J -D ${headers} -w '%{http_code}' \
+                            'https://scan.coverity.com/download/cxx/linux64')
+          [ "${code}" != "200" ] && echo "cURL exited with ${code}" 1>&2 && exit 1
+          file=$(sed -n -E 's/^.*filename="([^"]+)".*$/\1/p' ${headers})
+          tar -xzf ${file} -C .
+          dir=$(find . -type d -name "cov-analysis*" | head -1)
+          mv "${dir}" "cov-analysis"
+          rm -f ${headers} "${file}"
+      - id: build_simdzone
+        shell: bash
+        env:
+          CC: ${{ matrix.cc }}
+          GENERATOR: ${{ matrix.generator }}
+          BUILD_TYPE: ${{ matrix.build_type }}
+          BUILD_TOOL_OPTIONS: ${{ matrix.build_tool_options }}
+          WARNINGS_AS_ERRORS: ${{ matrix.warnings_as_errors }}
+        run: |
+          set -e -x
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RelWithDebInfo} \
+                -DCMAKE_COMPILE_WARNING_AS_ERROR=${WARNINGS_AS_ERRORS:-on} \
+                ${GENERATOR:+-G} ${GENERATOR:+"${GENERATOR}"} ..
+          cov-build --dir ../cov-int \
+            cmake --build . --config ${BUILD_TYPE:-RelWithDebInfo} -- ${BUILD_TOOL_OPTIONS}
+      - id: submit_to_coverity_scan
+        shell: bash
+        env:
+          email: ${{ secrets.COVERITY_SCAN_EMAIL }}
+          token: ${{ secrets.COVERITY_SCAN_TOKEN }}
+        run: |
+          set -e -x
+          tar -czf analysis-results.tgz cov-int
+          code=$(curl -s -S -F project="${GITHUB_REPOSITORY}" \
+                            -F token="${token}" \
+                            -F file=@analysis-results.tgz \
+                            -F version=$(git rev-parse --short HEAD) \
+                            -F description="GitHub Actions build" \
+                            -F email="${email:=spam@nlnetlabs.nl}" \
+                            -w '%{http_code}' \
+                            "https://scan.coverity.com/builds")
+          [[ "${code}" =~ "success" ]] || (echo "cURL exited with ${code}" 1>&2 && exit 1)
+          rm -f analysis-results.tgz
