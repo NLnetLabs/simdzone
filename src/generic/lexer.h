@@ -18,9 +18,9 @@ static inline zone_return_t lex(zone_parser_t *parser, zone_token_t *token)
 {
   do {
     // safe, as tape is doubly terminated
-    const char *start = parser->file->indexer.head[0].address;
-    const char *end   = parser->file->indexer.head[1].address;
-    assert(start < end || (start == end && *start == '\0' && *end == '\0'));
+    const char *start = parser->file->indexer.head[0].data;
+    const char *end   = parser->file->indexer.head[1].data;
+    assert(start < end || (start == end && *start == '\0'));
 
     switch (zone_jump[ (unsigned char)*start ]) {
       case 0: // contiguous

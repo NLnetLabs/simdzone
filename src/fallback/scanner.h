@@ -155,8 +155,7 @@ static inline void refill(zone_parser_t *parser)
 
   // grow buffer if necessary
   if (file->buffer.length == file->buffer.size) {
-    // FIXME: make window length a macro
-    size_t size = file->buffer.size + 16384;
+    size_t size = file->buffer.size + ZONE_WINDOW_SIZE;
     char *data = file->buffer.data;
     if (!(data = zone_realloc(&parser->options, data, size + 1)))
       SYNTAX_ERROR(parser, "actually out of memory");
@@ -185,27 +184,22 @@ zone_never_inline()
 zone_nonnull_all()
 static zone_return_t step(zone_parser_t *parser, zone_token_t *token)
 {
-  zone_file_t *file;
-  bool start_of_line;
-  const zone_transition_t *tail = parser->file->indexer.tape + ZONE_TAPE_SIZE;
-  const char *base, *start, *end;
+  zone_file_t *file = parser->file;
+  const char *start, *end;
+  bool start_of_line = false;
 
-  assert(parser);
-  assert(token);
-
-  file = parser->file;
-  assert(file);
-  assert(file->indexer.tail > file->indexer.tape);
-  base = file->indexer.tail[-1].address;
-  start_of_line =
-    base[0] == '\n' && &base[1] == file->buffer.data + file->buffer.index;
+  // start of line is initially always true
+  if (file->indexer.tail == file->indexer.tape)
+    start_of_line = true;
+  else if (*(end = file->indexer.tail[-1].data) == '\n')
+    start_of_line = (file->buffer.data + file->buffer.index) - end == 1;
 
   file->indexer.head = file->indexer.tape;
   file->indexer.tail = file->indexer.tape;
 
-  // refill if required
-  if (file->buffer.length - file->buffer.index <= ZONE_BLOCK_SIZE) {
 shuffle:
+  // refill if required
+  if (file->end_of_file == ZONE_HAVE_DATA) {
     memmove(file->buffer.data,
             file->buffer.data + file->buffer.index,
             file->buffer.length - file->buffer.index);
@@ -214,22 +208,22 @@ shuffle:
     refill(parser);
   }
 
-  base = file->buffer.data + file->buffer.index;
+  start = file->buffer.data + file->buffer.index;
 
   while (file->buffer.length - file->buffer.index >= ZONE_BLOCK_SIZE) {
-    if (tail - file->indexer.tail < ZONE_BLOCK_SIZE)
+    if ((file->indexer.tape + ZONE_TAPE_SIZE) - file->indexer.tail < ZONE_BLOCK_SIZE)
       goto terminate;
-    start = &file->buffer.data[file->buffer.index];
-    scan(parser, start, start + ZONE_BLOCK_SIZE);
+    const char *block = &file->buffer.data[file->buffer.index];
+    scan(parser, block, block + ZONE_BLOCK_SIZE);
     file->buffer.index += ZONE_BLOCK_SIZE;
   }
 
   const size_t length = file->buffer.length - file->buffer.index;
-  if (!file->end_of_file || (size_t)(tail - file->indexer.tail) < length)
+  if (length > (size_t)((file->indexer.tape + ZONE_TAPE_SIZE) - file->indexer.tail))
     goto terminate;
 
-  start = &file->buffer.data[file->buffer.index];
-  scan(parser, start, start + length);
+  const char *block = &file->buffer.data[file->buffer.index];
+  scan(parser, block, block + length);
   file->buffer.index += length;
   file->end_of_file = ZONE_NO_MORE_DATA;
 
@@ -242,18 +236,18 @@ terminate:
     file->indexer.in_quoted = 0;
     file->indexer.is_escaped = 0;
     file->indexer.follows_contiguous = 0;
-    file->buffer.index = (size_t)(file->indexer.tail[0].address - file->buffer.data);
+    file->buffer.index = (size_t)(file->indexer.tail[0].data - file->buffer.data);
   }
 
   file->indexer.tail[0] =
     (zone_transition_t){ file->buffer.data + file->buffer.length, 0 };
   file->indexer.tail[1] =
     (zone_transition_t){ file->buffer.data + file->buffer.length, 0 };
-  file->start_of_line = file->indexer.head[0].address == base && start_of_line;
+  file->start_of_line = file->indexer.head[0].data == start && start_of_line;
 
   do {
-    start = file->indexer.head[0].address;
-    end   = file->indexer.head[1].address;
+    start = file->indexer.head[0].data;
+    end   = file->indexer.head[1].data;
     assert(start < end || (start == end && *start == '\0' && *end == '\0'));
 
     switch (zone_jump[ (unsigned char)*start ]) {

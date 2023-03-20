@@ -26,9 +26,7 @@
 #define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
 #endif
 
-#ifndef NDEBUG
 static const char not_a_file[] = "<string>";
-#endif
 
 void *zone_malloc(zone_options_t *opts, size_t size)
 {
@@ -180,6 +178,48 @@ static zone_return_t set_defaults(
   return 0;
 }
 
+zone_return_t zone_open_string(
+  zone_parser_t *parser,
+  const zone_options_t *options,
+  const char *data,
+  size_t length)
+{
+  zone_file_t *file;
+  zone_return_t result;
+
+  if ((result = check_options(options)) < 0)
+    return result;
+
+  memset(parser, 0, sizeof(*parser));
+  file = parser->file = &parser->first;
+  file->name = not_a_file;
+  file->path = not_a_file;
+  file->handle = NULL;
+  file->buffer.index = 0;
+  file->buffer.length = length;
+  file->buffer.size = length;
+  file->buffer.data = (char *)data;
+  file->start_of_line = true;
+  file->end_of_file = ZONE_READ_ALL_DATA;
+  file->indexer.tape[0] = (zone_transition_t){ "\0", 0 };
+  file->indexer.tape[1] = (zone_transition_t){ "\0", 0 };
+  file->indexer.head = file->indexer.tape;
+  file->indexer.tail = file->indexer.tape;
+
+  file->last_type = 0;
+  file->last_class = options->default_class;
+  file->last_ttl = options->default_ttl;
+
+  if (set_defaults(parser, options) < 0)
+    return ZONE_BAD_PARAMETER;
+
+  // FIXME: magic numbers, bad. alter the callback
+  parser->items[1].data.int16 = &parser->file->last_type;
+  parser->items[2].data.int16 = &parser->file->last_class;
+  parser->items[3].data.int32 = &parser->file->last_ttl;
+  return ZONE_SUCCESS;
+}
+
 zone_return_t zone_open(
   zone_parser_t *par, const zone_options_t *ropts, const char *path)
 {
@@ -208,27 +248,25 @@ zone_return_t zone_open(
     goto err_abspath;
   if (!(handle = fopen(buf, "rb")))
     goto err_open;
-  if (!(window = zone_malloc(&opts, 2)))
+  if (!(window = zone_malloc(&opts, ZONE_WINDOW_SIZE + 1)))
     goto err_window;
-  window[0] = '\n';
-  window[1] = '\0';
+  window[0] = '\0';
 
   memset(par, 0, sizeof(*par));// - sizeof(par->rdata));
   file = &par->first;
   file->name = relpath;
   file->path = abspath;
   file->handle = handle;
-  file->buffer.index = 1;
-  file->buffer.length = 1;
-  file->buffer.size = 2;
+  file->buffer.index = 0;
+  file->buffer.length = 0;
+  file->buffer.size = ZONE_WINDOW_SIZE;
   file->buffer.data = window;
   file->start_of_line = 1;
   file->end_of_file = 0;
-  file->indexer.head = &file->indexer.tape[1];
-  file->indexer.tail = &file->indexer.tape[1];
-  file->indexer.tape[0] = (zone_transition_t){ window,   0 };
-  file->indexer.tape[1] = (zone_transition_t){ window+1, 0 };
-  file->indexer.tape[2] = (zone_transition_t){ window+1, 0 };
+  file->indexer.tape[0] = (zone_transition_t){ window, 0 };
+  file->indexer.tape[1] = (zone_transition_t){ window, 0 };
+  file->indexer.head = file->indexer.tape;
+  file->indexer.tail = file->indexer.tape;
   file->last_type = 0;
   file->last_class = opts.default_class;
   file->last_ttl = opts.default_ttl;

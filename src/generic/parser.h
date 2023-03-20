@@ -17,9 +17,9 @@ static inline zone_return_t accept_rr(
   return parser->options.accept(
     parser,
    &parser->items[0],
-   &parser->items[3],
-   &parser->items[2],
    &parser->items[1],
+   &parser->items[2],
+   &parser->items[3],
     parser->rdata_items,
     (uint16_t)parser->rdlength,
     parser->rdata,

@@ -176,7 +176,7 @@ static inline void refill(zone_parser_t *parser)
 
   // grow buffer if necessary
   if (file->buffer.length == file->buffer.size) {
-    size_t size = file->buffer.size + 16384; // should be a compile time constant!
+    size_t size = file->buffer.size + ZONE_WINDOW_SIZE;
     char *data = file->buffer.data;
     if (!(data = zone_realloc(&parser->options, data, size + 1)))
       SYNTAX_ERROR(parser, "actually out of memory");
@@ -269,21 +269,20 @@ static zone_return_t step(zone_parser_t *parser, zone_token_t *token)
 {
   block_t block = { 0 };
   zone_file_t *file = parser->file;
-  const char *base;
-  bool start_of_line;
+  const char *start, *end;
+  bool start_of_line = false;
 
-  // check if next token is located at start of line
-  assert(file->indexer.tail > file->indexer.tape);
-  base = file->indexer.tail[-1].address;
-  start_of_line =
-    base[0] == '\n' && &base[1] == file->buffer.data + file->buffer.index;
+  // start of line is initially always true
+  if (file->indexer.tail == file->indexer.tape)
+    start_of_line = true;
+  else if (*(end = file->indexer.tail[-1].data) == '\n')
+    start_of_line = (file->buffer.data + file->buffer.index) - end == 1;
 
   file->indexer.head = file->indexer.tape;
   file->indexer.tail = file->indexer.tape;
 
-  // refill buffer if required
-  if (file->buffer.length - file->buffer.index <= ZONE_BLOCK_SIZE) {
 shuffle:
+  if (file->end_of_file == ZONE_HAVE_DATA) {
     memmove(file->buffer.data,
             file->buffer.data + file->buffer.index,
             file->buffer.length - file->buffer.index);
@@ -292,7 +291,7 @@ shuffle:
     refill(parser);
   }
 
-  base = file->buffer.data + file->buffer.index;
+  start = file->buffer.data + file->buffer.index;
 
   while (file->buffer.length - file->buffer.index >= ZONE_BLOCK_SIZE) {
     if ((file->indexer.tape + ZONE_TAPE_SIZE) - file->indexer.tail < ZONE_BLOCK_SIZE)
@@ -305,7 +304,7 @@ shuffle:
 
   size_t length = file->buffer.length - file->buffer.index;
   assert(length <= ZONE_BLOCK_SIZE);
-  if (!file->end_of_file)
+  if (file->end_of_file == ZONE_HAVE_DATA)
     goto terminate;
   if (length > (size_t)((file->indexer.tape + ZONE_TAPE_SIZE) - file->indexer.tail))
     goto terminate;
@@ -334,19 +333,19 @@ terminate:
     file->indexer.is_escaped = 0;
     file->indexer.follows_contiguous = 0;
     file->buffer.index =
-      (size_t)(file->indexer.tail[0].address - file->buffer.data);
+      (size_t)(file->indexer.tail[0].data - file->buffer.data);
   }
 
   file->indexer.tail[0] =
     (zone_transition_t) { file->buffer.data + file->buffer.length, 0 };
   file->indexer.tail[1] =
     (zone_transition_t) { file->buffer.data + file->buffer.length, 0 };
-  file->start_of_line = file->indexer.head[0].address == base && start_of_line;
+  file->start_of_line = file->indexer.head[0].data == start && start_of_line;
 
   do {
-    const char *start = file->indexer.head[0].address;
-    const char *end   = file->indexer.head[1].address;
-    assert(start < end || (start == end && *start == '\0' && *end == '\0'));
+    start = file->indexer.head[0].data;
+    end   = file->indexer.head[1].data;
+    assert(start < end || (start == end && *start == '\0'));
 
     switch (zone_jump[ (unsigned char)*start ]) {
       case 0: // contiguous
