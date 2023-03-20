@@ -29,7 +29,37 @@ jobs:
             warnings_as_errors: off
     steps:
       - uses: actions/checkout@v3
-      - shell: bash
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x' # use latest Python 3.x
+      - name: 'Add user site-packages to PATH'
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "$(python3 -m site --user-base)/bin" >> $GITHUB_PATH
+      - name: 'Add user site-packages to PATH'
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $python_base = python -m site --user-base
+          Write-Output "$python_base\\bin" >> $GITHUB_PATH
+      - name: 'Install Conan C/C++ package manager'
+        id: install_conan
+        shell: bash
+        run: |
+          pip install conan --user --upgrade
+          conan profile detect
+          conan_home=$(conan config home)
+          echo "conan_data=${conan_home}/p" >> $GITHUB_OUTPUT
+      - name: 'Restore Conan cache'
+        id: cache_conan
+        uses: actions/cache@v3
+        with:
+          key: conan | 1 | ${{runner.os}} | ${{matrix.cc}} | ${{matrix.build_type}}
+          path: ${{ steps.install_conan.outputs.conan_data }}
+      - name: 'Build simdzone'
+        id: build
+        shell: bash
         env:
           CC: ${{matrix.cc}}
           ANALYZER: ${{matrix.analyzer}}
@@ -41,8 +71,20 @@ jobs:
           set -e -x
           mkdir build
           cd build
+          conan install -b missing -s build_type=${BUILD_TYPE:-RelWithDebInfo} -of . ../conanfile.txt
           cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RelWithDebInfo} \
                 -DCMAKE_COMPILE_WARNING_AS_ERROR=${WARNINGS_AS_ERRORS:-on} \
+                -DCMAKE_PREFIX_PATH=$(pwd) \
+                -DBUILD_TESTING=on \
                 -DANALYZER=${ANALYZER:-off} \
                 ${GENERATOR:+-G} ${GENERATOR:+"${GENERATOR}"} ..
           cmake --build . --config ${BUILD_TYPE:-RelWithDebInfo} -- ${BUILD_TOOL_OPTIONS}
+      - name: 'Run simdzone tests'
+        id: test
+        shell: bash
+        env:
+          BUILD_TYPE: ${{matrix.build_type}}
+        run: |
+          set -e -x
+          cd build
+          ctest -j 4 --output-on-failure -T test -C ${BUILD_TYPE:-RelWithDebInfo}

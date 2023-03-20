@@ -311,7 +311,7 @@ struct zone_field {
 // accommodates parallel processing should that ever be desired
 typedef struct zone_transition zone_transition_t;
 struct zone_transition {
-  const char *address;
+  const char *data;
   uint32_t newlines; // number of escaped newlines (stored per newline)
 };
 
@@ -393,8 +393,6 @@ struct zone_options {
   zone_accept_t accept;
 };
 
-// FIXME: add option to mmap?!
-typedef struct zone_parser zone_parser_t;
 struct zone_parser {
   zone_options_t options;
   volatile void *environment;

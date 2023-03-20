@@ -1,0 +1,8 @@
+[test_requires]
+cmocka/1.1.5
+
+[generators]
+CMakeDeps
+
+[options]
+cmocka/*:shared=True

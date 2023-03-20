@@ -10,6 +10,7 @@ project(
   VERSION 0.1.0
   DESCRIPTION "Fast and standards compliant DNS zone parser")
 
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
 if(CMAKE_VERSION VERSION_LESS 3.12)
@@ -193,3 +194,7 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
 endif()
 
 configure_file(config.h.in config.h)
+
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+endif()
