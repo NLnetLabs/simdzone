@@ -229,7 +229,7 @@ shuffle:
 
 terminate:
   // ensure tape contains no partial tokens
-  if (file->indexer.follows_contiguous || file->indexer.in_quoted) {
+  if ((file->indexer.follows_contiguous || file->indexer.in_quoted) && file->end_of_file != ZONE_NO_MORE_DATA) {
     assert(file->indexer.tail > file->indexer.tape);
     assert(file->indexer.in_comment == 0);
     file->indexer.tail--;
