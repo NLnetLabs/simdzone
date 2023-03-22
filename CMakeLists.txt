@@ -198,3 +198,22 @@ configure_file(config.h.in config.h)
 if(BUILD_TESTING)
   add_subdirectory(tests)
 endif()
+
+if(BUILD_DOCUMENTATION)
+  set(DOXYGEN_GENERATE_HTML YES)
+  set(DOXYGEN_GENERATE_XML NO)
+  set(DOXYGEN_STRIP_FROM_PATH "include")
+  set(DOXYGEN_MACRO_EXPANSION YES)
+  set(DOXYGEN_PREDEFINED
+    "ZONE_EXPORT=")
+  # https://datatracker.ietf.org/doc/rfc<xxx>/
+  # https://datatracker.ietf.org/doc/draft-ietf-<xxx>-<yyy>/
+  set(DOXYGEN_ALIASES
+    "rfc{1}=\"<a href='https://datatracker.ietf.org/doc/rfc\\1/'>[RFC\\1]</a>\""
+    "draft{2}=\"<a href='https://datatracker.ietf.org/doc/draft-ietf-\\1-\\2/'>[draft-ietf-\\1-\\2]</a>\""
+    "obsolete=<b>(OBSOLETE)</b>"
+    "experimental=<b>(EXPERIMENTAL)</b>")
+  set(DOXYGEN_VERBATIM_VARS DOXYGEN_ALIASES)
+  find_package(Doxygen REQUIRED)
+  doxygen_add_docs(doxygen include)
+endif()

@@ -75,33 +75,32 @@ static const zone_symbol_t x[] = {
   /* 50 */ TYPE("NXT", ZONE_NXT),
 
   /* 51 */ TYPE("OPENPGPKEY", ZONE_OPENPGPKEY),
-  /* 52 */ TYPE("OPT", ZONE_OPT),
 
-  /* 53 */ TYPE("PTR", ZONE_PTR),
-  /* 54 */ TYPE("PX", ZONE_PX),
+  /* 52 */ TYPE("PTR", ZONE_PTR),
+  /* 53 */ TYPE("PX", ZONE_PX),
 
-  /* 55 */ TYPE("RP", ZONE_RP),
-  /* 56 */ TYPE("RRSIG", ZONE_RRSIG),
-  /* 57 */ TYPE("RT", ZONE_RT),
+  /* 54 */ TYPE("RP", ZONE_RP),
+  /* 55 */ TYPE("RRSIG", ZONE_RRSIG),
+  /* 56 */ TYPE("RT", ZONE_RT),
 
-  /* 58 */ TYPE("SIG", ZONE_SIG),
-  /* 59 */ TYPE("SMIMEA", ZONE_SMIMEA),
-  /* 60 */ TYPE("SOA", ZONE_SOA),
-  /* 61 */ TYPE("SPF", ZONE_SPF),
-  /* 62 */ TYPE("SRV", ZONE_SRV),
-  /* 63 */ TYPE("SSHFP", ZONE_SSHFP),
-  /* 64 */ TYPE("SVCB", ZONE_SVCB),
+  /* 57 */ TYPE("SIG", ZONE_SIG),
+  /* 58 */ TYPE("SMIMEA", ZONE_SMIMEA),
+  /* 59 */ TYPE("SOA", ZONE_SOA),
+  /* 60 */ TYPE("SPF", ZONE_SPF),
+  /* 61 */ TYPE("SRV", ZONE_SRV),
+  /* 62 */ TYPE("SSHFP", ZONE_SSHFP),
+  /* 63 */ TYPE("SVCB", ZONE_SVCB),
 
-  /* 65 */ TYPE("TLSA", ZONE_TLSA),
-  /* 66 */ TYPE("TXT", ZONE_TXT),
+  /* 64 */ TYPE("TLSA", ZONE_TLSA),
+  /* 65 */ TYPE("TXT", ZONE_TXT),
 
-  /* 67 */ TYPE("URI", ZONE_URI),
+  /* 66 */ TYPE("URI", ZONE_URI),
 
-  /* 68 */ TYPE("WKS", ZONE_WKS),
+  /* 67 */ TYPE("WKS", ZONE_WKS),
 
-  /* 69 */ TYPE("X25", ZONE_X25),
+  /* 68 */ TYPE("X25", ZONE_X25),
 
-  /* 70 */ TYPE("ZONEMD", ZONE_MD)
+  /* 69 */ TYPE("ZONEMD", ZONE_MD)
 };
 
 #undef CLASS
@@ -151,38 +150,38 @@ static const zone_fast_table_t fast_identifiers[32] = {
     { &x[41], &x[42], &x[43], &x[44], &x[45], &x[46], &x[47], &x[48], &x[49],
       &x[50] } },
   // O[OPENPGPKEY,OPT]
-  { { 121, 79 },
-    { &x[51], &x[52] } },
+  { { 121 },
+    { &x[51] } },
   // P[PTR=12,PX=26]
   { { 65, 106 },
-    { &x[53], &x[54] } },
+    { &x[52], &x[53] } },
   // Q
   { { 0 }, { NULL } },
   // R[RP,RRSIG,RT]
   { { 50, 246, 78 },
-    { &x[55], &x[56], &x[57] } },
+    { &x[54], &x[55], &x[56] } },
   // S[SIG,SMIMEA,SOA,SPF,SRV,SSHFP,SVCB]
   { { 244, 205, 202, 237, 93, 53, 210 },
-    { &x[58], &x[59], &x[60], &x[61], &x[62], &x[63], &x[64] } },
+    { &x[57], &x[58], &x[59], &x[60], &x[61], &x[62], &x[63] } },
   // T[TLSA,TXT]
   { { 203, 79 },
-    { &x[65], &x[66] } },
+    { &x[64], &x[65] } },
   // U[URI]
   { { 2 },
-    { &x[67] } },
+    { &x[66] } },
   // V
   { { 0 }, { NULL } },
   // W[WKS]
   { { 66 },
-    { &x[68] } },
+    { &x[67] } },
   // X[X25]
   { { 150 },
-    { &x[69] } },
+    { &x[68] } },
   // Y
   { { 0 }, { NULL } },
   // Z[ZONEMD]
   { { 226 },
-    { &x[70] } },
+    { &x[69] } },
   { { 0 }, { NULL } },
   { { 0 }, { NULL } },
   { { 0 }, { NULL } },
