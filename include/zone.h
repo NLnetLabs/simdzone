@@ -26,7 +26,7 @@ extern "C" {
 /**
  * @defgroup class_codes Class codes
  *
- * {@
+ * @{
  */
 #define ZONE_IN (1u)
 #define ZONE_CS (2u)
@@ -37,74 +37,139 @@ extern "C" {
 /**
  * @defgroup type_codes Type codes
  *
- * {@
+ * @{
  */
-#define ZONE_A (1u) /**< Host address [RFC1035] */
-#define ZONE_NS (2u) /**< Authoritative name server [RFC1035] */
-#define ZONE_MD (3u) /**< Mail destination (obsolete) [RFC1035] */
+/** Host address @rfc{1035} */
+#define ZONE_A (1u)
+/** Authoritative name server @rfc{1035} */
+#define ZONE_NS (2u)
+/** Mail destination @rfc{1035} @obsolete */
+#define ZONE_MD (3u)
+/** Mail forwarder @rfc{1035} @obsolete */
 #define ZONE_MF (4u)
+/** Canonical name for an alias @rfc{1035} */
 #define ZONE_CNAME (5u)
+/** Marks the start of authority @rfc{1035} */
 #define ZONE_SOA (6u)
+/** Mailbox domain name @rfc{1035} @experimental */
 #define ZONE_MB (7u)
+/** Mail group member @rfc{1035} @experimental */
 #define ZONE_MG (8u)
+/** Mail rename domain name @rfc{1035} @experimental */
 #define ZONE_MR (9u)
+/** Anything @rfc{883} @obsolete */
 #define ZONE_NULL (10u)
+/** Well known service description @rfc{1035} */
 #define ZONE_WKS (11u)
+/** Domain name pointer @rfc{1035} */
 #define ZONE_PTR (12u)
+/** Host information @rfc{1035} */
 #define ZONE_HINFO (13u)
+/** Mailbox or mail list information @rfc{1035} */
 #define ZONE_MINFO (14u)
+/** Mail exchange @rfc{1035} */
 #define ZONE_MX (15u)
+/** Text strings @rfc{1035} */
 #define ZONE_TXT (16u)
+/** Responsible person @rfc{1035} */
 #define ZONE_RP (17u)
+/** AFS Data Base location @rfc{1183} @rfc{5864} */
 #define ZONE_AFSDB (18u)
+/** X.25 PSDN address @rfc{1183} */
 #define ZONE_X25 (19u)
+/** ISDN address @rfc{1183} */
 #define ZONE_ISDN (20u)
+/** Route Through @rfc{1183} */
 #define ZONE_RT (21u)
+/** NSAP address, NSAP style A record @rfc{1706} */
 #define ZONE_NSAP (22u)
+/** Domain name pointer, NSAP style @rfc{1348} @rfc{1637} */
 #define ZONE_NSAP_PTR (23u)
-#define ZONE_KEY (25u)
+/** Signature @rfc{2535} */
 #define ZONE_SIG (24u)
+/** Public key @rfc{2535} @rfc{2930} */
+#define ZONE_KEY (25u)
+/** X.400 mail mapping information @rfc{2163} */
 #define ZONE_PX (26u)
+/** Geographical Position @rfc{1712} */
 #define ZONE_GPOS (27u)
+/** IPv6 Address @rfc{3596} */
 #define ZONE_AAAA (28u)
+/** Location Information @rfc{1876} */
 #define ZONE_LOC (29u)
+/** Next domain @rfc{3755} @rfc{2535} @obsolete */
 #define ZONE_NXT (30u)
+/** Server Selection @rfc{2782} */
 #define ZONE_SRV (33u)
+/** Naming Authority Pointer @rfc{2915} @rfc{2168} @rfc{3403} */
 #define ZONE_NAPTR (35u)
+/** Key Exchanger @rfc{2230} */
 #define ZONE_KX (36u)
+/** CERT [RFC4398] */
 #define ZONE_CERT (37u)
+/** IPv6 Address @rfc{3226} @rfc{2874} @rfc{6563} @obsolete */
 #define ZONE_A6 (38u)
+/** DNAME @rfc{6672} */
 #define ZONE_DNAME (39u)
-#define ZONE_OPT (41u)
+/** Address Prefix List @rfc{3123} */
 #define ZONE_APL (42u)
+/** Delegation Signer @rfc{4034} @rfc{3658} */
 #define ZONE_DS (43u)
+/** SSH Key Fingerprint @rfc{4255} */
 #define ZONE_SSHFP (44u)
+/** IPsec public key @rfc{4025} */
 #define ZONE_IPSECKEY (45u)
+/** Resource Record Signature @rfc{4034} @rfc{3755} */
 #define ZONE_RRSIG (46u)
+/** Next Secure @rfc{4034} @rfc{3755} */
 #define ZONE_NSEC (47u)
+/** DNS Public Key @rfc{4034} @rfc{3755} */
 #define ZONE_DNSKEY (48u)
+/** DHCID [RFC4701] */
 #define ZONE_DHCID (49u)
+/** NSEC3 [RFC5155] */
 #define ZONE_NSEC3 (50u)
+/** NSEC3PARAM [RFC5155] */
 #define ZONE_NSEC3PARAM (51u)
+/** TLSA @rfc{6698} */
 #define ZONE_TLSA (52u)
+/** S/MIME cert association @rfc{8162} */
 #define ZONE_SMIMEA (53u)
-#define ZONE_SVCB (54u)
+/** Host Identity Protocol @rfc{8005} */
 #define ZONE_HIP (55u)
+/** Child DS @rfc{7344} */
 #define ZONE_CDS (59u)
+/** DNSKEY(s) the Child wants reflected in DS @rfc{7344} */
 #define ZONE_CDNSKEY (60u)
+/** OpenPGP Key @rfc{7929} */
+#define ZONE_OPENPGPKEY (61u)
+/** Child-To-Parent Synchronization @rfc{7477} */
 #define ZONE_CSYNC (62u)
+/** Zone message digest @rfc{8976} */
 #define ZONE_ZONEMD (63u)
+/** Service binding @draft{dnsop,svcb-https} */
+#define ZONE_SVCB (64u)
+/** Service binding @draft{dnsop,svcb-https} */
 #define ZONE_HTTPS (65u)
-#define ZONE_OPENPGPKEY (69u)
+/** Sender Policy Framework @rfc{7208} */
 #define ZONE_SPF (99u)
+/** Node Identifier @rfc{6742} */
 #define ZONE_NID (104u)
+/** 32-bit Locator for ILNPv4-capable nodes @rfc{6742} */
 #define ZONE_L32 (105u)
+/** 64-bit Locator for ILNPv6-capable nodes @rfc{6742} */
 #define ZONE_L64 (106u)
+/** Name of an ILNP subnetwork @rfc{6742} */
 #define ZONE_LP (107u)
+/** EUI-48 address @rfc{7043} */
 #define ZONE_EUI48 (108u)
+/** EUI-64 address @rfc{7043} */
 #define ZONE_EUI64 (109u)
+/** Uniform Resource Identifier @rfc{7553} */
 #define ZONE_URI (256u)
+/** Certification Authority Restriction @rfc{6844} */
 #define ZONE_CAA (257u)
+/** DNSSEC Lookaside Validation @rfc{4431} */
 #define ZONE_DLV (32769u)
 /** @} */
 
@@ -465,7 +530,7 @@ zone_format_printf(6,7);
 #define ZONE_BAD_PARAMETER (-4)
 /** Error reading zone file */
 #define ZONE_IO_ERROR (-5)
-/** Control directive or support for record type is not implement */
+/** Control directive or support for record type is not implemented */
 #define ZONE_NOT_IMPLEMENTED (-6)
 /** @} */
 
