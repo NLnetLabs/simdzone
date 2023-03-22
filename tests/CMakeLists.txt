@@ -1,7 +1,7 @@
 find_package(cmocka REQUIRED)
 cmocka_add_tests(zone-tests types.c)
 
-target_link_libraries(zone-tests PRIVATE simdzone)
+target_link_libraries(zone-tests PRIVATE zone)
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   target_compile_options(zone-tests PRIVATE -Wno-missing-prototypes)
 elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
