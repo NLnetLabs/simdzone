@@ -119,21 +119,21 @@ if(SANITIZER)
   endforeach()
 endif()
 
-add_library(simdzone STATIC)
+add_library(zone STATIC)
 if(WIN32)
-  target_link_libraries(simdzone INTERFACE ws2_32)
+  target_link_libraries(zone INTERFACE ws2_32)
 endif()
 
 generate_export_header(
-  simdzone BASE_NAME ZONE EXPORT_FILE_NAME include/zone/export.h)
+  zone BASE_NAME ZONE EXPORT_FILE_NAME include/zone/export.h)
 
 target_include_directories(
-  simdzone PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-           PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-                   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+  zone PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+               $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+       PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+               $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
-target_sources(simdzone PRIVATE
+target_sources(zone PRIVATE
   src/zone.c
   src/types.c
   src/generic/table.c
@@ -149,7 +149,7 @@ add_executable(zone-bench src/bench.c src/fallback/bench.c)
 target_include_directories(
   zone-bench PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
                      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
-target_link_libraries(zone-bench PRIVATE simdzone)
+target_link_libraries(zone-bench PRIVATE zone)
 
 check_include_file(unistd.h HAVE_UNISTD_H)
 if(NOT HAVE_UNISTD_H)
@@ -176,7 +176,7 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
     set(ZONE_SUPPORTS_WESTMERE TRUE)
     set_source_files_properties(
       src/westmere/parser.c PROPERTIES COMPILE_FLAGS "-march=westmere")
-    target_sources(simdzone PRIVATE src/westmere/parser.c)
+    target_sources(zone PRIVATE src/westmere/parser.c)
     set_source_files_properties(
       src/westmere/bench.c PROPERTIES COMPILE_FLAGS "-march=westmere")
     target_sources(zone-bench PRIVATE src/westmere/bench.c)
@@ -186,7 +186,7 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
     set(ZONE_SUPPORTS_HASWELL TRUE)
     set_source_files_properties(
       src/haswell/parser.c PROPERTIES COMPILE_FLAGS "-march=haswell")
-    target_sources(simdzone PRIVATE src/haswell/parser.c)
+    target_sources(zone PRIVATE src/haswell/parser.c)
     set_source_files_properties(
       src/haswell/bench.c PROPERTIES COMPILE_FLAGS "-march=haswell")
     target_sources(zone-bench PRIVATE src/haswell/bench.c)
