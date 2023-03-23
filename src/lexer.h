@@ -9,8 +9,20 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include <assert.h>
+
 extern const uint8_t *zone_forward;
 extern const uint8_t *zone_jump;
+
+#define ZONE_DELIMITER (0u)
+#define ZONE_CONTIGUOUS (1u<<1)
+#define ZONE_QUOTED (1u<<2)
+
+typedef zone_string_t zone_token_t;
+
+zone_never_inline()
+zone_nonnull_all()
+static zone_return_t step(zone_parser_t *parser, zone_token_t *token);
 
 zone_always_inline()
 zone_nonnull_all()

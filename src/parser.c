@@ -16,7 +16,8 @@
 #endif
 
 #include "zone.h"
-#include "generic/error.h"
+#include "diagnostic.h"
+#include "error.h"
 
 static inline zone_return_t accept_rr(
   zone_parser_t *parser, zone_field_t *fields, void *user_data)
@@ -179,9 +180,9 @@ static inline size_t check_nsec(
   return count;
 }
 
-zone_diagnostic_push()
-zone_clang_diagnostic_ignored(implicit-function-declaration)
-zone_clang_diagnostic_ignored(missing-prototypes)
+diagnostic_push()
+clang_diagnostic_ignored(implicit-function-declaration)
+clang_diagnostic_ignored(missing-prototypes)
 
 zone_nonnull((1,2))
 void zone_check_a_rdata(
@@ -450,4 +451,4 @@ void zone_check_unknown_rdata(
   // implement
 }
 
-zone_diagnostic_pop()
+diagnostic_pop()

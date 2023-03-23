@@ -136,13 +136,13 @@ target_include_directories(
 target_sources(zone PRIVATE
   src/zone.c
   src/types.c
-  src/generic/table.c
+  src/table.c
+  src/error.c
+  src/parser.c
+  src/lexer.c
   src/generic/base16.c
   src/generic/base32.c
   src/generic/base64.c
-  src/generic/error.c
-  src/generic/parser.c
-  src/generic/scanner.c
   src/fallback/parser.c)
 
 add_executable(zone-bench src/bench.c src/fallback/bench.c)

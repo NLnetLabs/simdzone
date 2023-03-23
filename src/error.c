@@ -12,7 +12,7 @@
 #include <setjmp.h>
 
 #include "zone.h"
-#include "generic/error.h"
+#include "error.h"
 
 zone_nonnull((1,2))
 static void vlog(

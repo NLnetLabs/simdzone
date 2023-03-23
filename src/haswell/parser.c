@@ -11,10 +11,12 @@
 #undef _XOPEN_SOURCE
 
 #include "zone.h"
+#include "diagnostic.h"
+#include "error.h"
 #include "haswell/simd.h"
 #include "haswell/bits.h"
+#include "lexer.h"
 #include "generic/scanner.h"
-#include "generic/lexer.h"
 #include "generic/number.h"
 #include "generic/ttl.h"
 #include "generic/time.h"
@@ -27,14 +29,14 @@
 #include "generic/base32.h"
 #include "generic/base64.h"
 #include "generic/nsec.h"
-#include "generic/parser.h"
+#include "parser.h"
 
-zone_diagnostic_push()
-zone_clang_diagnostic_ignored(missing-prototypes)
+diagnostic_push()
+clang_diagnostic_ignored(missing-prototypes)
 
 zone_return_t zone_haswell_parse(zone_parser_t *parser, void *user_data)
 {
   return parse(parser, user_data);
 }
 
-zone_diagnostic_pop()
+diagnostic_pop()
