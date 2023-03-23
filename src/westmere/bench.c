@@ -7,13 +7,15 @@
  *
  */
 #include "zone.h"
+#include "diagnostic.h"
+#include "error.h"
 #include "westmere/simd.h"
 #include "westmere/bits.h"
+#include "lexer.h"
 #include "generic/scanner.h"
-#include "generic/lexer.h"
 
-zone_diagnostic_push()
-zone_clang_diagnostic_ignored(missing-prototypes)
+diagnostic_push()
+clang_diagnostic_ignored(missing-prototypes)
 
 zone_return_t zone_bench_westmere_lex(zone_parser_t *parser, size_t *tokens)
 {
@@ -27,4 +29,4 @@ zone_return_t zone_bench_westmere_lex(zone_parser_t *parser, size_t *tokens)
   return result;
 }
 
-zone_diagnostic_pop()
+diagnostic_pop()

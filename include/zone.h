@@ -16,7 +16,6 @@
 #include <stdio.h>
 
 #include "zone/attributes.h"
-#include "zone/macros.h"
 #include "zone/export.h"
 
 #if defined (__cplusplus)
@@ -177,6 +176,7 @@ extern "C" {
 #define ZONE_DLV (32769u)
 /** @} */
 
+typedef int32_t zone_code_t;
 typedef int32_t zone_return_t;
 
 typedef struct zone_string zone_string_t;
@@ -184,13 +184,6 @@ struct zone_string {
   size_t length;
   const char *data;
 };
-
-// @private
-#define ZONE_DELIMITER (0u)
-#define ZONE_CONTIGUOUS (1u<<0)
-#define ZONE_QUOTED (1u<<1)
-
-typedef zone_string_t zone_token_t;
 
 typedef struct zone_symbol zone_symbol_t;
 struct zone_symbol {
@@ -246,7 +239,6 @@ struct zone_fast_table {
 };
 
 
-typedef int32_t zone_code_t;
 
 // types are defined by their binary representation. this is different from
 // dnsextlang, which defines types mostly by their textual representation.
@@ -270,7 +262,6 @@ typedef enum {
   // miscellaneous fields
   ZONE_SVC_PARAM = (1 << 9),
   //ZONE_WKS = (8 << 14), // << will have to be renamed
-  //ZONE_NSEC = (9 << 14)
   ZONE_TYPE_BITMAP = (9 << 14) // << nsec type bitmap list
 } zone_type_t;
 
@@ -313,12 +304,6 @@ struct zone_field_info {
   uint32_t type;
   uint32_t qualifiers;
   zone_table_t symbols;
-};
-
-typedef struct zone_class_info zone_class_info_t;
-struct zone_class_info {
-  zone_string_t name;
-  uint16_t code;
 };
 
 // type options
@@ -443,7 +428,6 @@ typedef zone_return_t(*zone_accept_t)(
   const uint8_t *, // rdata
   void *); // user data
 
-// FIXME: add option to mmap?
 typedef struct zone_options zone_options_t;
 struct zone_options {
   // FIXME: add a flags member. e.g. to allow for includes in combination
