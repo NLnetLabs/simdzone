@@ -28,9 +28,13 @@ extern "C" {
  *
  * @{
  */
+/** Internet @rfc{1035} */
 #define ZONE_IN (1u)
+/** CSNET @rfc{1035} @obsolete */
 #define ZONE_CS (2u)
+/** CHAOS @rfc{1035} */
 #define ZONE_CH (3u)
+/** Hesiod @rfc{1035} */
 #define ZONE_HS (4u)
 /** @} */
 
@@ -584,7 +588,7 @@ zone_allocator(zone_free, 2);
 /**
  * @brief Iterate fields in record
  *
- * @note Must only be used from within @zone_accept_rr_t callback.
+ * @note Must only be used from within @zone_accept_t callback.
  *
  * @param[in]  parser  Parser
  * @param[in]  field   Field
