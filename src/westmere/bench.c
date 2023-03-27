@@ -8,6 +8,7 @@
  */
 #include "zone.h"
 #include "diagnostic.h"
+#include "heap.h"
 #include "error.h"
 #include "westmere/simd.h"
 #include "westmere/bits.h"

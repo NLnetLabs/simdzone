@@ -39,7 +39,7 @@ static inline const char *scan_quoted(
         start += 2;
         break;
       case '\"':
-       *parser->file->indexer.tail++ = (zone_transition_t){ start, 0 };
+       *parser->file->indexer.tail++ = (zone_index_t){ start, 0 };
         return start + 1;
       case '\n':
         parser->file->indexer.newlines += 1;
@@ -76,10 +76,10 @@ static inline const char *scan_contiguous(
       case '\t':
       case '\r':
       case ' ':
-       *parser->file->indexer.tail++ = (zone_transition_t){ start, 0 };
+       *parser->file->indexer.tail++ = (zone_index_t){ start, 0 };
         return start + 1;
       case ';':
-       *parser->file->indexer.tail++ = (zone_transition_t){ start, 0 };
+       *parser->file->indexer.tail++ = (zone_index_t){ start, 0 };
         return start;
       default:
         start += 1;
@@ -120,7 +120,7 @@ static inline void scan(
     switch (*start) {
       case '\n':
        *file->indexer.tail++ =
-          (zone_transition_t){ start++, file->indexer.newlines };
+          (zone_index_t){ start++, file->indexer.newlines };
         file->indexer.newlines = 0;
         break;
       case '\t':
@@ -133,14 +133,14 @@ static inline void scan(
         break;
       case '(':
       case ')':
-       *file->indexer.tail++ = (zone_transition_t){ start++, 0 };
+       *file->indexer.tail++ = (zone_index_t){ start++, 0 };
         break;
       case '"':
-       *file->indexer.tail++ = (zone_transition_t){ start++, 0 };
+       *file->indexer.tail++ = (zone_index_t){ start++, 0 };
         start = scan_quoted(parser, start, end);
         break;
       default:
-       *file->indexer.tail++ = (zone_transition_t){ start, 0 };
+       *file->indexer.tail++ = (zone_index_t){ start, 0 };
         start = scan_contiguous(parser, start, end);
         break;
     }
@@ -157,7 +157,7 @@ static inline void refill(zone_parser_t *parser)
   if (file->buffer.length == file->buffer.size) {
     size_t size = file->buffer.size + ZONE_WINDOW_SIZE;
     char *data = file->buffer.data;
-    if (!(data = zone_realloc(&parser->options, data, size + 1)))
+    if (!(data = zone_realloc(parser, data, size + 1)))
       SYNTAX_ERROR(parser, "actually out of memory");
     file->buffer.size = size;
     file->buffer.data = data;
@@ -240,9 +240,9 @@ terminate:
   }
 
   file->indexer.tail[0] =
-    (zone_transition_t){ file->buffer.data + file->buffer.length, 0 };
+    (zone_index_t){ file->buffer.data + file->buffer.length, 0 };
   file->indexer.tail[1] =
-    (zone_transition_t){ file->buffer.data + file->buffer.length, 0 };
+    (zone_index_t){ file->buffer.data + file->buffer.length, 0 };
   file->start_of_line = file->indexer.head[0].data == start && start_of_line;
 
   do {
