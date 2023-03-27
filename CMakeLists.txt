@@ -140,6 +140,7 @@ target_sources(zone PRIVATE
   src/error.c
   src/parser.c
   src/lexer.c
+  src/heap.c
   src/generic/base16.c
   src/generic/base32.c
   src/generic/base64.c

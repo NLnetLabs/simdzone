@@ -58,6 +58,12 @@ static const target_t targets[] = {
   { "fallback", 0, &zone_bench_fallback_lex, &zone_fallback_parse }
 };
 
+extern zone_return_t zone_open(
+  zone_parser_t *, const zone_options_t *, zone_rdata_t, const char *);
+
+extern void zone_close(
+  zone_parser_t *);
+
 static zone_return_t bench_lex(zone_parser_t *parser, const target_t *target)
 {
   size_t tokens = 0;
@@ -213,10 +219,14 @@ int main(int argc, char *argv[])
 
   zone_parser_t parser = { 0 };
   zone_options_t options = { 0 };
+  zone_rdata_t rdata;
 
   options.accept = &bench_accept;
+  options.origin = ".";
+  options.default_ttl = 3600;
+  options.default_class = ZONE_IN;
 
-  if (zone_open(&parser, &options, argv[argc-1]) < 0)
+  if (zone_open(&parser, &options, rdata, argv[argc-1]) < 0)
     exit(EXIT_FAILURE);
   if (bench(&parser, target) < 0)
     exit(EXIT_FAILURE);

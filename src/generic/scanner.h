@@ -178,7 +178,7 @@ static inline void refill(zone_parser_t *parser)
   if (file->buffer.length == file->buffer.size) {
     size_t size = file->buffer.size + ZONE_WINDOW_SIZE;
     char *data = file->buffer.data;
-    if (!(data = zone_realloc(&parser->options, data, size + 1)))
+    if (!(data = zone_realloc(parser, data, size + 1)))
       SYNTAX_ERROR(parser, "actually out of memory");
     file->buffer.size = size;
     file->buffer.data = data;
@@ -218,7 +218,7 @@ static inline void tokenize(zone_parser_t *parser, const block_t *block)
       bits ^= bit;
       if (bit & newline) {
         parser->file->indexer.tail[i] =
-          (zone_transition_t){
+          (zone_index_t){
             base + trailing_zeroes(bit), parser->file->indexer.newlines };
         parser->file->indexer.newlines = 0;
         newline &= -bit;
@@ -226,7 +226,7 @@ static inline void tokenize(zone_parser_t *parser, const block_t *block)
         // count newlines here so number of newlines remains correct if last
         // token is start of contiguous or quoted and index must be reset
         parser->file->indexer.tail[i] =
-          (zone_transition_t){ base + trailing_zeroes(bit), 0 };
+          (zone_index_t){ base + trailing_zeroes(bit), 0 };
         parser->file->indexer.newlines += count_ones(newline & ~(-bit));
         newline &= -bit;
       }
@@ -236,21 +236,21 @@ static inline void tokenize(zone_parser_t *parser, const block_t *block)
   } else {
     for (uint64_t i=0; i < 6; i++) {
       parser->file->indexer.tail[i] =
-        (zone_transition_t){ base + trailing_zeroes(bits), 0 };
+        (zone_index_t){ base + trailing_zeroes(bits), 0 };
       bits = clear_lowest_bit(bits);
     }
 
     if (zone_unlikely(count > 6)) {
       for (uint64_t i=6; i < 12; i++) {
         parser->file->indexer.tail[i] =
-          (zone_transition_t){ base + trailing_zeroes(bits), 0 };
+          (zone_index_t){ base + trailing_zeroes(bits), 0 };
         bits = clear_lowest_bit(bits);
       }
 
       if (zone_unlikely(count > 12)) {
         for (uint64_t i=12; i < count; i++) {
           parser->file->indexer.tail[i] =
-            (zone_transition_t){ base + trailing_zeroes(bits), 0 };
+            (zone_index_t){ base + trailing_zeroes(bits), 0 };
           bits = clear_lowest_bit(bits);
         }
       }
@@ -337,9 +337,9 @@ terminate:
   }
 
   file->indexer.tail[0] =
-    (zone_transition_t) { file->buffer.data + file->buffer.length, 0 };
+    (zone_index_t) { file->buffer.data + file->buffer.length, 0 };
   file->indexer.tail[1] =
-    (zone_transition_t) { file->buffer.data + file->buffer.length, 0 };
+    (zone_index_t) { file->buffer.data + file->buffer.length, 0 };
   file->start_of_line = file->indexer.head[0].data == start && start_of_line;
 
   do {
