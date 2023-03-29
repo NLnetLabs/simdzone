@@ -103,7 +103,6 @@ void supported_types(void **state)
     test_t test = tests[i];
     zone_parser_t parser = { 0 };
     zone_options_t options = { 0 };
-    zone_rdata_t rdata;
     zone_return_t result;
 
     options.accept = accept_rr;
@@ -111,7 +110,7 @@ void supported_types(void **state)
     options.default_ttl = 3600;
     options.default_class = ZONE_IN;
 
-    result = zone_parse_string(&parser, &options, rdata, tests[i].text, strlen(tests[i].text), &test);
+    result = zone_parse_string(&parser, &options, tests[i].text, strlen(tests[i].text), &test);
     assert_int_equal(result, ZONE_SUCCESS);
   }
 }

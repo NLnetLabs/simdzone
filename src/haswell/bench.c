@@ -9,7 +9,7 @@
 #include "zone.h"
 #include "diagnostic.h"
 #include "heap.h"
-#include "error.h"
+#include "log.h"
 #include "haswell/simd.h"
 #include "haswell/bits.h"
 #include "lexer.h"

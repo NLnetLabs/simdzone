@@ -242,6 +242,8 @@ static void close_file(
 
 static void set_defaults(zone_parser_t *parser)
 {
+  if (!parser->options.log.write && !parser->options.log.categories)
+    parser->options.log.categories = (uint32_t)-1;
   parser->items[0].code = ZONE_OWNER | ZONE_NAME;
   parser->items[1].code = ZONE_TYPE | ZONE_INT16;
   parser->items[1].length = sizeof(parser->file->last_type);
@@ -272,8 +274,8 @@ void zone_close(zone_parser_t *parser)
 zone_return_t zone_open(
   zone_parser_t *parser,
   const zone_options_t *options,
-  zone_rdata_t rdata,
-  const char *filename)
+  const char *filename,
+  void *user_data)
 {
   zone_file_t *file;
   zone_return_t result;
@@ -282,8 +284,8 @@ zone_return_t zone_open(
     return result;
 
   memset(parser, 0, sizeof(*parser));
-  parser->rdata = rdata;
   parser->options = *options;
+  parser->user_data = user_data;
   file = parser->file = &parser->first;
   if ((result = open_file(parser, file, filename, options->origin)) < 0)
     goto error;
@@ -292,6 +294,7 @@ zone_return_t zone_open(
   file->last_type = 0;
   file->last_class = options->default_class;
   file->last_ttl = options->default_ttl;
+  file->line = 1;
 
   set_defaults(parser);
   return 0;
@@ -305,14 +308,14 @@ diagnostic_pop()
 zone_return_t zone_parse(
   zone_parser_t *parser,
   const zone_options_t *options,
-  zone_rdata_t rdata,
   const char *filename,
   void *user_data)
 {
   zone_return_t result;
   volatile jmp_buf environment;
 
-  zone_open(parser, options, rdata, filename);
+  if ((result = zone_open(parser, options, filename, user_data)) < 0)
+    return result;
   parser->environment = &environment;
   result = parse(parser, user_data);
   zone_close(parser);
@@ -322,7 +325,6 @@ zone_return_t zone_parse(
 zone_return_t zone_parse_string(
   zone_parser_t *parser,
   const zone_options_t *options,
-  zone_rdata_t rdata,
   const char *string,
   size_t length,
   void *user_data)
@@ -335,8 +337,8 @@ zone_return_t zone_parse_string(
     return result;
 
   memset(parser, 0, sizeof(*parser));
-  parser->rdata = rdata;
   parser->options = *options;
+  parser->user_data = user_data;
   file = parser->file = &parser->first;
   if ((result = parse_origin(options->origin, file->origin.octets, &file->origin.length)) < 0)
     return result;
@@ -359,6 +361,7 @@ zone_return_t zone_parse_string(
   file->last_type = 0;
   file->last_class = options->default_class;
   file->last_ttl = options->default_ttl;
+  file->line = 1;
 
   set_defaults(parser);
   parser->environment = &environment;

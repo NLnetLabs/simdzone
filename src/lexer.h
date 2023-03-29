@@ -75,24 +75,25 @@ zone_always_inline()
 zone_nonnull_all()
 static inline void lex_field(
   zone_parser_t *parser,
-  const zone_type_info_t *type_info,
-  const zone_field_info_t *field_info,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
   zone_token_t *token)
 {
   if (!lex(parser, token))
     SYNTAX_ERROR(parser, "Missing %s in %s record",
-                 type_info->name.data, field_info->name.data);
+                 type->name.data, field->name.data);
 }
 
 zone_always_inline()
 zone_nonnull_all()
 static inline void lex_delimiter(
   zone_parser_t *parser,
-  const zone_type_info_t *type_info,
+  const zone_type_info_t *type,
   zone_token_t *token)
 {
   if (lex(parser, token))
-    SYNTAX_ERROR(parser, "Trailing data in %s record", type_info->name.data);
+    SYNTAX_ERROR(parser, "Trailing data in %s record",
+                 type->name.data);
 }
 
 #endif // LEXER_H

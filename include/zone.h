@@ -328,7 +328,7 @@ struct zone_field {
     const zone_type_info_t *type; // type fields
     const zone_field_info_t *rdata; // rdata fields
   } info;
-  uint_fast16_t length;
+  size_t length;
   // rdata is NOT stored in heap memory or allocated using a potentially
   // custom allocator. a scratch buffer specific to the parser is used to
   // avoid any memory leaks (there are NO allocations) when parsing a string
@@ -410,6 +410,71 @@ typedef void *(*zone_malloc_t)(void *arena, size_t size);
 typedef void *(*zone_realloc_t)(void *arena, void *ptr, size_t size);
 typedef void(*zone_free_t)(void *arena, void *ptr);
 
+/**
+ * @defgroup log_categories Log categories.
+ *
+ * @note No direct relation between log categories and error codes exists.
+ *       Log categories communicate the importance of the log message, error
+ *       codes communicate what went wrong to the caller.
+ * @{
+ */
+/** Error condition. */
+#define ZONE_ERROR (1u<<1)
+/** Warning condition. */
+#define ZONE_WARNING (1u<<2)
+/** Informational message. */
+#define ZONE_INFO (1u<<3)
+/** @} */
+
+typedef void(*zone_log_t)(
+  zone_parser_t *,
+  const char *, // file
+  size_t, // line
+  const char *, // function
+  uint32_t, // category
+  const char *, // message
+  void *); // user data
+
+/**
+ * @brief Write error message to active log handler.
+ *
+ * @note Direct use is discouraged. Use of #ZONE_LOG instead.
+ *
+ * @param[in]  parser    Zone parser
+ * @param[in]  file      Name of source file
+ * @param[in]  line      Line number in source file
+ * @param[in]  function  Name of function
+ * @param[in]  category  Log category
+ * @param[in]  format    Format string compatible with printf
+ * @param[in]  ...       Variadic arguments corresponding to #format
+ */
+ZONE_EXPORT void zone_log(
+  zone_parser_t *parser,
+  const char *file,
+  size_t line,
+  const char *function,
+  uint32_t category,
+  const char *format,
+  ...)
+zone_nonnull((1,2,4,6))
+zone_format_printf(6,7);
+
+/**
+ * @brief Write log message to active log handler.
+ *
+ * The zone parser operates on a per-record base and therefore cannot detect
+ * errors that span records. e.g. SOA records being specified more than once.
+ * The user may print a message using the active log handler, keeping the
+ * error message format consistent.
+ *
+ * @param[in]  parser    Zone parser
+ * @param[in]  category  Log category
+ * @param[in]  format    Format string compatible with printf
+ * @parma[in]  ...       Variadic arguments corresponding to #format
+ */
+#define ZONE_LOG(parser, category, ...) \
+  zone_log(parser, category, __FILE__, __LINE__, __func__, ...)
+
 // invoked for each record (host order). header (owner, type, class and ttl)
 // fields are passed individually for convenience. rdata fields can be visited
 // individually by means of the iterator
@@ -424,15 +489,16 @@ typedef zone_return_t(*zone_accept_t)(
   const uint8_t *, // rdata
   void *); // user data
 
-// rdata buffer is passed in separately. allow for allocation on stack
-typedef uint8_t zone_rdata_t[UINT16_MAX + 4096 /* padding for nsec */];
-
 typedef struct zone_options zone_options_t;
 struct zone_options {
   // FIXME: add a flags member. e.g. to allow for includes in combination
   //        with static buffers, signal ownership of allocated memory, etc
-  // FIXME: a compiler flag indicating host or network order might be useful
   uint32_t flags;
+  /** Lax mode of operation. */
+  /** Authoritative servers may choose to be more lenient when operating as
+      as a secondary as data may have been transferred over AXFR/IXFR that
+      would have triggered a semantic error otherwise. */
+  bool secondary;
   const char *origin;
   uint32_t default_ttl;
   uint16_t default_class;
@@ -442,57 +508,30 @@ struct zone_options {
     zone_free_t free;
     void *arena;
   } allocator;
+  struct {
+    /** Message categories to write out. */
+    /** All categories are printed if no categories are selected and no
+        custom callback was specified. */
+    uint32_t categories;
+    /** Callback used to write out log messages. */
+    zone_log_t write;
+  } log;
+  // FIXME: Will be somewhat modified at a later stage. Efficient serialization
+  //        (printing) is on the roadmap, as well as handling (de)serialization
+  //        of AXFR/IXFR.
   zone_accept_t accept;
 };
 
 struct zone_parser {
   zone_options_t options;
+  void *user_data;
   volatile void *environment;
   zone_field_t items[5]; // { owner, type, class, ttl, rdata }
-  zone_field_t *rdata_items;
-  size_t rdlength;
-  uint8_t *rdata;
+  zone_field_t *rdatas;
   zone_file_t *file, first;
+  size_t rdlength;
+  uint8_t rdata[UINT16_MAX + 4096 /* padding for nsec */];
 };
-
-/**
- * @brief Write error message
- *
- * Write error message to stderr or active callback.
- *
- * @note Direct use of @zone_error is discouraged. Use @ZONE_ERROR instead.
- *
- * @param[in]  parser    Zone parser
- * @param[in]  code      Error code
- * @param[in]  file      Name of source file
- * @param[in]  line      Line number in source file
- * @param[in]  function  Name of function
- * @param[in]  format    Format string compatible with printf
- */
-ZONE_EXPORT void zone_error(
-  zone_parser_t *parser,
-  zone_code_t code,
-  const char *file,
-  uint32_t line,
-  const char *function,
-  zone_format_string(const char *format),
-  ...)
-zone_nonnull((1,3,5,6))
-zone_format_printf(6,7);
-
-/**
- * @brief Write error message
- *
- * Write error message to stderr or active callback.
- *
- * @param[in]  parser  Zone parser
- * @param[in]  code    Error code
- * @param[in]  format  Format string compatible with printf
- *
- * @return void
- */
-#define ZONE_ERROR(parser, code, ...) \
-  zone_error(parser, code, __FILE__, __LINE__, __func__, __VA_ARGS__)
 
 /**
  * @defgroup return_codes Zone return codes
@@ -519,20 +558,18 @@ ZONE_EXPORT zone_return_t
 zone_parse(
   zone_parser_t *parser,
   const zone_options_t *options,
-  zone_rdata_t rdata,
   const char *filename,
   void *user_data)
-zone_nonnull((1,2,3,4));
+zone_nonnull((1,2,3));
 
 ZONE_EXPORT zone_return_t
 zone_parse_string(
   zone_parser_t *parser,
   const zone_options_t *options,
-  zone_rdata_t rdata,
   const char *string,
   size_t length,
   void *user_data)
-zone_nonnull((1,2,3,4));
+zone_nonnull((1,2,3));
 
 #if 0
 /**

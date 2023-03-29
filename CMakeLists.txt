@@ -137,7 +137,7 @@ target_sources(zone PRIVATE
   src/zone.c
   src/types.c
   src/table.c
-  src/error.c
+  src/log.c
   src/parser.c
   src/lexer.c
   src/heap.c

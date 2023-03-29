@@ -52,14 +52,6 @@
 
 # define zone_format(params)
 # define zone_format_printf(string_index, first_to_check)
-# if _MSC_VER >= 1400
-#   include <sal.h>
-#   if _MSC_VER > 1400
-#     define zone_format_string(params) _Printf_format_string_ params
-#   else
-#     define zone_format_string(params) __format_string params
-#   endif
-# endif
 #else // _MSC_VER
 # define zone_always_inline() zone_attribute((always_inline))
 # define zone_never_inline() zone_attribute((noinline))
@@ -81,7 +73,6 @@
 
 # define zone_unlikely(params) __builtin_expect((params), 0)
 
-# define zone_format_string(params) params
 # if zone_has_attribute(format)
 #   define zone_format(params) zone_attribute((__format__ params))
 #   if __MINGW32__

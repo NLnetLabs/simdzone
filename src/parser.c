@@ -17,20 +17,20 @@
 
 #include "zone.h"
 #include "diagnostic.h"
-#include "error.h"
+#include "log.h"
 
 static inline zone_return_t accept_rr(
   zone_parser_t *parser, zone_field_t *fields, void *user_data)
 {
   assert(parser->rdlength <= UINT16_MAX);
-  parser->rdata_items = fields;
+  parser->rdatas = fields;
   return parser->options.accept(
     parser,
    &parser->items[0],
    &parser->items[3],
    &parser->items[2],
    &parser->items[1],
-    parser->rdata_items,
+    parser->rdatas,
     (uint16_t)parser->rdlength,
     parser->rdata,
     user_data);
