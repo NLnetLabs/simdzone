@@ -9,7 +9,7 @@
 #include "zone.h"
 #include "diagnostic.h"
 #include "heap.h"
-#include "error.h"
+#include "log.h"
 #include "lexer.h"
 #include "fallback/scanner.h"
 

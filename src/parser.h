@@ -13,14 +13,14 @@ static inline zone_return_t accept_rr(
   zone_parser_t *parser, zone_field_t *fields, void *user_data)
 {
   // FIXME: handle fields a little different (only pass type info)
-  parser->rdata_items = fields;
+  parser->rdatas = fields;
   return parser->options.accept(
     parser,
    &parser->items[0],
    &parser->items[1],
    &parser->items[2],
    &parser->items[3],
-    parser->rdata_items,
+    parser->rdatas,
     (uint16_t)parser->rdlength,
     parser->rdata,
     user_data);

@@ -14,7 +14,7 @@
 #include <stdio.h>
 
 #include "zone.h"
-#include "error.h"
+#include "log.h"
 
 static inline uint64_t find_escaped(
   uint64_t backslash, uint64_t *is_escaped)
