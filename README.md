@@ -16,9 +16,11 @@ files.
 
 For now, SSE4.2 and AVX2 are supported, a fallback is used otherwise.
 
-The project uses some code from the simdjson project. That code remains
-licensed under the Apache-2.0 license (for now). Credits and copyright reside
-with the original authors.
+> simdzone copies some code from the [simdjson][1] project, with permission to
+> use and distribute it under the terms of [The 3-Clause BSD License][2].
+
+[1]: https://github.com/simdjson/simdjson
+[2]: https://opensource.org/license/bsd-3-clause/
 
 ## Early results
 Running `simdzone` on my system (Intel Core i7-1065G7) against an older

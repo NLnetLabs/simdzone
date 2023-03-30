@@ -1,9 +1,9 @@
 /*
  * bits.h -- Westmere specific implementation of bit manipulation instructions
  *
- * Copyright (c) 2022 simdjson
+ * Copyright (c) 2018-2022 The simdjson authors
  *
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 #ifndef BITS_H
 #define BITS_H

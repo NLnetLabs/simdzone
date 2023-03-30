@@ -16,6 +16,8 @@
 #include "zone.h"
 #include "log.h"
 
+// Copied from simdjson under the terms of The 3-Clause BSD License.
+// Copyright (c) 2018-2023 The simdjson authors
 static inline uint64_t find_escaped(
   uint64_t backslash, uint64_t *is_escaped)
 {
