@@ -17,7 +17,7 @@ static inline void parse_string(
   const zone_field_info_t *field,
   zone_token_t *token)
 {
-  uint8_t *wire = &parser->rdata[parser->rdlength + 1];
+  uint8_t *wire = &parser->rdata->octets[parser->rdata->length + 1];
   uint8_t *limit = wire + 255;
   const char *text = token->data, *end = token->data + token->length;
 
@@ -58,8 +58,8 @@ static inline void parse_string(
     SYNTAX_ERROR(parser, "Invalid string in %s",
                  field->name.data);
 
-  parser->rdata[parser->rdlength] = (uint8_t)((wire - parser->rdata) - 1);
-  parser->rdlength += (size_t)(wire - parser->rdata);
+  parser->rdata->octets[parser->rdata->length] = (uint8_t)((wire - parser->rdata->octets) - 1);
+  parser->rdata->length += (size_t)(wire - parser->rdata->octets);
 }
 
 #endif // TEXT_H

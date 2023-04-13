@@ -40,7 +40,7 @@ static zone_return_t check_options(const zone_options_t *options)
               (options->allocator.arena != NULL);
   if (alloc != 0 && alloc != 4)
     return ZONE_BAD_PARAMETER;
-  if (!options->accept)
+  if (!options->accept.add)
     return ZONE_BAD_PARAMETER;
   if (!options->origin)
     return ZONE_BAD_PARAMETER;
@@ -244,16 +244,8 @@ static void set_defaults(zone_parser_t *parser)
 {
   if (!parser->options.log.write && !parser->options.log.categories)
     parser->options.log.categories = (uint32_t)-1;
-  parser->items[0].code = ZONE_OWNER | ZONE_NAME;
-  parser->items[1].code = ZONE_TYPE | ZONE_INT16;
-  parser->items[1].length = sizeof(parser->file->last_type);
-  parser->items[1].data.int16 = &parser->file->last_type;
-  parser->items[2].code = ZONE_CLASS | ZONE_INT16;
-  parser->items[2].length = sizeof(parser->file->last_class);
-  parser->items[2].data.int16 = &parser->file->last_class;
-  parser->items[3].code = ZONE_TTL | ZONE_INT32;
-  parser->items[3].length = sizeof(parser->file->last_ttl);
-  parser->items[3].data.int32 = &parser->file->last_ttl;
+  parser->owner = &parser->file->owner;
+  parser->rdata = &parser->cache.rdata.blocks[0];
 }
 
 diagnostic_push()
@@ -274,6 +266,7 @@ void zone_close(zone_parser_t *parser)
 zone_return_t zone_open(
   zone_parser_t *parser,
   const zone_options_t *options,
+  zone_cache_t *cache,
   const char *filename,
   void *user_data)
 {
@@ -290,6 +283,10 @@ zone_return_t zone_open(
   if ((result = open_file(parser, file, filename, options->origin)) < 0)
     goto error;
 
+  parser->cache.size = cache->size;
+  parser->cache.owner.serial = 0;
+  parser->cache.owner.blocks = cache->owner;
+  parser->cache.rdata.blocks = cache->rdata;
   file->owner = file->origin;
   file->last_type = 0;
   file->last_class = options->default_class;
@@ -308,13 +305,14 @@ diagnostic_pop()
 zone_return_t zone_parse(
   zone_parser_t *parser,
   const zone_options_t *options,
+  zone_cache_t *cache,
   const char *filename,
   void *user_data)
 {
   zone_return_t result;
   volatile jmp_buf environment;
 
-  if ((result = zone_open(parser, options, filename, user_data)) < 0)
+  if ((result = zone_open(parser, options, cache, filename, user_data)) < 0)
     return result;
   parser->environment = &environment;
   result = parse(parser, user_data);
@@ -325,6 +323,7 @@ zone_return_t zone_parse(
 zone_return_t zone_parse_string(
   zone_parser_t *parser,
   const zone_options_t *options,
+  zone_cache_t *cache,
   const char *string,
   size_t length,
   void *user_data)
@@ -357,6 +356,10 @@ zone_return_t zone_parse_string(
   file->indexer.head = file->indexer.tape;
   file->indexer.tail = file->indexer.tape;
 
+  parser->cache.size = cache->size;
+  parser->cache.owner.serial = 0;
+  parser->cache.owner.blocks = cache->owner;
+  parser->cache.rdata.blocks = cache->rdata;
   file->owner = file->origin;
   file->last_type = 0;
   file->last_class = options->default_class;

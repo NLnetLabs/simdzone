@@ -36,17 +36,17 @@ static inline zone_return_t parse_int8(
                      field->name.data, type->name.data);
   }
 
-  parser->rdata[parser->rdlength] = (uint8_t)v;
-  parser->rdlength += sizeof(uint8_t);
-  return ZONE_RDATA;
+  parser->rdata->octets[parser->rdata->length] = (uint8_t)v;
+  parser->rdata->length += sizeof(uint8_t);
+  return 0;
 parse_symbol:
   if (!(symbol = zone_lookup(&field->symbols, token)))
     SYNTAX_ERROR(parser, "Invalid %s in %s, not a number",
                  field->name.data, type->name.data);
   assert(symbol->value <= UINT8_MAX);
-  parser->rdata[parser->rdlength] = (uint8_t)symbol->value;
-  parser->rdlength += sizeof(uint8_t);
-  return ZONE_RDATA;
+  parser->rdata->octets[parser->rdata->length] = (uint8_t)symbol->value;
+  parser->rdata->length += sizeof(uint8_t);
+  return 0;
 }
 
 zone_always_inline()
@@ -72,18 +72,18 @@ static inline zone_return_t parse_int16(
   }
 
   v16 = htons((uint16_t)v);
-  memcpy(&parser->rdata[parser->rdlength], &v16, sizeof(v16));
-  parser->rdlength += sizeof(uint16_t);
-  return ZONE_RDATA;
+  memcpy(&parser->rdata->octets[parser->rdata->length], &v16, sizeof(v16));
+  parser->rdata->length += sizeof(uint16_t);
+  return 0;
 parse_symbol:
   if (!(symbol = zone_lookup(&field->symbols, token)))
     SYNTAX_ERROR(parser, "Invalid %s in %s, not a number",
                  field->name.data, type->name.data);
   assert(symbol->value <= UINT16_MAX);
   v16 = htons((uint16_t)symbol->value);
-  memcpy(&parser->rdata[parser->rdlength], &v16, sizeof(v16));
-  parser->rdlength += sizeof(uint16_t);
-  return ZONE_RDATA;
+  memcpy(&parser->rdata->octets[parser->rdata->length], &v16, sizeof(v16));
+  parser->rdata->length += sizeof(uint16_t);
+  return 0;
 }
 
 zone_always_inline()
@@ -109,18 +109,18 @@ static inline zone_return_t parse_int32(
   }
 
   v32 = htonl((uint32_t)v);
-  memcpy(&parser->rdata[parser->rdlength], &v32, sizeof(v32));
-  parser->rdlength += sizeof(uint32_t);
-  return ZONE_RDATA;
+  memcpy(&parser->rdata->octets[parser->rdata->length], &v32, sizeof(v32));
+  parser->rdata->length += sizeof(uint32_t);
+  return 0;
 parse_symbol:
   if (!(symbol = zone_lookup(&field->symbols, token)))
     SYNTAX_ERROR(parser, "Invalid %s in %s, not a number",
                  field->name.data, type->name.data);
   assert(symbol->value <= UINT16_MAX);
   v32 = htonl(symbol->value);
-  memcpy(&parser->rdata[parser->rdlength], &v32, sizeof(v32));
-  parser->rdlength += sizeof(uint32_t);
-  return ZONE_RDATA;
+  memcpy(&parser->rdata->octets[parser->rdata->length], &v32, sizeof(v32));
+  parser->rdata->length += sizeof(uint32_t);
+  return 0;
 }
 
 #endif // NUMBER_H

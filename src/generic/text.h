@@ -39,7 +39,7 @@ static inline void parse_string(
   zone_token_t *token)
 {
   string_block_t block;
-  uint8_t *wire = parser->rdata + 1;
+  uint8_t *wire = &parser->rdata->octets[parser->rdata->length + 1];
   const char *text = token->data, *limit = token->data + token->length;
 
   while (text < limit) {
@@ -76,13 +76,13 @@ static inline void parse_string(
       wire += block.length;
     }
 
-    if (wire - parser->rdata > 256)
+    if (wire - parser->rdata->octets > 256)
       SEMANTIC_ERROR(parser, "Invalid %s in %s, exceeds maximum length",
                      field->name.data, type->name.data);
   }
 
-  parser->rdata[parser->rdlength] = (uint8_t)((wire - parser->rdata) - 1);
-  parser->rdlength += (size_t)(wire - parser->rdata);
+  parser->rdata->octets[parser->rdata->length] = (uint8_t)((wire - parser->rdata->octets) - 1);
+  parser->rdata->length += (size_t)(wire - parser->rdata->octets);
 }
 
 #endif // TEXT_H

@@ -42,39 +42,39 @@ static inline void parse_base32(
 
       switch (state) {
         case 0:
-          parser->rdata[parser->rdlength  ]  = (uint8_t)(ofs << 3);
+          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 3);
           state = 1;
           break;
         case 1:
-          parser->rdata[parser->rdlength++] |= (uint8_t)(ofs >> 2);
-          parser->rdata[parser->rdlength  ]  = (uint8_t)(ofs << 6);
+          parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 2);
+          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 6);
           state = 2;
           break;
         case 2:
-          parser->rdata[parser->rdlength  ] |= (uint8_t)(ofs << 1);
+          parser->rdata->octets[parser->rdata->length  ] |= (uint8_t)(ofs << 1);
           state = 3;
           break;
         case 3:
-          parser->rdata[parser->rdlength++] |= (uint8_t)(ofs >> 4);
-          parser->rdata[parser->rdlength  ]  = (uint8_t)(ofs << 4);
+          parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 4);
+          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 4);
           state = 4;
           break;
         case 4:
-          parser->rdata[parser->rdlength++] |= (uint8_t)(ofs >> 1);
-          parser->rdata[parser->rdlength  ]  = (uint8_t)(ofs << 7);
+          parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 1);
+          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 7);
           state = 5;
           break;
         case 5:
-          parser->rdata[parser->rdlength  ] |= (uint8_t)(ofs << 2);
+          parser->rdata->octets[parser->rdata->length  ] |= (uint8_t)(ofs << 2);
           state = 6;
           break;
         case 6:
-          parser->rdata[parser->rdlength++] |= (uint8_t)(ofs >> 3);
-          parser->rdata[parser->rdlength  ]  = (uint8_t)(ofs << 5);
+          parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 3);
+          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 5);
           state = 7;
           break;
         case 7:
-          parser->rdata[parser->rdlength++] |= ofs;
+          parser->rdata->octets[parser->rdata->length++] |= ofs;
           state = 0;
           break;
       }

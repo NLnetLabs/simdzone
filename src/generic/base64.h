@@ -46,22 +46,22 @@ static inline void parse_base64(
 
       switch (state) {
         case 0:
-          parser->rdata[parser->rdlength  ]  = (uint8_t)(ofs << 2);
+          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 2);
           state = 1;
           break;
         case 1:
-          parser->rdata[parser->rdlength++] |= (uint8_t)(ofs >> 4);
-          parser->rdata[parser->rdlength  ]  = (uint8_t)((ofs & 0x0f) << 4);
+          parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 4);
+          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)((ofs & 0x0f) << 4);
           state = 2;
           break;
         case 2:
-          parser->rdata[parser->rdlength++] |= (uint8_t)(ofs >> 2);
-          parser->rdata[parser->rdlength  ]  = (uint8_t)((ofs & 0x03) << 6);
+          parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 2);
+          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)((ofs & 0x03) << 6);
           state = 3;
           break;
         case 3:
-          parser->rdata[parser->rdlength++] |= ofs;
-          parser->rdata[parser->rdlength  ]  = 0;
+          parser->rdata->octets[parser->rdata->length++] |= ofs;
+          parser->rdata->octets[parser->rdata->length  ]  = 0;
           state = 0;
           break;
         default:

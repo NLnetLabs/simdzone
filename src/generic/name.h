@@ -131,15 +131,15 @@ static inline void parse_name(
 {
   // a freestanding "@" denotes the current origin
   if (token->length == 1 && token->data[0] == '@') {
-    memcpy(&parser->rdata[parser->rdlength],
+    memcpy(&parser->rdata->octets[parser->rdata->length],
             parser->file->origin.octets,
             parser->file->origin.length);
-    parser->rdlength += parser->file->origin.length;
+    parser->rdata->length += parser->file->origin.length;
     return;
   }
 
   size_t length;
-  uint8_t *data = &parser->rdata[parser->rdlength];
+  uint8_t *data = &parser->rdata->octets[parser->rdata->length];
 
   scan_name(parser, type, field, token, data, &length);
   assert(length != 0);
@@ -149,43 +149,11 @@ static inline void parse_name(
   if (length > 256 - parser->file->origin.length)
     SYNTAX_ERROR(parser, "Invalid name in %s, exceeds 255 octets", field->name.data);
 
-  parser->rdlength += length;
-  memcpy(&parser->rdata[parser->rdlength],
+  parser->rdata->length += length;
+  memcpy(&parser->rdata->octets[parser->rdata->length],
           parser->file->origin.octets,
           parser->file->origin.length);
-  parser->rdlength += parser->file->origin.length;
-}
-
-zone_always_inline()
-zone_nonnull_all()
-static inline void parse_owner(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  zone_token_t *token)
-{
-  // a freestanding "@" denotes the origin
-  if (token->length == 1 && token->data[0] == '@') {
-    memcpy(parser->file->owner.octets,
-           parser->file->origin.octets,
-           parser->file->origin.length);
-    parser->file->owner.length = parser->file->origin.length;
-    return;
-  }
-
-  scan_name(parser, type, field, token,
-            parser->file->owner.octets,
-           &parser->file->owner.length);
-
-  if (parser->file->owner.octets[parser->file->owner.length - 1] == 0)
-    return;
-  if (parser->file->owner.length > 255 - parser->file->origin.length)
-    SEMANTIC_ERROR(parser, "Invalid name in owner");
-
-  memcpy(&parser->file->owner.octets[parser->file->owner.length],
-          parser->file->origin.octets,
-          parser->file->origin.length);
-  parser->file->owner.length += parser->file->origin.length;
+  parser->rdata->length += parser->file->origin.length;
 }
 
 #endif // NAME_H

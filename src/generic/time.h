@@ -77,8 +77,8 @@ static inline void parse_time(
   tm.tm_year -= 1900;
   tm.tm_mon -= 1;
   uint32_t time = htonl((uint32_t)mktime_from_utc(&tm));
-  memcpy(&parser->rdata[parser->rdlength], &time, sizeof(time));
-  parser->rdlength += sizeof(uint32_t);
+  memcpy(&parser->rdata->octets[parser->rdata->length], &time, sizeof(time));
+  parser->rdata->length += sizeof(uint32_t);
 }
 
 #endif // TIME_H

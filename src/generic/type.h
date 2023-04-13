@@ -168,8 +168,8 @@ static inline void parse_type(
 
   scan_type(parser, type, field, token, &code);
   code = htons(code);
-  memcpy(&parser->rdata[parser->rdlength], &code, sizeof(code));
-  parser->rdlength += sizeof(uint16_t);
+  memcpy(&parser->rdata->octets[parser->rdata->length], &code, sizeof(code));
+  parser->rdata->length += sizeof(uint16_t);
 }
 
 #endif // TYPE_H

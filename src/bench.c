@@ -59,7 +59,11 @@ static const target_t targets[] = {
 };
 
 extern zone_return_t zone_open(
-  zone_parser_t *, const zone_options_t *, const char *, void *user_data);
+  zone_parser_t *,
+  const zone_options_t *,
+  zone_cache_t *,
+  const char *,
+  void *user_data);
 
 extern void zone_close(
   zone_parser_t *);
@@ -88,21 +92,19 @@ static zone_return_t bench_lex(zone_parser_t *parser, const target_t *target)
 
 static zone_return_t bench_accept(
   zone_parser_t *parser,
-  const zone_field_t *owner,
-  const zone_field_t *ttl,
-  const zone_field_t *class,
-  const zone_field_t *type,
-  const zone_field_t *rdatas,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
   uint16_t rdlength,
   const uint8_t *rdata,
   void *user_data)
 {
   (void)parser;
   (void)owner;
-  (void)ttl;
-  (void)class;
   (void)type;
-  (void)rdatas;
+  (void)class;
+  (void)ttl;
   (void)rdlength;
   (void)rdata;
   (*(size_t *)user_data)++;
@@ -219,13 +221,16 @@ int main(int argc, char *argv[])
 
   zone_parser_t parser = { 0 };
   zone_options_t options = { 0 };
+  zone_name_block_t owner;
+  zone_rdata_block_t rdata;
+  zone_cache_t cache = { 1, &owner, &rdata };
 
-  options.accept = &bench_accept;
+  options.accept.add = &bench_accept;
   options.origin = ".";
   options.default_ttl = 3600;
   options.default_class = ZONE_IN;
 
-  if (zone_open(&parser, &options, argv[argc-1], NULL) < 0)
+  if (zone_open(&parser, &options, &cache, argv[argc-1], NULL) < 0)
     exit(EXIT_FAILURE);
   if (bench(&parser, target) < 0)
     exit(EXIT_FAILURE);
