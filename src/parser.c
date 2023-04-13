@@ -12,7 +12,7 @@
 #include <winsock2.h>
 #include <ws2ipdef.h>
 #else
-#include <arpa/inet.h>
+#include <netinet/in.h>
 #endif
 
 #include "zone.h"
