@@ -28,12 +28,13 @@ Running `simdzone` on my system (Intel Core i7-1065G7) against an older
 
 GCC 12.2.1, release mode:
 ```
-$ time ./parser ../../zones/com.zone
-parsed 341535548 records
+$ time ./zone-bench parse ../../zones/com.zone
+Selected target haswell
+Parsed 341535548 records
 
-real    0m17.755s
-user    0m16.602s
-sys     0m1.105s
+real    0m20.629s
+user    0m19.328s
+sys     0m1.244s
 ```
 
 There are bound to be bugs and quite possibly smarter ways of implementing
