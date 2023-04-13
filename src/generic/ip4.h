@@ -31,10 +31,10 @@ static inline void parse_ip4(
 
   memcpy(buf, token->data, token->length);
   buf[token->length] = '\0';
-  if (inet_pton(AF_INET, buf, &parser->rdata[parser->rdlength]) != 1)
+  if (inet_pton(AF_INET, buf, &parser->rdata->octets[parser->rdata->length]) != 1)
     SEMANTIC_ERROR(parser, "Invalid %s in %s",
                    field->name.data, type->name.data);
-  parser->rdlength += sizeof(struct in_addr);
+  parser->rdata->length += sizeof(struct in_addr);
 }
 
 #endif // IP4_H

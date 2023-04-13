@@ -31,10 +31,10 @@ static inline void parse_ip6(
 
   memcpy(buf, token->data, token->length);
   buf[token->length] = '\0';
-  if (inet_pton(AF_INET6, buf, &parser->rdata[parser->rdlength]) != 1)
+  if (inet_pton(AF_INET6, buf, &parser->rdata->octets[parser->rdata->length]) != 1)
     SEMANTIC_ERROR(parser, "Invalid %s in %s",
                    field->name.data, type->name.data);
-  parser->rdlength += sizeof(struct in6_addr);
+  parser->rdata->length += sizeof(struct in6_addr);
 }
 
 #endif // IP6_H

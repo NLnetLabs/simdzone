@@ -41,10 +41,10 @@ static inline void parse_base16(
       }
 
       if (state == 0) {
-        parser->rdata[parser->rdlength] = (uint8_t)(ofs << 4);
+        parser->rdata->octets[parser->rdata->length] = (uint8_t)(ofs << 4);
         state = 1;
       } else {
-        parser->rdata[parser->rdlength++] |= ofs;
+        parser->rdata->octets[parser->rdata->length++] |= ofs;
         state = 0;
       }
     }
@@ -66,7 +66,7 @@ static inline void parse_salt(
   uint32_t state = 0;
 
   if (token->length == 1 && token->data[0] == '-') {
-    parser->rdata[parser->rdlength++] = 0;
+    parser->rdata->octets[parser->rdata->length++] = 0;
     return;
   }
 
@@ -74,7 +74,7 @@ static inline void parse_salt(
     SEMANTIC_ERROR(parser, "Invalid %s in %s",
                    field->name.data, type->name.data);
 
-  size_t rdlength = parser->rdlength++;
+  size_t rdlength = parser->rdata->length++;
 
   for (size_t i=0; i < token->length; i++) {
     const uint8_t ofs = zone_b16rmap[(uint8_t)token->data[i]];
@@ -91,10 +91,10 @@ static inline void parse_salt(
     }
 
     if (state == 0) {
-      parser->rdata[parser->rdlength] = (uint8_t)(ofs << 4);
+      parser->rdata->octets[parser->rdata->length] = (uint8_t)(ofs << 4);
       state = 1;
     } else {
-      parser->rdata[parser->rdlength++] |= ofs;
+      parser->rdata->octets[parser->rdata->length++] |= ofs;
       state = 0;
     }
   }
@@ -103,7 +103,7 @@ static inline void parse_salt(
     SEMANTIC_ERROR(parser, "Invalid %s in %s record",
                    field->name.data, type->name.data);
 
-  parser->rdata[rdlength] = (uint8_t)(parser->rdlength - rdlength);
+  parser->rdata->octets[rdlength] = (uint8_t)(parser->rdata->length - rdlength);
 }
 
 #endif // BASE16_H

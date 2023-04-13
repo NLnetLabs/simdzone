@@ -9,11 +9,16 @@
 #ifndef ZONE_H
 #define ZONE_H
 
+/**
+ * @file
+ * @brief simdzone main header
+ */
+
 #include <stdarg.h>
-#include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "zone/attributes.h"
 #include "zone/export.h"
@@ -238,77 +243,119 @@ struct zone_fast_table {
   const zone_symbol_t *symbols[16];
 };
 
-// types are defined by their binary representation. this is different from
-// dnsextlang, which defines types mostly by their textual representation.
-// e.g. I4, T and T[L] are different field types in dnsextlang, but the wire
-// format is identical. qualifiers, like time and ttl, are available from the
-// field descriptor for completeness.
+/**
+ * @brief Type of value defined by field
+ *
+ * Fields are defined by their binary representation, NOT their textual
+ * representation. e.g. time-to-live and timestamp fields are encoded as
+ * 32-bit integers on the wire. @ref type_qualifiers are used to complement
+ * the type information. e.g. @ref ZONE_TTL and @ref ZONE_TIME can be used to
+ * provide extra information regarding the aforementioned types.
+ */
 typedef enum {
-  ZONE_INT8 = (1 << 14),
-  ZONE_INT16 = (2 << 14),
-  ZONE_INT32 = (3 << 14),
-  ZONE_IP4 = (4 << 14),
-  ZONE_IP6 = (5 << 14),
-  ZONE_NAME = (6 << 14),
-  ZONE_STRING = (1 << 8),
+  ZONE_INT8,
+  ZONE_INT16,
+  ZONE_INT32,
+  ZONE_IP4,
+  ZONE_IP6,
+  ZONE_NAME,
+  ZONE_STRING,
   // (B)inary (L)arge (Ob)ject. Inspired by relational database terminology.
   // Must be last.
-  ZONE_BLOB = (7 << 14),
+  ZONE_BLOB,
   // hex fields
   // ZONE_EUI48 (ZONE_HEX6?)
   // ZONE_EUI64 (ZONE_HEX8?)
   // miscellaneous fields
-  ZONE_SVC_PARAM = (1 << 9),
-  //ZONE_WKS = (8 << 14), // << will have to be renamed
-  ZONE_TYPE_BITMAP = (9 << 14) // << nsec type bitmap list
+  ZONE_SVC_PARAM, /**< SVCB service parameter */
+  ZONE_TYPE_BITMAP /**< NSEC type bitmap */
 } zone_type_t;
 
-typedef enum {
-  ZONE_TTL = (1 << 0), // may be used as qualifier for int32 rdata
-  ZONE_CLASS = (1 << 1),
-  ZONE_TYPE = (1 << 2), // may be used as qualifier for int16 rdata
-  ZONE_OWNER = (2 << 3),
-  ZONE_RDATA = (3 << 3),
-  ZONE_DOLLAR_INCLUDE,
-  ZONE_DOLLAR_ORIGIN,
-  ZONE_DOLLAR_TTL
-} zone_item_t;
+/**
+ * @defgroup type_qualifiers Type qualifiers
+ *
+ * Type qualifiers provide additional information for RDATA fields. Types
+ * indicate the binary representation of an RDATA field, qualifier(s) can be
+ * used to communicate semantics. e.g. a time-to-live is presented on the
+ * wire as a 32-bit integer, ZONE_TTL can be used to signal the field
+ * represents a time-to-live value.
+ *
+ * @note Some types allow for more than one qualifier to be specified, hence
+ *       each qualifier is assigned a separate bit.
+ *
+ * @{
+ */
+/**
+ * @brief Type code (#ZONE_INT16)
+ *
+ * Type codes may appear in text by name or generic type notation @rfc{3597}.
+ */
+#define ZONE_TYPE (1u << 0)
+/**
+ * @brief Class code (#ZONE_INT16)
+ *
+ * Class codes may appear in text by name or generic class notation @rfc{3597}.
+ */
+#define ZONE_CLASS (1u << 1)
+/**
+ * @brief Time-to-live (TTL) (#ZONE_INT32)
+ *
+ * Time-to-live values may appear in text as numeric value (seconds) or in
+ * "1h2m3s" notation (@e extension).
+ */
+#define ZONE_TTL (1u << 2)
+/**
+ * @brief Timestamp (#ZONE_INT32)
+ *
+ * Timestamps must be presented in text in "YYYYMMDDHHmmSS" notation.
+ */
+#define ZONE_TIME (1u << 3)
+/** @brief Text representation is base16 (#ZONE_STRING or #ZONE_BLOB) */
+#define ZONE_BASE16 (1u << 4)
+/** @brief Text representation is base32 (#ZONE_BLOB) */
+#define ZONE_BASE32 (1u << 5)
+/** @brief Text representation is base64 (#ZONE_BLOB) */
+#define ZONE_BASE64 (1u << 6)
+/** @brief Name is compressed (#ZONE_NAME) */
+#define ZONE_COMPRESSED (1u << 7)
+/** @brief Name represents a mailbox (#ZONE_NAME) */
+#define ZONE_MAILBOX (1u << 8)
+/** @brief Name is converted to lower case for DNSSEC validation (#ZONE_NAME) */
+#define ZONE_LOWER_CASE (1u << 9)
+/** @brief Optional (#ZONE_NAME) */
+#define ZONE_OPTIONAL (1u << 10)
+/**
+ * @brief May occur multiple times (#ZONE_STRING or #ZONE_SVC_PARAM)
+ *
+ * Field may occur multiple times. e.g. #ZONE_STRING in #ZONE_TXT or
+ * #ZONE_SVC_PARAM in #ZONE_SVCB. Sequences must be the last field in the
+ * record.
+ */
+#define ZONE_SEQUENCE (1u << 11)
+/** @} */
 
-// qualifiers (can be combined in various ways, hence not an enumeration)
-//
-// NOTE: ZONE_TYPE and ZONE_TTL may be used as qualifier for ZONE_INT32 RDATA
-//       to indicate a type code or time-to-live respectively. Type codes may
-//       be presented as numeric values, by the name of the record, or by the
-//       correspondig generic notation, i.e. TYPExx. Time-to-live values may
-//       be presented as numeric value or in the "1h2m3s" notation.
-#define ZONE_COMPRESSED (1 << 8)
-#define ZONE_MAILBOX (1 << 9)
-#define ZONE_LOWER_CASE (1 << 10)
-#define ZONE_OPTIONAL (1 << 11)
-// string fields may occur in a sequence. must be last
-#define ZONE_SEQUENCE (1 << 12)
-// int32 fields, require "YYYYMMDDHHmmSS" format
-#define ZONE_TIME (1 << 13)
-// string and blob fields, require base16, may span presentation fields
-#define ZONE_BASE16 (1 << 14)
-// blob fields, require base32 format, may span presentation fields
-#define ZONE_BASE32 (1 << 15)
-// blob fields, require base64 format, may span presentation fields
-#define ZONE_BASE64 (1 << 16)
-
-typedef struct zone_field_info zone_field_info_t;
-struct zone_field_info {
+typedef struct zone_rdata_info zone_rdata_info_t;
+struct zone_rdata_info {
   zone_string_t name;
   uint32_t type;
   uint32_t qualifiers;
   zone_table_t symbols;
 };
 
+typedef struct zone_rdata_info zone_field_info_t;
+
+/**
+ * @defgroup options Type options
+ * @brief Options for record types
+ *
+ * @{
+ */
 // type options
 // ZONE_IN goes here too!
 #define ZONE_ANY (1<<2)
 #define ZONE_EXPERIMENTAL (1<<3)
 #define ZONE_OBSOLETE (1<<4)
+/** @} */
 
 typedef struct zone_type_info zone_type_info_t;
 struct zone_type_info {
@@ -317,30 +364,8 @@ struct zone_type_info {
   uint32_t options;
   struct {
     size_t length;
-    const zone_field_info_t *fields;
+    const zone_rdata_info_t *fields;
   } rdata;
-};
-
-typedef struct zone_field zone_field_t;
-struct zone_field {
-  zone_code_t code; // OR'ed combination of type and item
-  union {
-    const zone_type_info_t *type; // type fields
-    const zone_field_info_t *rdata; // rdata fields
-  } info;
-  size_t length;
-  // rdata is NOT stored in heap memory or allocated using a potentially
-  // custom allocator. a scratch buffer specific to the parser is used to
-  // avoid any memory leaks (there are NO allocations) when parsing a string
-  // FIXME: remove struct in_addr pointers
-  union {
-    const uint8_t *int8;
-    const uint16_t *int16;
-    const uint32_t *int32;
-    const struct in_addr *ip4;
-    const struct in6_addr *ip6;
-    const uint8_t *octets;
-  } data;
 };
 
 #define ZONE_BLOCK_SIZE (64)
@@ -368,14 +393,23 @@ struct zone_index {
 // allocate twice the size so consecutive index operations can be done
 #define ZONE_TAPE_SIZE (100 * (ZONE_BLOCK_SIZE + ZONE_BLOCK_SIZE))
 
+typedef struct zone_name_block zone_name_block_t;
+struct zone_name_block {
+  size_t length; /**< Length of domain name stored in block */
+  uint8_t octets[ 255 + ZONE_BLOCK_SIZE ];
+};
+
+typedef struct zone_rdata_block zone_rdata_block_t;
+struct zone_rdata_block {
+  size_t length; /**< Length of RDATA stored in block */
+  uint8_t octets[ 65535 + 4096 /* nsec padding */ ];
+};
+
 // @private
 typedef struct zone_file zone_file_t;
 struct zone_file {
   zone_file_t *includer;
-  struct {
-    size_t length;
-    uint8_t octets[256 + ZONE_BLOCK_SIZE];
-  } origin, owner;
+  zone_name_block_t origin, owner;
   uint16_t last_type;
   uint32_t last_ttl, default_ttl;
   uint16_t last_class;
@@ -470,21 +504,26 @@ zone_format_printf(6,7);
  * @param[in]  parser    Zone parser
  * @param[in]  category  Log category
  * @param[in]  format    Format string compatible with printf
- * @parma[in]  ...       Variadic arguments corresponding to #format
+ * @param[in]  ...       Variadic arguments corresponding to @ref format
  */
 #define ZONE_LOG(parser, category, ...) \
   zone_log(parser, category, __FILE__, __LINE__, __func__, ...)
 
+typedef struct zone_name zone_name_t;
+struct zone_name {
+  uint8_t length;
+  uint8_t *octets;
+};
+
 // invoked for each record (host order). header (owner, type, class and ttl)
 // fields are passed individually for convenience. rdata fields can be visited
 // individually by means of the iterator
-typedef zone_return_t(*zone_accept_t)(
+typedef zone_return_t(*zone_add_t)(
   zone_parser_t *,
-  const zone_field_t *, // owner
-  const zone_field_t *, // type
-  const zone_field_t *, // class
-  const zone_field_t *, // ttl
-  const zone_field_t *, // rdatas
+  const zone_name_t *, // owner (length + octets)
+  uint16_t, // type
+  uint16_t, // class
+  uint32_t, // ttl
   uint16_t, // rdlength
   const uint8_t *, // rdata
   void *); // user data
@@ -516,25 +555,55 @@ struct zone_options {
     /** Callback used to write out log messages. */
     zone_log_t write;
   } log;
-  // FIXME: Will be somewhat modified at a later stage. Efficient serialization
-  //        (printing) is on the roadmap, as well as handling (de)serialization
-  //        of AXFR/IXFR.
-  zone_accept_t accept;
+  struct {
+    zone_add_t add;
+    // FIXME: more callbacks to be added at a later stage to support efficient
+    //        (de)serialization of AXFR/IXFR in text representation.
+    //zone_delete_t remove;
+  } accept;
+};
+
+/**
+ * @brief Buffer space reserved for parser
+ *
+ * Depending on the use case, parsing resource records and committing the data
+ * are disjunct operations. Specifically, authoritative name servers may want
+ * to parse and commit in parallel to cut load times. Allocate multiple buffers
+ * to allow for asynchronous operation.
+ *
+ * Synchronization between submission and completion is the responsibility of
+ * the application. The return code of the accept operation indicates which
+ * rdata buffer to use next. Rotation of name buffers is controlled by the
+ * parser.
+ */
+typedef struct zone_cache zone_cache_t;
+struct zone_cache {
+  size_t size; /**< Number of name and rdata storage blocks available */
+  zone_name_block_t *owner;
+  zone_rdata_block_t *rdata;
 };
 
 struct zone_parser {
   zone_options_t options;
   void *user_data;
-  volatile void *environment;
-  zone_field_t items[5]; // { owner, type, class, ttl, rdata }
-  zone_field_t *rdatas;
+  volatile void *environment; // FIXME: not sure about this yet
+  struct {
+    size_t size;
+    struct {
+      size_t serial;
+      zone_name_block_t *blocks;
+    } owner;
+    struct {
+      zone_rdata_block_t *blocks;
+    } rdata;
+  } cache;
+  zone_name_block_t *owner;
+  zone_rdata_block_t *rdata;
   zone_file_t *file, first;
-  size_t rdlength;
-  uint8_t rdata[UINT16_MAX + 4096 /* padding for nsec */];
 };
 
 /**
- * @defgroup return_codes Zone return codes
+ * @defgroup return_codes Return codes
  *
  * @{
  */
@@ -554,92 +623,30 @@ struct zone_parser {
 #define ZONE_NOT_IMPLEMENTED (-6)
 /** @} */
 
+/**
+ * @brief Parse zone file
+ */
 ZONE_EXPORT zone_return_t
 zone_parse(
   zone_parser_t *parser,
   const zone_options_t *options,
+  zone_cache_t *cache,
   const char *filename,
   void *user_data)
-zone_nonnull((1,2,3));
+zone_nonnull((1,2,3,4));
 
+/**
+ * @brief Parse zone from string
+ */
 ZONE_EXPORT zone_return_t
 zone_parse_string(
   zone_parser_t *parser,
   const zone_options_t *options,
+  zone_cache_t *cache,
   const char *string,
   size_t length,
   void *user_data)
-zone_nonnull((1,2,3));
-
-#if 0
-/**
- * @brief Iterate fields in record
- *
- * @note Must only be used from within @zone_accept_t callback.
- *
- * @param[in]  parser  Parser
- * @param[in]  field   Field
- *
- * @returns Next field in record or NULL if there are no more fields
- */
-inline zone_field_t *
-zone_foreach(zone_parser_t *parser, zone_field_t *field)
-{
-  assert(parser);
-  assert(parser->state.scanner & ZONE_RDATA);
-  assert(parser->rdata_items);
-
-  if (!field)
-    return &parser->items[0];
-
-  switch (zone_item(field)) {
-    case ZONE_OWNER:
-      return &parser->items[1]; // type
-    case ZONE_TYPE:
-      return &parser->items[2]; // class
-    case ZONE_CLASS:
-      return &parser->items[3]; // ttl
-    case ZONE_TTL:
-      if (!(zone_qualifiers(&parser->rdata_items[0]) & ZONE_SEQUENCE))
-        return &parser->rdata_items[0]; // rdata
-      parser->items[4] = parser->rdata_items[0];
-      return &parser->items[4]; // sequence rdata
-    case ZONE_RDATA:
-      if (field == &parser->items[4])
-        break;
-
-      assert(field >= parser->rdata_items);
-      assert(field[0].code);
-
-      if (!(zone_type(&field[1])))
-        return NULL;
-      if (!(zone_qualifiers(&field[1]) & ZONE_SEQUENCE))
-        return &field[1];
-      parser->items[4] = parser->rdata_items[0];
-      return &parser->items[4];
-    default:
-      abort();
-  }
-
-  uintptr_t used = (uintptr_t)field->data.octets - (uintptr_t)parser->rdata;
-  if (used >= parser->rdlength - field->length)
-    return NULL;
-
-  assert(field == &parser->items[4]);
-  field->data.octets += field->length;
-
-  switch (zone_type(field)) {
-    case ZONE_SVCB:
-      field->length = ntohs(*(uint16_t *)&field->data.octets[2]);
-      return field;
-    case ZONE_STRING:
-      field->length = 1 + field->data.octets[0];
-      return field;
-    default:
-      abort();
-  }
-}
-#endif
+zone_nonnull((1,2,3,4));
 
 #if defined(__cplusplus)
 }

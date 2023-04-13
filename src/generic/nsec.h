@@ -22,9 +22,9 @@ static inline void parse_nsec(
   uint16_t code;
   uint16_t highest_bit = 0;
 
-  uint8_t *data = &parser->rdata[parser->rdlength];
-  zone_nsec_t *bitmap = (void *)&parser->rdata[parser->rdlength];
-  assert(parser->rdlength < sizeof(parser->rdata) - (256 * (256 + 2)));
+  uint8_t *data = &parser->rdata->octets[parser->rdata->length];
+  zone_nsec_t *bitmap = (void *)&parser->rdata->octets[parser->rdata->length];
+  assert(parser->rdata->length < sizeof(parser->rdata) - (256 * (256 + 2)));
 
   // (mostly copied from NSD)
   // nsecbits contains up to 64K bits that represent the types available for
@@ -61,7 +61,7 @@ static inline void parse_nsec(
     memmove(&data[length+2], &bitmap[window][2], blocks);
   }
 
-  parser->rdlength += length;
+  parser->rdata->length += length;
 }
 
 #endif // NSEC_H

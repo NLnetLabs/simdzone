@@ -121,8 +121,8 @@ static inline zone_return_t parse_ttl(
     return result;
   assert(seconds <= INT32_MAX);
   seconds = htonl(seconds);
-  memcpy(&parser->rdata[parser->rdlength], &seconds, sizeof(seconds));
-  parser->rdlength += sizeof(uint32_t);
+  memcpy(&parser->rdata->octets[parser->rdata->length], &seconds, sizeof(seconds));
+  parser->rdata->length += sizeof(uint32_t);
   return 0;
 }
 

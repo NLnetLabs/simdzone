@@ -9,23 +9,6 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-static inline zone_return_t accept_rr(
-  zone_parser_t *parser, zone_field_t *fields, void *user_data)
-{
-  // FIXME: handle fields a little different (only pass type info)
-  parser->rdatas = fields;
-  return parser->options.accept(
-    parser,
-   &parser->items[0],
-   &parser->items[1],
-   &parser->items[2],
-   &parser->items[3],
-    parser->rdatas,
-    (uint16_t)parser->rdlength,
-    parser->rdata,
-    user_data);
-}
-
 zone_nonnull((1,2))
 extern void zone_check_a_rdata(
   zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
@@ -40,7 +23,7 @@ static void parse_a_rdata(
   parse_ip4(parser, type, &type->rdata.fields[0], token);
 
   lex_delimiter(parser, type, token);
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -57,7 +40,7 @@ static void parse_ns_rdata(
   parse_name(parser, type, &type->rdata.fields[0], token);
 
   lex_delimiter(parser, type, token);
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -74,7 +57,7 @@ static void parse_cname_rdata(
   parse_name(parser, type, &type->rdata.fields[0], token);
 
   lex_delimiter(parser, type, token);
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -109,7 +92,7 @@ static void parse_soa_rdata(
   parse_ttl(parser, type, &type->rdata.fields[6], token);
 
   lex_delimiter(parser, type, token);
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -129,7 +112,7 @@ static void parse_mx_rdata(
   parse_name(parser, type, &type->rdata.fields[1], token);
 
   lex_delimiter(parser, type, token);
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -148,7 +131,7 @@ static void parse_txt_rdata(
   while (lex(parser, token))
     parse_string(parser, type, &type->rdata.fields[0], token);
 
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -165,7 +148,7 @@ static void parse_aaaa_rdata(
   parse_ip6(parser, type, &type->rdata.fields[0], token);
 
   lex_delimiter(parser, type, token);
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -191,7 +174,7 @@ static void parse_srv_rdata(
   parse_name(parser, type, &type->rdata.fields[3], token);
 
   lex_delimiter(parser, type, token);
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -216,7 +199,7 @@ static void parse_ds_rdata(
   lex_field(parser, type, &type->rdata.fields[3], token);
   parse_base16(parser, type, &type->rdata.fields[3], token);
 
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -256,7 +239,7 @@ static void parse_rrsig_rdata(
   lex_field(parser, type, &type->rdata.fields[8], token);
   parse_base64(parser, type, &type->rdata.fields[8], token);
 
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -275,7 +258,7 @@ static void parse_nsec_rdata(
   lex_field(parser, type, &type->rdata.fields[1], token);
   parse_nsec(parser, type, &type->rdata.fields[1], token);
 
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -300,7 +283,7 @@ static void parse_dnskey_rdata(
   lex_field(parser, type, &type->rdata.fields[3], token);
   parse_base64(parser, type, &type->rdata.fields[3], token);
 
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -331,7 +314,7 @@ static void parse_nsec3_rdata(
   lex_field(parser, type, &type->rdata.fields[5], token);
   parse_nsec(parser, type, &type->rdata.fields[5], token);
 
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -357,7 +340,7 @@ static void parse_nsec3param_rdata(
   parse_salt(parser, type, &type->rdata.fields[3], token);
 
   lex_delimiter(parser, type, token);
-  accept_rr(parser, NULL, user_data);
+  accept_rr(parser, user_data);
 }
 
 zone_nonnull((1,2))
@@ -701,17 +684,51 @@ static const zone_type_descriptor_t types[] = {
 diagnostic_pop()
 
 zone_always_inline()
+zone_nonnull_all()
+static inline void parse_owner(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  zone_token_t *token)
+{
+  // a freestanding "@" denotes the origin
+  if (token->length == 1 && token->data[0] == '@') {
+    parser->owner = &parser->file->origin;
+    return;
+  }
+
+  parser->cache.owner.serial++;
+  if (parser->cache.owner.serial == parser->cache.size)
+    parser->cache.owner.serial = 0;
+
+  parser->owner = &parser->cache.owner.blocks[parser->cache.owner.serial];
+  scan_name(parser, type, field, token,
+            parser->owner->octets,
+           &parser->owner->length);
+
+  if (parser->owner->octets[parser->owner->length - 1] == 0)
+    return;
+  if (parser->owner->length > 255 - parser->file->origin.length)
+    SEMANTIC_ERROR(parser, "Invalid name in owner");
+
+  memcpy(&parser->owner->octets[parser->owner->length],
+          parser->file->origin.octets,
+          parser->file->origin.length);
+  parser->owner->length += parser->file->origin.length;
+}
+
+zone_always_inline()
 static inline void parse_rr(
   zone_parser_t *parser, zone_token_t *token, void *user_data)
 {
   static const zone_type_info_t unknown =
     { { 6, "record" }, 0, 0, { 0, NULL } };
   static const zone_field_info_t owner =
-    { { 5, "owner" }, ZONE_OWNER|ZONE_NAME, 0, { 0 } };
+    { { 5, "owner" }, ZONE_NAME, 0, { 0 } };
   static const zone_field_info_t ttl =
-    { { 3, "ttl" }, ZONE_TTL|ZONE_INT32, 0, { 0 } };
+    { { 3, "ttl" }, ZONE_INT32, 0, { 0 } };
   static const zone_field_info_t type =
-    { { 4, "type" }, ZONE_TYPE|ZONE_INT16, 0, { 0 } };
+    { { 4, "type" }, ZONE_INT16, 0, { 0 } };
 
   const zone_type_descriptor_t *descriptor;
   uint16_t code;
@@ -770,7 +787,7 @@ rdata:
   // check if rdata starts with "\#" and, if so, parse generic rdata
   lex_field(parser, &descriptor->info, &descriptor->info.rdata.fields[0], token);
 
-  parser->rdlength = 0;
+  parser->rdata->length = 0;
 
   if (token->length == 2 && strncmp(token->data, "\\#", 2) == 0) {
     parse_unknown_rdata(parser, &descriptor->info, token, user_data);
@@ -800,7 +817,7 @@ static inline void parse_dollar_origin(
   zone_parser_t *parser, zone_token_t *token, void *user_data)
 {
   static const zone_field_info_t field =
-    { { 4, "name" }, ZONE_DOLLAR_ORIGIN|ZONE_NAME, 0, { 0 } };
+    { { 4, "name" }, ZONE_NAME, 0, { 0 } };
   static const zone_type_info_t type =
     { { 7, "$ORIGIN" }, 0, 0, { 1, &field } };
 
@@ -824,7 +841,7 @@ static inline void parse_dollar_ttl(
   zone_parser_t *parser, zone_token_t *token, void *user_data)
 {
   static const zone_field_info_t field =
-    { { 3, "ttl" }, ZONE_DOLLAR_TTL|ZONE_INT32, 0, { 0 } };
+    { { 3, "ttl" }, ZONE_INT32, 0, { 0 } };
   static const zone_type_info_t type =
     { { 4, "$TTL" }, 0, 0, { 1, &field } };
 
