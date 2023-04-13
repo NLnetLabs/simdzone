@@ -12,7 +12,7 @@
 #if _WIN32
 #include <winsock2.h>
 #else
-#include <arpa/inet.h>
+#include <netinet/in.h>
 #endif
 
 zone_always_inline()

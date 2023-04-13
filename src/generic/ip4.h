@@ -13,6 +13,8 @@
 #include <ws2tcpip.h>
 #else
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 #endif
 
 zone_always_inline()
