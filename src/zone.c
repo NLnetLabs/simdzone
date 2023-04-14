@@ -170,34 +170,30 @@ static zone_return_t parse(zone_parser_t *parser, void *user_data)
 
 zone_nonnull_all()
 static zone_return_t open_file(
-  zone_parser_t *parser,
-  zone_file_t *file,
-  const char *name,
-  const char *origin)
+  zone_parser_t *parser, zone_file_t *file, const zone_string_t *path)
 {
+  if (!(file->name = zone_strndup(parser, path->data, path->length)))
+    return ZONE_OUT_OF_MEMORY;
+
 #if _WIN32
-  char path[1];
-  size_t length, size = GetFullPathName(name, sizeof(path), path, NULL);
+  char buf[1];
+  size_t length, size = GetFullPathName(file->name, sizeof(buf), buf, NULL);
   if (!size)
     return ZONE_IO_ERROR;
-  if (!(file->path = zone_malloc(&parser->options, size)))
+  if (!(file->path = zone_malloc(parser, size)))
     return ZONE_OUT_OF_MEMORY;
-  if (!(length = GetFullPathName(name, size, file->path, NULL)))
+  if (!(length = GetFullPathName(file->name, size, file->path, NULL)))
     return ZONE_IO_ERROR;
   if (length != size - 1)
     return ZONE_IO_ERROR;
 #else
-  char path[PATH_MAX];
-  if (!realpath(name, path))
+  char buf[PATH_MAX];
+  if (!realpath(file->name, buf))
     return ZONE_IO_ERROR;
-  if (!(file->path = zone_strdup(parser, path)))
+  if (!(file->path = zone_strdup(parser, buf)))
     return ZONE_OUT_OF_MEMORY;
 #endif
 
-  if (!(file->name = zone_strdup(parser, name)))
-    return ZONE_OUT_OF_MEMORY;
-  if (parse_origin(origin, file->origin.octets, &file->origin.length) < 0)
-    return ZONE_BAD_PARAMETER;
   if (!(file->handle = fopen(file->path, "rb")))
     switch (errno) {
       case ENOMEM:
@@ -222,24 +218,6 @@ static zone_return_t open_file(
   return 0;
 }
 
-zone_nonnull_all()
-static void close_file(
-  zone_parser_t *parser, zone_file_t *file)
-{
-  assert((file->name == not_a_file) == !file->handle);
-  assert((file->path == not_a_file) == !file->handle);
-
-  if (file->buffer.data)
-    zone_free(parser, file->buffer.data);
-  if (file->name)
-    zone_free(parser, (char *)file->name);
-  if (file->path)
-    zone_free(parser, (char *)file->path);
-  (void)fclose(file->handle);
-  if (file != &parser->first)
-    zone_free(parser, file);
-}
-
 static void set_defaults(zone_parser_t *parser)
 {
   if (!parser->options.log.write && !parser->options.log.categories)
@@ -251,6 +229,51 @@ static void set_defaults(zone_parser_t *parser)
 diagnostic_push()
 clang_diagnostic_ignored(missing-prototypes)
 
+zone_nonnull_all()
+void zone_close_file(
+  zone_parser_t *parser, zone_file_t *file)
+{
+  assert((file->name == not_a_file) == !file->handle);
+  assert((file->path == not_a_file) == !file->handle);
+
+  if (!file->handle)
+    return;
+
+  if (file->buffer.data)
+    zone_free(parser, file->buffer.data);
+  file->buffer.data = NULL;
+  if (file->name)
+    zone_free(parser, (char *)file->name);
+  file->name = NULL;
+  if (file->path)
+    zone_free(parser, (char *)file->path);
+  file->path = NULL;
+  (void)fclose(file->handle);
+  file->handle = NULL;
+  if (file != &parser->first)
+    zone_free(parser, file);
+}
+
+zone_nonnull_all()
+zone_return_t zone_open_file(
+  zone_parser_t *parser, const zone_string_t *path, zone_file_t **fileptr)
+{
+  zone_file_t *file;
+  zone_return_t result;
+
+  if (!(file = zone_malloc(parser, sizeof(*file))))
+    return ZONE_OUT_OF_MEMORY;
+  memset(file, 0, sizeof(*file) - sizeof(file->indexer.tape));
+  if ((result = open_file(parser, file, path)) < 0)
+    goto err_open;
+
+  *fileptr = file;
+  return 0;
+err_open:
+  zone_close_file(parser, file);
+  return result;
+}
+
 void zone_close(zone_parser_t *parser)
 {
   if (!parser)
@@ -259,7 +282,7 @@ void zone_close(zone_parser_t *parser)
   for (zone_file_t *file = parser->file, *includer; file; file = includer) {
     includer = file->includer;
     if (file->handle)
-      close_file(parser, file);
+      zone_close_file(parser, file);
   }
 }
 
@@ -267,7 +290,7 @@ zone_return_t zone_open(
   zone_parser_t *parser,
   const zone_options_t *options,
   zone_cache_t *cache,
-  const char *filename,
+  const char *path,
   void *user_data)
 {
   zone_file_t *file;
@@ -280,9 +303,12 @@ zone_return_t zone_open(
   parser->options = *options;
   parser->user_data = user_data;
   file = parser->file = &parser->first;
-  if ((result = open_file(parser, file, filename, options->origin)) < 0)
+  if ((result = open_file(parser, file, &(zone_string_t){ strlen(path), path })) < 0)
     goto error;
-
+  if (parse_origin(options->origin, file->origin.octets, &file->origin.length) < 0) {
+    result = ZONE_BAD_PARAMETER;
+    goto error;
+  }
   parser->cache.size = cache->size;
   parser->cache.owner.serial = 0;
   parser->cache.owner.blocks = cache->owner;
@@ -306,13 +332,13 @@ zone_return_t zone_parse(
   zone_parser_t *parser,
   const zone_options_t *options,
   zone_cache_t *cache,
-  const char *filename,
+  const char *path,
   void *user_data)
 {
   zone_return_t result;
   volatile jmp_buf environment;
 
-  if ((result = zone_open(parser, options, cache, filename, user_data)) < 0)
+  if ((result = zone_open(parser, options, cache, path, user_data)) < 0)
     return result;
   parser->environment = &environment;
   result = parse(parser, user_data);

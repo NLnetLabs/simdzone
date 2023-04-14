@@ -32,4 +32,9 @@ ZONE_EXPORT char *zone_strdup(
 zone_nonnull_all()
 zone_allocator(zone_free, 2);
 
+ZONE_EXPORT char *zone_strndup(
+  zone_parser_t *parser, const char *str, size_t n)
+zone_nonnull((1,2))
+zone_allocator(zone_free, 2);
+
 #endif // HEAP_H
