@@ -44,7 +44,6 @@ some operations, but the results are promising.
 ## Compiling
 Make sure the following tools are installed:
   * C toolchain (the set of tools to compile C code)
-  * [cmocka](https://cmocka.org/) (if configured with `-DBUILD_TESTING=on`
 
 To compile in release mode:
 ```
