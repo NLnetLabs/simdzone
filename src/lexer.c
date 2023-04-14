@@ -51,3 +51,7 @@ static const uint8_t jump[256] = {
 
 const uint8_t *zone_forward = forward;
 const uint8_t *zone_jump = jump;
+
+static const char end_of_file[1] = { '\0' };
+
+const char *zone_end_of_file = end_of_file;

@@ -11,8 +11,15 @@
 
 #include <assert.h>
 
+extern zone_return_t zone_open_file(
+  zone_parser_t *, const zone_string_t *, zone_file_t **);
+
+extern void zone_close_file(
+  zone_parser_t *, zone_file_t *);
+
 extern const uint8_t *zone_forward;
 extern const uint8_t *zone_jump;
+extern const char *zone_end_of_file;
 
 #define ZONE_DELIMITER (0u)
 #define ZONE_CONTIGUOUS (1u<<1)

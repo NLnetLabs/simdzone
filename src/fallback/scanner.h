@@ -276,7 +276,11 @@ terminate:
           SYNTAX_ERROR(parser, "Missing closing brace");
         assert(start == file->buffer.data + file->buffer.length);
         assert(end == file->buffer.data + file->buffer.length);
-        *token = (zone_token_t){ 1, start };
+        if (file->includer) {
+          parser->file = file->includer;
+          zone_close_file(parser, file);
+        }
+        *token = (zone_token_t){ 1, zone_end_of_file };
         return ZONE_DELIMITER;
       case 4: // left parenthesis
         if (file->grouped)

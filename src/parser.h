@@ -801,13 +801,70 @@ rdata:
 
 // RFC1035 section 5.1
 // $INCLUDE <file-name> [<domain-name>] [<comment>]
+zone_nonnull((1,2))
 static inline void parse_dollar_include(
   zone_parser_t *parser, zone_token_t *token, void *user_data)
 {
-  (void)parser;
-  (void)token;
+  static const zone_field_info_t domain_name =
+    { { 11, "domain-name" }, ZONE_NAME, 0, { 0 } };
+  static const zone_type_info_t type =
+    { { 8, "$INCLUDE" }, 0, 0, { 1, &domain_name } };
+
+  zone_file_t *file;
+  const zone_file_t *includer;
+  zone_name_block_t name;
+  const zone_name_block_t *origin = &parser->file->origin;
+  zone_return_t result;
+
   (void)user_data;
-  NOT_IMPLEMENTED(parser, "$INCLUDE directive not implemented yet");
+
+  switch (parser->options.allow_includes) {
+    case ZONE_ALLOW_INCLUDES:
+      break;
+    case ZONE_ALLOW_FILE_INCLUDES:
+      if (parser->file->handle)
+        break;
+      // fall through
+    case ZONE_NEVER_ALLOW_INCLUDES:
+      RAISE(parser, ZONE_NOT_PERMITTED,
+            "$INCLUDE is not allowed");
+  }
+
+  if (!lex(parser, token))
+    SYNTAX_ERROR(parser, "Missing filename in $INCLUDE");
+  if ((result = zone_open_file(parser, token, &file)) < 0)
+    RAISE(parser, result, "Cannot $INCLUDE");
+
+  if (lex(parser, token)) {
+    scan_name(parser, &type, &domain_name, token, name.octets, &name.length);
+    if (name.octets[name.length - 1] != 0) {
+      zone_close_file(parser, file);
+      SYNTAX_ERROR(parser, "$INCLUDE requires an absolute domain name");
+    }
+    if (lex(parser, token)) {
+      zone_close_file(parser, file);
+      SYNTAX_ERROR(parser, "$INCLUDE takes at most two arguments");
+    }
+    origin = &name;
+  }
+
+  file->owner = *origin;
+  file->origin = *origin;
+  file->last_type = 0;
+  file->last_class = parser->file->last_class;
+  file->last_ttl = parser->file->last_ttl;
+  file->line = 1;
+
+  // check for recursive includes
+  for (includer = parser->file; includer; includer = includer->includer) {
+    if (strcmp(includer->path, file->path) != 0)
+      continue;
+    zone_close_file(parser, file);
+    SYNTAX_ERROR(parser, "Recursive include detected");
+  }
+
+  file->includer = parser->file;
+  parser->file = file;
 }
 
 // RFC1035 section 5.1
@@ -824,10 +881,9 @@ static inline void parse_dollar_origin(
   (void)user_data;
 
   if (!lex(parser, token))
-    SYNTAX_ERROR(parser, "Missing name in $ORIGIN");
-
   scan_name(parser, &type, &field, token,
-            parser->file->origin.octets, &parser->file->origin.length);
+            parser->file->origin.octets,
+           &parser->file->origin.length);
   if (parser->file->origin.octets[parser->file->origin.length - 1] != 0)
     SYNTAX_ERROR(parser, "Invalid name in $ORIGIN, not fully qualified");
   if (lex(parser, token))
@@ -884,7 +940,7 @@ static inline zone_return_t parse(zone_parser_t *parser, void *user_data)
         parse_rr(parser, &token, user_data);
         break;
       case ZONE_DELIMITER:
-        if (!token.data[0])
+        if (token.data == zone_end_of_file && parser->file->end_of_file == ZONE_NO_MORE_DATA)
           return 0;
         break;
       default:

@@ -538,6 +538,12 @@ struct zone_options {
       as a secondary as data may have been transferred over AXFR/IXFR that
       would have triggered a semantic error otherwise. */
   bool secondary;
+  /** Enable or disable $INCLUDE directive. */
+  enum {
+    ZONE_ALLOW_FILE_INCLUDES,
+    ZONE_ALLOW_INCLUDES,
+    ZONE_NEVER_ALLOW_INCLUDES
+  } allow_includes;
   const char *origin;
   uint32_t default_ttl;
   uint16_t default_class;
@@ -621,6 +627,10 @@ struct zone_parser {
 #define ZONE_IO_ERROR (-5)
 /** Control directive or support for record type is not implemented */
 #define ZONE_NOT_IMPLEMENTED (-6)
+/** Specified file does not exist */
+#define ZONE_NOT_A_FILE (-6)
+/** Access to specified file is not allowed */
+#define ZONE_NOT_PERMITTED (-7)
 /** @} */
 
 /**
@@ -631,7 +641,7 @@ zone_parse(
   zone_parser_t *parser,
   const zone_options_t *options,
   zone_cache_t *cache,
-  const char *filename,
+  const char *path,
   void *user_data)
 zone_nonnull((1,2,3,4));
 

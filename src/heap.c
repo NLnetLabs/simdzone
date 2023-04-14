@@ -43,3 +43,16 @@ char *zone_strdup(zone_parser_t *parser, const char *str)
   ptr[len] = '\0';
   return ptr;
 }
+
+char *zone_strndup(zone_parser_t *parser, const char *str, size_t n)
+{
+  char *ptr;
+  size_t len = strlen(str);
+  if (len > n)
+    len = n;
+  if (!(ptr = zone_malloc(parser, len + 1)))
+    return NULL;
+  memcpy(ptr, str, len);
+  ptr[len] = '\0';
+  return ptr;
+}

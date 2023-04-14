@@ -22,7 +22,7 @@ zone_return_t zone_bench_fallback_lex(zone_parser_t *parser, size_t *tokens)
   zone_return_t result;
 
   (*tokens) = 0;
-  while ((result = lex(parser, &token)) >= 0 && *token.data)
+  while ((result = lex(parser, &token)) >= 0 && token.data != zone_end_of_file)
     (*tokens)++;
 
   return result;
