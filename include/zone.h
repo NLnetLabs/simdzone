@@ -536,14 +536,11 @@ struct zone_options {
   /** Lax mode of operation. */
   /** Authoritative servers may choose to be more lenient when operating as
       as a secondary as data may have been transferred over AXFR/IXFR that
-      would have triggered a semantic error otherwise. */
+      would have triggered an error otherwise. */
   bool secondary;
-  /** Enable or disable $INCLUDE directive. */
-  enum {
-    ZONE_ALLOW_FILE_INCLUDES,
-    ZONE_ALLOW_INCLUDES,
-    ZONE_NEVER_ALLOW_INCLUDES
-  } allow_includes;
+  /** Disable $INCLUDE directive. */
+  /** Useful in setups where untrusted input may be offered. */
+  bool no_includes;
   const char *origin;
   uint32_t default_ttl;
   uint16_t default_class;
