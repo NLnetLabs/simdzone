@@ -42,4 +42,7 @@ zone_format_printf(6,7);
 #define OUT_OF_MEMORY(parser, ...) \
   RAISE(parser, ZONE_OUT_OF_MEMORY, __VA_ARGS__)
 
+#define NOT_PERMITTED(parser, ...) \
+  RAISE(parser, ZONE_NOT_PERMITTED, __VA_ARGS__)
+
 #endif // LOG_H

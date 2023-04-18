@@ -165,13 +165,13 @@ void include_from_string(void **state)
   // verify $INCLUDE is denied by default when parsing strings.
   const char *str = input->includer.content;
   result = zone_parse_string(&parser, &options, &cache, str, strlen(str), NULL);
-  assert_int_equal(options.allow_includes, ZONE_ALLOW_FILE_INCLUDES);
-  assert_int_equal(result, ZONE_NOT_PERMITTED);
+  assert_false(options.no_includes);
+  assert_int_equal(result, ZONE_SUCCESS);
 
   // verify $INCLUDE is allowed and works as intented if configured.
-  options.allow_includes = ZONE_ALLOW_INCLUDES;
+  options.no_includes = true;
   result = zone_parse_string(&parser, &options, &cache, str, strlen(str), NULL);
-  assert_int_equal(result, ZONE_SUCCESS);
+  assert_int_equal(result, ZONE_NOT_PERMITTED);
 }
 
 //

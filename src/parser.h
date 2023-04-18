@@ -805,65 +805,57 @@ zone_nonnull((1,2))
 static inline void parse_dollar_include(
   zone_parser_t *parser, zone_token_t *token, void *user_data)
 {
-  static const zone_field_info_t domain_name =
+  static const zone_field_info_t field =
     { { 11, "domain-name" }, ZONE_NAME, 0, { 0 } };
   static const zone_type_info_t type =
-    { { 8, "$INCLUDE" }, 0, 0, { 1, &domain_name } };
+    { { 8, "$INCLUDE" }, 0, 0, { 1, &field } };
 
-  zone_file_t *file;
-  const zone_file_t *includer;
+  zone_file_t *includer, *file;
   zone_name_block_t name;
   const zone_name_block_t *origin = &parser->file->origin;
   zone_return_t result;
 
   (void)user_data;
 
-  switch (parser->options.allow_includes) {
-    case ZONE_ALLOW_INCLUDES:
-      break;
-    case ZONE_ALLOW_FILE_INCLUDES:
-      if (parser->file->handle)
-        break;
-      // fall through
-    case ZONE_NEVER_ALLOW_INCLUDES:
-      RAISE(parser, ZONE_NOT_PERMITTED,
-            "$INCLUDE is not allowed");
-  }
-
+  if (parser->options.no_includes)
+    NOT_PERMITTED(parser, "$INCLUDE directive is disabled");
   if (!lex(parser, token))
-    SYNTAX_ERROR(parser, "Missing filename in $INCLUDE");
+    SYNTAX_ERROR(parser, "$INCLUDE directive takes a file-name argument");
   if ((result = zone_open_file(parser, token, &file)) < 0)
-    RAISE(parser, result, "Cannot $INCLUDE");
+    RAISE(parser, result, "Cannot open file specified in $INCLUDE directive");
 
   if (lex(parser, token)) {
-    scan_name(parser, &type, &domain_name, token, name.octets, &name.length);
+    scan_name(parser, &type, &field, token, name.octets, &name.length);
     if (name.octets[name.length - 1] != 0) {
       zone_close_file(parser, file);
-      SYNTAX_ERROR(parser, "$INCLUDE requires an absolute domain name");
+      SYNTAX_ERROR(parser, "$INCLUDE directive requires an absolute domain");
     }
     if (lex(parser, token)) {
       zone_close_file(parser, file);
-      SYNTAX_ERROR(parser, "$INCLUDE takes at most two arguments");
+      SYNTAX_ERROR(parser, "$INCLUDE directive takes at most two arguments");
     }
     origin = &name;
   }
 
+  // store the current owner to restore later if necessary
+  includer = parser->file;
+  includer->owner = *parser->owner;
+  file->includer = includer;
   file->owner = *origin;
   file->origin = *origin;
   file->last_type = 0;
-  file->last_class = parser->file->last_class;
-  file->last_ttl = parser->file->last_ttl;
+  file->last_class = includer->last_class;
+  file->last_ttl = includer->last_ttl;
   file->line = 1;
 
-  // check for recursive includes
-  for (includer = parser->file; includer; includer = includer->includer) {
+  // check for circular includes
+  do {
     if (strcmp(includer->path, file->path) != 0)
       continue;
     zone_close_file(parser, file);
-    SYNTAX_ERROR(parser, "Recursive include detected");
-  }
+    SYNTAX_ERROR(parser, "Circular include in $INCLUDE directive");
+  } while ((includer = includer->includer));
 
-  file->includer = parser->file;
   parser->file = file;
 }
 

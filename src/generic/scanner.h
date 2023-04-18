@@ -377,6 +377,7 @@ terminate:
         assert(end == file->buffer.data + file->buffer.length);
         if (file->includer) {
           parser->file = file->includer;
+          parser->owner = &parser->file->owner;
           zone_close_file(parser, file);
         }
         *token = (zone_token_t){ 1, zone_end_of_file };
