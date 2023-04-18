@@ -3,8 +3,27 @@
 The simdzone library is open source and made available under the permissive
 3-clause BSD license.
 
-Contributions are very much appreciated.
+Contributions are very welcome!
 
+> The original specification in [RFC1035][1] is rather ambiguous and does not
+> cover additions from later RFCs. See [SYNTAX.md](SYNTAX.md) for a quick
+> summary of the format and interpretation in simdzone.
+
+[1]: https://datatracker.ietf.org/doc/html/rfc1035#section-5
+
+## Reference data
+
+1. [Zone Data for .se and .nu][2] can be obtained via a DNS zone transfer.
+
+2. The [Centralized Zone Data Service (CZDS)][3] provides access to zone data
+   for participating gTLDs.
+
+   > Downloading zone data via the browser can be problematic. The
+   > [The CZDS API client in Java][4] can be used as a workaround.
+
+[2]: https://internetstiftelsen.se/en/zone-data/
+[3]: https://czds.icann.org/
+[4]: https://github.com/icann/czds-api-client-java/
 
 ## Source layout
 
