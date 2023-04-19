@@ -48,48 +48,75 @@ else()
   endif()
 endif()
 
+if(cmocka_FOUND)
+  if(NOT TARGET cmocka::cmocka)
+    if(WIN32)
+      get_filename_component(_cmocka_library_dir "${CMOCKA_LIBRARY}}" PATH)
+      get_filename_component(_cmocka_prefix "${_cmocka_library_dir}" PATH)
+      get_filename_component(_cmocka_name "${CMOCKA_LIBRARY}}" NAME_WE)
+
+      find_program(
+        _cmocka_dll
+          "${CMAKE_SHARED_LIBRARY_PREFIX}${_cmocka_name}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        HINTS
+          ${_cmocka_prefix}
+        PATH_SUFFIXES
+          bin
+        NO_DEFAULT_PATH)
+      if(_cmocka_dll)
+        add_library(cmocka::cmocka SHARED IMPORTED)
+        set_target_properties(
+          cmocka::cmocka PROPERTIES IMPORTED_IMPLIB "${CMOCKA_LIBRARY}")
+        set_target_properties(
+          cmocka::cmocka PROPERTIES IMPORTED_LOCATION "${_cmocka_dll}")
+      else()
+        add_library(cmocka::cmocka STATIC IMPORTED)
+        set_target_properties(
+          cmocka::cmocka PROPERTIES IMPORTED_LOCATION "${CMOCKA_LIBRARY}")
+      endif()
+    else()
+      add_library(cmocka::cmocka UNKNOWN IMPORTED)
+      set_target_properties(
+        cmocka::cmocka PROPERTIES IMPORTED_LOCATION "${CMOCKA_LIBRARY}")
+    endif()
+
+    set_target_properties(
+      cmocka::cmocka PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMOCKA_INCLUDE_DIR}")
+  else()
+    # Newer versions of cmocka-config.cmake do NOT set CMOCKA_INCLUDE_DIR and
+    # CMOCKA_LIBRARY anymore. Set them here for backwards compatibility.
+    # FIXME: This may use outdated methodologies(?)
+    if(NOT CMOCKA_INCLUDE_DIR)
+      get_target_property(
+        CMOCKA_INCLUDE_DIR cmocka::cmocka INTERFACE_INCLUDE_DIRECTORIES)
+    endif()
+    if(NOT CMOCKA_LIBRARY)
+      # Prefer specified target
+      get_target_property(
+        _configurations cmocka::cmocka IMPORTED_CONFIGURATIONS)
+      get_target_property(
+        _location cmocka::cmocka IMPORTED_LOCATION)
+      foreach(_configuration ${_configurations})
+        if(NOT _location)
+          get_target_property(
+            _location cmocka::cmocka IMPORTED_LOCATION_${_configuration})
+        elseif(_configuration STREQUAL CMAKE_BUILD_TYPE)
+          get_target_property(
+            _location cmocka::cmocka IMPORTED_LOCATION_${_configuration})
+          break()
+        endif()
+      endforeach()
+      set(CMOCKA_LIBRARY ${_location})
+    endif()
+  endif()
+endif()
+
 
 find_package_handle_standard_args(
   cmocka
   FOUND_VAR cmocka_FOUND
   REQUIRED_VARS CMOCKA_LIBRARY CMOCKA_INCLUDE_DIR
   VERSION_VAR cmocka_VERSION)
-
-
-if(cmocka_FOUND AND NOT TARGET cmocka::cmocka)
-  if(WIN32)
-    get_filename_component(_cmocka_library_dir "${CMOCKA_LIBRARY}}" PATH)
-    get_filename_component(_cmocka_prefix "${_cmocka_library_dir}" PATH)
-    get_filename_component(_cmocka_name "${CMOCKA_LIBRARY}}" NAME_WE)
-
-    find_program(
-      _cmocka_dll
-        "${CMAKE_SHARED_LIBRARY_PREFIX}${_cmocka_name}${CMAKE_SHARED_LIBRARY_SUFFIX}"
-      HINTS
-        ${_cmocka_prefix}
-      PATH_SUFFIXES
-        bin
-      NO_DEFAULT_PATH)
-    if(_cmocka_dll)
-      add_library(cmocka::cmocka SHARED IMPORTED)
-      set_target_properties(
-        cmocka::cmocka PROPERTIES IMPORTED_IMPLIB "${CMOCKA_LIBRARY}")
-      set_target_properties(
-        cmocka::cmocka PROPERTIES IMPORTED_LOCATION "${_cmocka_dll}")
-    else()
-      add_library(cmocka::cmocka STATIC IMPORTED)
-      set_target_properties(
-        cmocka::cmocka PROPERTIES IMPORTED_LOCATION "${CMOCKA_LIBRARY}")
-    endif()
-  else()
-    add_library(cmocka::cmocka UNKNOWN IMPORTED)
-    set_target_properties(
-      cmocka::cmocka PROPERTIES IMPORTED_LOCATION "${CMOCKA_LIBRARY}")
-  endif()
-
-  set_target_properties(
-    cmocka::cmocka PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMOCKA_INCLUDE_DIR}")
-endif()
 
 
 set(__h "[ \t]") # horizontal whitespace
