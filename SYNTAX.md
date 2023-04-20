@@ -9,8 +9,8 @@ Master files were originally specified in [RFC1035 Section 5], but the DNS
 has seen many additions since and the specification is rather ambiguous.
 Consequently, various name servers implement slightly different dialects. This
 document aims to clarify the format by listing (some of) the relevant
-specifications and then proceed to explain how the text is interpreted by
-simdzone.
+specifications and then proceed to explain why certain design decisions were
+made in simdzone.
 
 * [RFC1035 Section 5](https://datatracker.ietf.org/doc/html/rfc1035#section-5)
 * [RFC2308 Section 4](https://datatracker.ietf.org/doc/html/rfc2308#section-4)
@@ -21,10 +21,10 @@ simdzone.
 ## Clarification (work-in-progress)
 
 Historically, master files where editted by hand, which is reflected in the
-syntax. Consider the format a tabular serialization format with some provisions
+syntax. Consider the format a tabular serialization format with provisions
 for easier editing. i.e. the owner, class and ttl fields may be omitted
 (provided the line starts with \<blank\> for the owner) and $INCLUDE directives
-can be used as templates.
+can be used for templating.
 
 The format is NOT context-free. The field following the owner (if specified)
 may represent either a type, class or ttl and a symbolic constant, e.g. A
@@ -35,7 +35,7 @@ how that affects syntax, but it may explain why no specific notation for
 data-types is enforced. To make it easier for data-types to be added at a later
 stage the syntax cannot enforce a certain notation (or the scanner would need
 to be revised). As such, it seems logical for the scanner to only identify
-\<character-string\>`, which can be expressed as either a contiguos set of
+\<character-string\>, which can be expressed as either a contiguous set of
 characters without interior spaces, or as a quoted string.
 
 The format allows for including structural characters in fields by means of
@@ -56,12 +56,24 @@ complicates things (impacting parsing performance). The pragmatic approach is
 to allow escape sequences only in fields that may actually contain data that
 needs escaping (domain names and text strings).
 
+RFC1035 states both \<contiguous\> and \<quoted\> are \<character-string\>.
+However, it makes little sense to quote e.g. a TTL because it cannot contain
+characters that overlap with any structural characters and in practice, it
+really never happens. The same applies to base64 sequences, which was
+specifically designed to encode binary data in printable ASCII characters. To
+quote a field and include whitespace is more-or-less instructing the parser
+to not ignore it. The current implementation is such that any field may be
+quoted, but it may make sense to disallow fields that cannot contain
+structural characters to be quoted.
+
 * Some integer fields allow for using symbolic values. e.g. the algorithm
   field in RRSIG records.
 
 * A freestanding @ denotes the current origin, but it really only makes sense
   for fields where a domain name is expected. The behavior is such that a
   domain name is inserted, NOT a simple text replacement.
+  > It may also make sense to interpret a quoted @ differently than a
+  > non-quoted one.
 
 * Class and type names are mutually exclusive because the class is optional,
   so the parser cannot distinguish between the two in text representation.
