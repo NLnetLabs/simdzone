@@ -1,11 +1,9 @@
-# Master files
+# Zone files
 
-Master files are text files that contain resource records (RRs) in text form.
-Since the contents of a zone can be expressed in the form of a list of RRs, a
-master file can be used to define a zone. Master files are commonly referred
-to simply as zone files.
+Zone files are text files that contain resource records (RRs) in text form.
+Zones can be defined by expressing them in the form of a list of RRs.
 
-Master files were originally specified in [RFC1035 Section 5], but the DNS
+Zone files were originally specified in [RFC1035 Section 5], but the DNS
 has seen many additions since and the specification is rather ambiguous.
 Consequently, various name servers implement slightly different dialects. This
 document aims to clarify the format by listing (some of) the relevant
@@ -19,6 +17,8 @@ made in simdzone.
 
 
 ## Clarification (work-in-progress)
+
+> NOTE: BIND behavior is more-or-less considered the de facto standard.
 
 Historically, master files where editted by hand, which is reflected in the
 syntax. Consider the format a tabular serialization format with provisions
@@ -35,7 +35,7 @@ how that affects syntax, but it may explain why no specific notation for
 data-types is enforced. To make it easier for data-types to be added at a later
 stage the syntax cannot enforce a certain notation (or the scanner would need
 to be revised). As such, it seems logical for the scanner to only identify
-\<character-string\>, which can be expressed as either a contiguous set of
+character strings, which can be expressed as either a contiguous set of
 characters without interior spaces, or as a quoted string.
 
 The format allows for including structural characters in fields by means of
@@ -66,17 +66,49 @@ to not ignore it. The current implementation is such that any field may be
 quoted, but it may make sense to disallow fields that cannot contain
 structural characters to be quoted.
 
+> BIND does not accept quoted fields for A or NS RDATA. TTL values in SOA
+> RDATA, base64 Signature in DNSKEY RDATA, as well as type, class and TTL
+> header fields all result in a syntax error too if quoted.
+
+
 * Some integer fields allow for using symbolic values. e.g. the algorithm
   field in RRSIG records.
 
-* A freestanding @ denotes the current origin, but it really only makes sense
-  for fields where a domain name is expected. The behavior is such that a
-  domain name is inserted, NOT a simple text replacement.
-  > It may also make sense to interpret a quoted @ differently than a
-  > non-quoted one.
+* RFC1035 states: A freestanding @ denotes the current origin.
+  There has been discussion in which locations @ is interpreted as the origin.
+  e.g. how is a freestanding @ be interpreted in the RDATA section of a TXT RR.
+  Note that there is no mention of text expansion in the original text. A
+  freestanding @ denotes the origin. As such, it stands to reason that it's
+  use is limited to locations where domain names are expected, which also
+  happens to be the most practical way to implement the functionality.
 
-* Class and type names are mutually exclusive because the class is optional,
-  so the parser cannot distinguish between the two in text representation.
+  > This also seems to be the behavior that other name servers implement (at
+  > least BIND and PowerDNS). The BIND manual states: "When used in the label
+  > (or name) field, the asperand or at-sign (@) symbol represents the current
+  > origin. At the start of the zone file, it is the \<zone\_name\>, followed
+  > by a trailing dot (.).
+
+  > It may also make sense to interpret a quoted freestanding @ differently
+  > than a non-quoted one. At least, BIND throws an error if a quoted
+  > freestanding @ is encountered in the RDATA sections for CNAME and NS RRs.
+  > However, a quoted freestanding @ is accepted and interpreted as origin
+  > if specified as the OWNER.
+
+  > Found mentions of what happens when a zone that uses freestanding @ in
+  > RDATA is written to disk. Of course, this particular scenario rarely occurs
+  > as it does not need to be written to disk when loaded on a primary and no
+  > file exists if received over AXFR/IXFR. However, it may make sense to
+  > implement optimistic compression of this form, and make it configurable.
+
+* Class and type names are mutually exclusive in practice.
+  RFC1035 states: The RR begins with optional TTL and class fields, ...
+  Therefore, if a type name matches a class name, the parser cannot distinguish
+  between the two in text representation and must resort to generic notation
+  (RFC3597) or, depending on the RDATA format for the record type, a
+  look-ahead may be sufficient. Realistically, it is highly likely that because
+  of this, no type name will ever match a class name.
+
+  > This means both can reside in the same table.
 
 * The encoding is non-ASCII. Some characters have special meaning, but users
   are technically allowed to put in non-printable octets outside the ASCII
@@ -91,3 +123,41 @@ structural characters to be quoted.
 * Escape sequences must not be unescaped in the lexer as is common with
   programming languages like C that have a preprocessor. Instead, the
   original text is necessary in the parsing stage to distinguish between dots.
+
+* RFC1035 specifies that the current origin should be restored after an
+  $INCLUDE, but it is silent on whether the current domain name should also be
+  restored. BIND 9 restores both of them. This could be construed as a
+  deviation from RFC 1035, a feature, or both.
+
+* RFC1035 states: and text literals can contain CRLF within the text.
+  BIND, however, does not allow newlines in text (escaped or not). For
+  performance reasons, we may adopt the same behavior as that would relieve
+  the need to keep track of possibly embedded newlines.
+
+* From: http://www.zytrax.com/books/dns/ch8/include.html (mentioned in chat)
+  > Source states: The RFC is silent on the topic of embedded `$INCLUDE`s in
+  > `$INCLUDE`d files - BIND 9 documentation is similarly silent. Assume they
+  > are not permitted.
+
+  All implementations, including BIND, allow for embedded `$INCLUDE`s.
+  The current implementation is such that (embedded) includes are allowed by
+  default. However, `$INCLUDE` directives can be disabled, which is useful
+  when parsing from an untrusted source. There is also protection against
+  cyclic includes.
+
+  > There is no maximum to the amount of embedded includes (yet). NSD limits
+  > the number of includes to 10 by default (compile option). For security, it
+  > must be possible to set a hard limit.
+
+* Quoting of domain names is allowed.
+  RFC1035 states: The labels in the domain name are expressed as character
+  strings and separated by dots.
+  RFC1035 also states: \<character-string\> is expressed in one or two ways:
+  as contiguous set of characters without interior spaces, or as a string
+  beginning with a " and ending with a ".
+
+  > NSD and BIND accept the owner if it is quoted.
+  > The text "The labels in the domain name" can be confusing as one might
+  > interpret that as stating that each label can individually can be quoted,
+  > that is however not the case. NSD and BIND both print a syntax error if
+  > such a construct occurs.
