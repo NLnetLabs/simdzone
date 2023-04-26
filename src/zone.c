@@ -97,11 +97,11 @@ static int parse_origin(const char *origin, uint8_t str[255], size_t *len)
 #include "config.h"
 #include "isadetection.h"
 
-#if ZONE_SUPPORTS_HASWELL
+#if HAVE_HASWELL
 extern zone_return_t zone_haswell_parse(zone_parser_t *, void *);
 #endif
 
-#if ZONE_SUPPORTS_WESTMERE
+#if HAVE_WESTMERE
 extern zone_return_t zone_westmere_parse(zone_parser_t *, void *);
 #endif
 
@@ -115,10 +115,10 @@ struct target {
 };
 
 static const target_t targets[] = {
-#if ZONE_SUPPORTS_HASWELL
+#if HAVE_HASWELL
   { "haswell", AVX2, &zone_haswell_parse },
 #endif
-#if ZONE_SUPPORTS_WESTMERE
+#if HAVE_WESTMERE
   { "westmere", SSE42, &zone_westmere_parse },
 #endif
   { "fallback", 0, &zone_fallback_parse }

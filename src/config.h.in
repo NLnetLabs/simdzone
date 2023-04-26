@@ -1,0 +1,5 @@
+/* Wether or not to compile support for SSE4.2 */
+#undef HAVE_WESTMERE
+
+/* Wether or not to compile support for AVX2 */
+#undef HAVE_HASWELL
