@@ -39,7 +39,7 @@ static inline void scan_name(
   const zone_type_info_t *type,
   const zone_field_info_t *field,
   zone_token_t *token,
-  uint8_t octets[256 + ZONE_BLOCK_SIZE],
+  uint8_t octets[255 + ZONE_BLOCK_SIZE],
   size_t *length)
 {
   name_block_t block;

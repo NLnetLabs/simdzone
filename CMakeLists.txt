@@ -174,7 +174,7 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
   check_c_compiler_flag("-march=haswell" HAVE_MARCH_HASWELL)
 
   if(HAVE_IMMINTRIN_H AND HAVE_MARCH_WESTMERE)
-    set(ZONE_SUPPORTS_WESTMERE TRUE)
+    set(HAVE_WESTMERE TRUE)
     set_source_files_properties(
       src/westmere/parser.c PROPERTIES COMPILE_FLAGS "-march=westmere")
     target_sources(zone PRIVATE src/westmere/parser.c)
@@ -184,7 +184,7 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
   endif()
 
   if(HAVE_IMMINTRIN_H AND HAVE_MARCH_HASWELL)
-    set(ZONE_SUPPORTS_HASWELL TRUE)
+    set(HAVE_HASWELL TRUE)
     set_source_files_properties(
       src/haswell/parser.c PROPERTIES COMPILE_FLAGS "-march=haswell")
     target_sources(zone PRIVATE src/haswell/parser.c)
@@ -194,7 +194,37 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
   endif()
 endif()
 
-configure_file(config.h.in config.h)
+
+# Autoconf is supported for easy inclusion of simdzone in NSD. To avoid having
+# to maintain multiple configuration headers, instead of using configure_file,
+# read config.h.in and replace occurences of "#undef XYZ".
+file(READ src/config.h.in template)
+
+set(expression "(^|\n)[ \t]*#[ \t]*undef[ \t]([a-zA-Z0-9_]+)[ \t]*(\n|$)")
+string(REGEX MATCHALL "${expression}" matches "${template}")
+foreach(match ${matches})
+  if(match MATCHES "${expression}")
+    set(prefix "${CMAKE_MATCH_1}")
+    set(variable "${CMAKE_MATCH_2}")
+    set(suffix "${CMAKE_MATCH_3}")
+    if(NOT DEFINED ${variable} OR
+       ${variable} MATCHES "^[Ff][Aa][Ll][Ss][Ee]$" OR
+       ${variable} MATCHES "^[Oo][Ff][Ff]")
+      set(replace "${prefix}/* #undef ${variable} */${suffix}")
+    elseif(${variable} MATCHES "^[Tt][Rr][Uu][Ee]$" OR
+           ${variable} MATCHES "^[Oo][Nn]$")
+      set(replace "${prefix}#define ${variable} 1${suffix}")
+    elseif(${variable} MATCHES "^[01234567890]+$")
+      set(replace "${prefix}#define ${variable} ${${variable}}${suffix}")
+    else()
+      set(replace "${prefix}#define ${variable} \"${${variable}}\"")
+    endif()
+  endif()
+  string(REPLACE "${match}" "${replace}" template "${template}")
+endforeach()
+
+file(GENERATE OUTPUT config.h CONTENT "${template}")
+
 
 if(BUILD_TESTING)
   add_subdirectory(tests)

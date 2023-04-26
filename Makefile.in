@@ -1,0 +1,75 @@
+#
+# Makefile.in -- xxx
+#
+# Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+WESTMERE = @HAVE_WESTMERE@
+HASWELL = @HAVE_HASWELL@
+
+CPPFLAGS += -I./include -I./src -I.
+
+SOURCES = src/zone.c \
+          src/types.c \
+          src/table.c \
+          src/log.c \
+          src/parser.c \
+          src/lexer.c \
+          src/heap.c \
+          src/generic/base16.c \
+          src/generic/base32.c \
+          src/generic/base64.c \
+          src/fallback/parser.c
+
+OBJECTS = $(SOURCES:.c=.o)
+NO_OBJECTS =
+
+WESTMERE_SOURCES = src/westmere/parser.c
+WESTMERE_OBJECTS = $(WESTMERE_SOURCES:.c=.o)
+
+HASWELL_SOURCES = src/haswell/parser.c
+HASWELL_OBJECTS = $(HASWELL_SOURCES:.c=.o)
+
+EXPORT_HEADER = export.h
+
+.PHONY: all clean
+
+all: libzone.a make.dep
+
+clean:
+	@rm -f make.dep
+	@rm -f libzone.a
+	@rm -f $(OBJECTS) $(OBJECTS:.o=.d)
+	@rm -f $(WESTMERE_OBJECTS) $(WESTMERE_OBJECTS:.o=.d)
+	@rm -f $(HASWELL_OBJECTS) $(HASWELL_OBJECTS:.o=.d)
+
+distclean: clean
+	@rm -f Makefile config.h config.log config.status
+
+libzone.a: $(EXPORT_HEADER) $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
+	$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
+
+DEPENDS = $(OBJECTS:.o=.d) \
+          $($(WESTMERE)_OBJECTS:.o=.d) \
+          $($(HASWELL)_OBJECTS:.o=.d)
+
+%.d: %.c
+	@touch $@
+
+$(EXPORT_HEADER):
+	@echo "#define ZONE_EXPORT" > include/zone/export.h
+
+$(OBJECTS): $(SOURCES)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -o $@ -c $<
+
+$(WESTMERE_OBJECTS): $(WESTMERE_SOURCES)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -march=westmere -MMD -o $@ -c $<
+
+$(HASWELL_OBJECTS): $(HASWELL_SOURCES)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -march=haswell -MMD -o $@ -c $<
+
+make.dep: $(DEPENDS)
+	@cat $(DEPENDS) > $@
+
+-include make.dep

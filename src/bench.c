@@ -27,12 +27,12 @@
 #define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
 #endif
 
-#if ZONE_SUPPORTS_HASWELL
+#if HAVE_HASWELL
 extern zone_return_t zone_bench_haswell_lex(zone_parser_t *, size_t *);
 extern zone_return_t zone_haswell_parse(zone_parser_t *, void *);
 #endif
 
-#if ZONE_SUPPORTS_WESTMERE
+#if HAVE_WESTMERE
 extern zone_return_t zone_bench_westmere_lex(zone_parser_t *, size_t *);
 extern zone_return_t zone_westmere_parse(zone_parser_t *, void *);
 #endif
@@ -49,10 +49,10 @@ struct target {
 };
 
 static const target_t targets[] = {
-#if ZONE_SUPPORTS_HASWELL
+#if HAVE_HASWELL
   { "haswell", AVX2, &zone_bench_haswell_lex, &zone_haswell_parse },
 #endif
-#if ZONE_SUPPORTS_WESTMERE
+#if HAVE_WESTMERE
   { "westmere", SSE42, &zone_bench_westmere_lex, &zone_westmere_parse },
 #endif
   { "fallback", 0, &zone_bench_fallback_lex, &zone_fallback_parse }
