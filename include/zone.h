@@ -507,7 +507,7 @@ zone_format_printf(6,7);
  * @param[in]  ...       Variadic arguments corresponding to @ref format
  */
 #define ZONE_LOG(parser, category, ...) \
-  zone_log(parser, category, __FILE__, __LINE__, __func__, ...)
+  zone_log(parser, __FILE__, __LINE__, __func__, category, __VA_ARGS__)
 
 typedef struct zone_name zone_name_t;
 struct zone_name {
