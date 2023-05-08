@@ -142,6 +142,7 @@ static inline void parse_name(
   uint8_t *data = &parser->rdata->octets[parser->rdata->length];
 
   scan_name(parser, type, field, token, data, &length);
+  parser->rdata->length += length;
   assert(length != 0);
   if (data[length - 1] == 0)
     return;
@@ -149,7 +150,6 @@ static inline void parse_name(
   if (length > 256 - parser->file->origin.length)
     SYNTAX_ERROR(parser, "Invalid name in %s, exceeds 255 octets", field->name.data);
 
-  parser->rdata->length += length;
   memcpy(&parser->rdata->octets[parser->rdata->length],
           parser->file->origin.octets,
           parser->file->origin.length);
