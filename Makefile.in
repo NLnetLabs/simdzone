@@ -8,7 +8,8 @@
 WESTMERE = @HAVE_WESTMERE@
 HASWELL = @HAVE_HASWELL@
 
-CPPFLAGS += -I./include -I./src -I.
+CPPFLAGS = @CPPFLAGS@ -I./include -I./src -I.
+CFLAGS = @CFLAGS@
 
 SOURCES = src/zone.c \
           src/types.c \
@@ -61,13 +62,13 @@ $(EXPORT_HEADER):
 	@echo "#define ZONE_EXPORT" > include/zone/export.h
 
 $(OBJECTS): $(SOURCES)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -o $@ -c $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -o $@ -c $(@:.o=.c)
 
 $(WESTMERE_OBJECTS): $(WESTMERE_SOURCES)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -march=westmere -MMD -o $@ -c $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -march=westmere -MMD -o $@ -c $(@:.o=.c)
 
 $(HASWELL_OBJECTS): $(HASWELL_SOURCES)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -march=haswell -MMD -o $@ -c $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -march=haswell -MMD -o $@ -c $(@:.o=.c)
 
 make.dep: $(DEPENDS)
 	@cat $(DEPENDS) > $@
