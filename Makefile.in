@@ -32,7 +32,7 @@ WESTMERE_OBJECTS = $(WESTMERE_SOURCES:.c=.o)
 HASWELL_SOURCES = src/haswell/parser.c
 HASWELL_OBJECTS = $(HASWELL_SOURCES:.c=.o)
 
-EXPORT_HEADER = export.h
+EXPORT_HEADER = include/zone/export.h
 
 .PHONY: all clean
 
