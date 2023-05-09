@@ -528,8 +528,7 @@ typedef zone_return_t(*zone_add_t)(
   const uint8_t *, // rdata
   void *); // user data
 
-typedef struct zone_options zone_options_t;
-struct zone_options {
+typedef struct {
   // FIXME: add a flags member. e.g. to allow for includes in combination
   //        with static buffers, signal ownership of allocated memory, etc
   uint32_t flags;
@@ -564,7 +563,7 @@ struct zone_options {
     //        (de)serialization of AXFR/IXFR in text representation.
     //zone_delete_t remove;
   } accept;
-};
+} zone_options_t;
 
 /**
  * @brief Buffer space reserved for parser
