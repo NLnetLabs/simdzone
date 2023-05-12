@@ -157,7 +157,7 @@ static inline void refill(zone_parser_t *parser)
   if (file->buffer.length == file->buffer.size) {
     size_t size = file->buffer.size + ZONE_WINDOW_SIZE;
     char *data = file->buffer.data;
-    if (!(data = zone_realloc(parser, data, size + 1)))
+    if (!(data = realloc(data, size + 1)))
       SYNTAX_ERROR(parser, "actually out of memory");
     file->buffer.size = size;
     file->buffer.data = data;

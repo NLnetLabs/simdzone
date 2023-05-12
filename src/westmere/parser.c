@@ -12,7 +12,6 @@
 
 #include "zone.h"
 #include "diagnostic.h"
-#include "heap.h"
 #include "log.h"
 #include "westmere/simd.h"
 #include "westmere/bits.h"

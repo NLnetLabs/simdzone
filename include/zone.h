@@ -440,10 +440,6 @@ struct zone_file {
 typedef struct zone_parser zone_parser_t;
 struct zone_parser;
 
-typedef void *(*zone_malloc_t)(void *arena, size_t size);
-typedef void *(*zone_realloc_t)(void *arena, void *ptr, size_t size);
-typedef void(*zone_free_t)(void *arena, void *ptr);
-
 /**
  * @defgroup log_categories Log categories.
  *
@@ -529,9 +525,6 @@ typedef zone_return_t(*zone_add_t)(
   void *); // user data
 
 typedef struct {
-  // FIXME: add a flags member. e.g. to allow for includes in combination
-  //        with static buffers, signal ownership of allocated memory, etc
-  uint32_t flags;
   /** Lax mode of operation. */
   /** Authoritative servers may choose to be more lenient when operating as
       as a secondary as data may have been transferred over AXFR/IXFR that
@@ -540,15 +533,11 @@ typedef struct {
   /** Disable $INCLUDE directive. */
   /** Useful in setups where untrusted input may be offered. */
   bool no_includes;
+  /** Enable 1h2m3s notations for TTLS. */
+  bool pretty_ttls;
   const char *origin;
   uint32_t default_ttl;
   uint16_t default_class;
-  struct {
-    zone_malloc_t malloc;
-    zone_realloc_t realloc;
-    zone_free_t free;
-    void *arena;
-  } allocator;
   struct {
     /** Message categories to write out. */
     /** All categories are printed if no categories are selected and no
