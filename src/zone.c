@@ -20,26 +20,28 @@
 #endif
 
 #include "zone.h"
-#include "heap.h"
 #include "diagnostic.h"
 #include "isadetection.h"
 
 #if _WIN32
 #define strcasecmp(s1, s2) _stricmp(s1, s2)
 #define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+
+static char *strndup(const char *s, size_t n)
+{
+  char *p;
+  if ((p = malloc(n + 1))) {
+    memcpy(p, s, n);
+    p[n] = '\0';
+  }
+  return p;
+}
 #endif
 
 static const char not_a_file[] = "<string>";
 
 static zone_return_t check_options(const zone_options_t *options)
 {
-  // custom allocator must be fully specified or not at all
-  int alloc = (options->allocator.malloc != 0) +
-              (options->allocator.realloc != 0) +
-              (options->allocator.free != 0) +
-              (options->allocator.arena != NULL);
-  if (alloc != 0 && alloc != 4)
-    return ZONE_BAD_PARAMETER;
   if (!options->accept.add)
     return ZONE_BAD_PARAMETER;
   if (!options->origin)
@@ -172,7 +174,9 @@ zone_nonnull_all()
 static zone_return_t open_file(
   zone_parser_t *parser, zone_file_t *file, const zone_string_t *path)
 {
-  if (!(file->name = zone_strndup(parser, path->data, path->length)))
+  (void)parser;
+
+  if (!(file->name = strndup(path->data, path->length)))
     return ZONE_OUT_OF_MEMORY;
 
 #if _WIN32
@@ -180,7 +184,7 @@ static zone_return_t open_file(
   size_t length, size = GetFullPathName(file->name, sizeof(buf), buf, NULL);
   if (!size)
     return ZONE_IO_ERROR;
-  if (!(file->path = zone_malloc(parser, size)))
+  if (!(file->path = malloc(size)))
     return ZONE_OUT_OF_MEMORY;
   if (!(length = GetFullPathName(file->name, size, file->path, NULL)))
     return ZONE_IO_ERROR;
@@ -190,7 +194,7 @@ static zone_return_t open_file(
   char buf[PATH_MAX];
   if (!realpath(file->name, buf))
     return ZONE_IO_ERROR;
-  if (!(file->path = zone_strdup(parser, buf)))
+  if (!(file->path = strdup(buf)))
     return ZONE_OUT_OF_MEMORY;
 #endif
 
@@ -202,7 +206,7 @@ static zone_return_t open_file(
         return ZONE_IO_ERROR;
     }
 
-  if (!(file->buffer.data = zone_malloc(parser, ZONE_WINDOW_SIZE + 1)))
+  if (!(file->buffer.data = malloc(ZONE_WINDOW_SIZE + 1)))
     return ZONE_OUT_OF_MEMORY;
 
   file->buffer.data[0] = '\0';
@@ -240,18 +244,18 @@ void zone_close_file(
     return;
 
   if (file->buffer.data)
-    zone_free(parser, file->buffer.data);
+    free(file->buffer.data);
   file->buffer.data = NULL;
   if (file->name)
-    zone_free(parser, (char *)file->name);
+    free((char *)file->name);
   file->name = NULL;
   if (file->path)
-    zone_free(parser, (char *)file->path);
+    free((char *)file->path);
   file->path = NULL;
   (void)fclose(file->handle);
   file->handle = NULL;
   if (file != &parser->first)
-    zone_free(parser, file);
+    free(file);
 }
 
 zone_nonnull_all()
@@ -261,7 +265,7 @@ zone_return_t zone_open_file(
   zone_file_t *file;
   zone_return_t result;
 
-  if (!(file = zone_malloc(parser, sizeof(*file))))
+  if (!(file = malloc(sizeof(*file))))
     return ZONE_OUT_OF_MEMORY;
   memset(file, 0, sizeof(*file) - sizeof(file->indexer.tape));
   if ((result = open_file(parser, file, path)) < 0)
