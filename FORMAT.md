@@ -63,8 +63,8 @@ really never happens. The same applies to base64 sequences, which was
 specifically designed to encode binary data in printable ASCII characters. To
 quote a field and include whitespace is more-or-less instructing the parser
 to not ignore it. The current implementation is such that any field may be
-quoted, but it may make sense to disallow fields that cannot contain
-structural characters to be quoted.
+quoted, but it MUST actually disallow fields that cannot contain structural
+characters to be quoted.
 
 > BIND does not accept quoted fields for A or NS RDATA. TTL values in SOA
 > RDATA, base64 Signature in DNSKEY RDATA, as well as type, class and TTL
@@ -161,3 +161,11 @@ structural characters to be quoted.
   > interpret that as stating that each label can individually can be quoted,
   > that is however not the case. NSD and BIND both print a syntax error if
   > such a construct occurs.
+
+* RFC1035 specifies two control directives "$INCLUDE" and "$ORIGIN". RFC2308
+  specifies the "$TTL" directive. BIND implements the "$GENERATE" directive.
+  Since "$" (dollar sign) is not reserved, "$GENERATE" (and "$TTL" before
+  RFC2308) is considered a valid hostname in other implementations. It seems
+  "$" is better considered a reserved character (possibly limiting it's
+  special status to the start of the line), to allow for reliable
+  extensibility in the future.
