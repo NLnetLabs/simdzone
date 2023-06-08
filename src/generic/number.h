@@ -15,112 +15,129 @@
 #include <netinet/in.h>
 #endif
 
-zone_always_inline()
-zone_nonnull_all()
-static inline zone_return_t parse_int8(
+zone_nonnull_all
+static zone_really_inline int32_t parse_symbol(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  token_t *token)
 {
-  uint64_t v = 0;
-  zone_symbol_t *symbol;
+  int32_t r;
 
-  for (size_t i=0; i < token->length; i++) {
-    const uint64_t n = (unsigned char)token->data[i] - '0';
-    if (n > 9)
-      goto parse_symbol;
-    v = (v * 10) + n;
-    if (v > UINT8_MAX)
-      SEMANTIC_ERROR(parser, "Invalid %s in %s, value exceeds maximum",
-                     field->name.data, type->name.data);
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
+
+  uint64_t n = 0;
+  const char *p = token->data;
+  for (;; p++) {
+    const uint64_t d = (uint8_t)*p - '0';
+    if (d > 9)
+      break;
+    n = n * 10 + d;
   }
 
-  parser->rdata->octets[parser->rdata->length] = (uint8_t)v;
+  if (is_contiguous((uint8_t)*p)) {
+    const zone_symbol_t *s;
+    if (!(s = lookup_symbol(&field->symbols, token)))
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    n = (uint8_t)s->value;
+  } else {
+    if (n > UINT8_MAX || p - token->data > 3)
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  }
+
+  parser->rdata->octets[parser->rdata->length] = (uint8_t)n;
   parser->rdata->length += sizeof(uint8_t);
-  return 0;
-parse_symbol:
-  if (!(symbol = zone_lookup(&field->symbols, token)))
-    SYNTAX_ERROR(parser, "Invalid %s in %s, not a number",
-                 field->name.data, type->name.data);
-  assert(symbol->value <= UINT8_MAX);
-  parser->rdata->octets[parser->rdata->length] = (uint8_t)symbol->value;
-  parser->rdata->length += sizeof(uint8_t);
-  return 0;
+  return ZONE_INT8;
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline zone_return_t parse_int16(
+zone_nonnull_all
+static zone_really_inline int32_t parse_int8(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  token_t *token)
 {
-  uint64_t v = 0;
-  uint16_t v16;
-  zone_symbol_t *symbol;
+  int32_t r;
 
-  for (size_t i=0; i < token->length; i++) {
-    const uint64_t n = (unsigned char)token->data[i] - '0';
-    if (n > 9)
-      goto parse_symbol;
-    v = (v * 10) + n;
-    if (v > UINT16_MAX)
-      SEMANTIC_ERROR(parser, "Invalid %s in %s, value exceeds maximum",
-                     field->name.data, type->name.data);
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
+
+  uint64_t n = 0;
+  const char *p = token->data;
+  for (;; p++) {
+    const uint64_t d = (uint8_t)*p - '0';
+    if (d > 9)
+      break;
+    n = n * 10 + d;
   }
 
-  v16 = htons((uint16_t)v);
-  memcpy(&parser->rdata->octets[parser->rdata->length], &v16, sizeof(v16));
-  parser->rdata->length += sizeof(uint16_t);
-  return 0;
-parse_symbol:
-  if (!(symbol = zone_lookup(&field->symbols, token)))
-    SYNTAX_ERROR(parser, "Invalid %s in %s, not a number",
-                 field->name.data, type->name.data);
-  assert(symbol->value <= UINT16_MAX);
-  v16 = htons((uint16_t)symbol->value);
-  memcpy(&parser->rdata->octets[parser->rdata->length], &v16, sizeof(v16));
-  parser->rdata->length += sizeof(uint16_t);
-  return 0;
+  if (n > UINT8_MAX || p - token->data > 3 || is_contiguous((uint8_t)*p))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  parser->rdata->octets[parser->rdata->length] = (uint8_t)n;
+  parser->rdata->length += sizeof(uint8_t);
+  return ZONE_INT8;
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline zone_return_t parse_int32(
+zone_nonnull_all
+static zone_really_inline int32_t parse_int16(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  token_t *token)
 {
-  uint64_t v = 0;
-  uint32_t v32;
-  zone_symbol_t *symbol;
+  int32_t r;
 
-  for (size_t i=0; i < token->length; i++) {
-    const uint64_t n = (unsigned char)token->data[i] - '0';
-    if (n > 9)
-      goto parse_symbol;
-    v = (v * 10) + n;
-    if (v > UINT32_MAX)
-      SEMANTIC_ERROR(parser, "Invalid %s in %s, value exceeds maximum",
-                     field->name.data, type->name.data);
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
+
+  uint64_t n = 0;
+  const char *p = token->data;
+  for (;; p++) {
+    const uint64_t d = (uint8_t)*p - '0';
+    if (d > 9)
+      break;
+    n = n * 10 + d;
   }
 
-  v32 = htonl((uint32_t)v);
-  memcpy(&parser->rdata->octets[parser->rdata->length], &v32, sizeof(v32));
-  parser->rdata->length += sizeof(uint32_t);
-  return 0;
-parse_symbol:
-  if (!(symbol = zone_lookup(&field->symbols, token)))
-    SYNTAX_ERROR(parser, "Invalid %s in %s, not a number",
-                 field->name.data, type->name.data);
-  assert(symbol->value <= UINT16_MAX);
-  v32 = htonl(symbol->value);
-  memcpy(&parser->rdata->octets[parser->rdata->length], &v32, sizeof(v32));
-  parser->rdata->length += sizeof(uint32_t);
-  return 0;
+  if (n > UINT16_MAX || p - token->data > 5 || is_contiguous((uint8_t)*p))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  uint16_t n16 = htons((uint16_t)n);
+  memcpy(&parser->rdata->octets[parser->rdata->length], &n16, sizeof(n16));
+  parser->rdata->length += sizeof(n16);
+  return ZONE_INT16;
+}
+
+zone_nonnull_all
+static zone_really_inline zone_return_t parse_int32(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  token_t *token)
+{
+  int32_t r;
+
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
+
+  uint64_t n = 0;
+  const char *p = token->data;
+  for (;; p++) {
+    const uint64_t d = (uint8_t)*p - '0';
+    if (d > 9)
+      break;
+    n = n * 10 + d;
+  }
+
+  if (n > UINT32_MAX || p - token->data > 10 || is_contiguous((uint8_t)*p))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  const uint32_t n32 = htonl((uint32_t)n);
+  memcpy(&parser->rdata->octets[parser->rdata->length], &n32, sizeof(n32));
+  parser->rdata->length += sizeof(n32);
+  return ZONE_INT32;
 }
 
 #endif // NUMBER_H

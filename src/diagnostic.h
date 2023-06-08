@@ -12,8 +12,8 @@
 #if _MSC_VER
 # define diagnostic_push() \
            __pragma(warning(push))
-# define msvc_diagnostic_ignored(warning) \
-           __pragma(warning(disable: ## warning))
+# define msvc_diagnostic_ignored(warning_specifier) \
+           __pragma(warning(disable:warning_specifier))
 # define diagnostic_pop() \
            __pragma(warning(pop))
 #elif __GNUC__

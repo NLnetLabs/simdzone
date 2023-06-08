@@ -15,95 +15,91 @@ static const uint8_t b16rmap_special = 0xf0;
 static const uint8_t b16rmap_end = 0xfd;
 static const uint8_t b16rmap_space = 0xfe;
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void parse_base16(
+zone_nonnull_all
+static zone_really_inline int32_t parse_base16(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  token_t *token)
 {
+  int32_t r;
   uint32_t state = 0;
+
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
 
   do {
-    for (size_t i=0; i < token->length; i++) {
-      const uint8_t ofs = zone_b16rmap[(uint8_t)token->data[i]];
+    const char *p = token->data;
+    for (;; p++) {
+      const uint8_t ofs = zone_b16rmap[(uint8_t)*p];
 
-      if (ofs >= b16rmap_special) {
-        // ignore whitespace
-        if (ofs == b16rmap_space)
-          continue;
-        // end of base16 characters
-        if (ofs == b16rmap_end)
-          break;
-        SEMANTIC_ERROR(parser, "Invalid %s in %s record",
-                       field->name.data, type->name.data);
-      }
+      if (ofs >= b16rmap_special)
+        break;
 
-      if (state == 0) {
+      if (state == 0)
         parser->rdata->octets[parser->rdata->length] = (uint8_t)(ofs << 4);
-        state = 1;
-      } else {
+      else
         parser->rdata->octets[parser->rdata->length++] |= ofs;
-        state = 0;
-      }
+
+      state = !state;
     }
-  } while (lex(parser, token));
+
+    if (is_contiguous((uint8_t)*p))
+      SYNTAX_ERROR(parser, "Invalid %s in %s record", NAME(field), NAME(type));
+    lex(parser, token);
+  } while (token->code == CONTIGUOUS);
 
   if (state != 0)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s record",
-                   field->name.data, type->name.data);
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return ZONE_BLOB;
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void parse_salt(
+zone_nonnull_all
+static zone_really_inline int32_t parse_salt(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  token_t *token)
 {
+  int32_t r;
   uint32_t state = 0;
 
-  if (token->length == 1 && token->data[0] == '-') {
-    parser->rdata->octets[parser->rdata->length++] = 0;
-    return;
-  }
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
 
-  if (token->length > 2 * 255)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s",
-                   field->name.data, type->name.data);
+  const char *p = token->data;
+
+  if (*p == '-' && contiguous[ (uint8_t)*(p+1) ] != CONTIGUOUS) {
+    parser->rdata->octets[parser->rdata->length++] = 0;
+    return ZONE_STRING;
+  }
 
   size_t rdlength = parser->rdata->length++;
 
-  for (size_t i=0; i < token->length; i++) {
-    const uint8_t ofs = zone_b16rmap[(uint8_t)token->data[i]];
+  for (;; p++) {
+    const uint8_t ofs = zone_b16rmap[(uint8_t)*p];
 
-    if (ofs >= b16rmap_special) {
-      // ignore whitespace
-      if (ofs == b16rmap_space)
-        continue;
-      // end of base16 characters
-      if (ofs == b16rmap_end)
-        break;
-      SEMANTIC_ERROR(parser, "Invalid %s in %s record",
-                     field->name.data, type->name.data);
-    }
+    if (ofs >= b16rmap_special)
+      break;
 
-    if (state == 0) {
+    if (state == 0)
       parser->rdata->octets[parser->rdata->length] = (uint8_t)(ofs << 4);
-      state = 1;
-    } else {
+    else
       parser->rdata->octets[parser->rdata->length++] |= ofs;
-      state = 0;
-    }
+
+    state = !state;
   }
 
+  if (p == token->data || contiguous[ (uint8_t)*p ] == CONTIGUOUS)
+    SYNTAX_ERROR(parser, "Invalid %s in %s record", NAME(field), NAME(type));
   if (state != 0)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s record",
-                   field->name.data, type->name.data);
+    SYNTAX_ERROR(parser, "Invalid %s in %s record", NAME(field), NAME(type));
 
   parser->rdata->octets[rdlength] = (uint8_t)(parser->rdata->length - rdlength);
+  return ZONE_STRING;
 }
 
 #endif // BASE16_H

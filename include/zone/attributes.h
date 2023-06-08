@@ -40,38 +40,29 @@
 #endif
 
 #define zone_nonnull(params) zone_attribute((__nonnull__ params))
-#define zone_nonnull_all() zone_attribute((__nonnull__))
+#define zone_nonnull_all zone_attribute((__nonnull__))
 
 #if _MSC_VER
-# define zone_always_inline() __forceinline
-# define zone_never_inline() __declspec(noinline)
-# define zone_noreturn() __declspec(noreturn)
-# define zone_allocator(...)
+# define zone_really_inline __forceinline
+# define zone_never_inline __declspec(noinline)
+# define zone_warn_unused_result
 
-# define zone_unlikely(x)
+# define zone_likely(params) (params)
+# define zone_unlikely(params) (params)
 
 # define zone_format(params)
 # define zone_format_printf(string_index, first_to_check)
 #else // _MSC_VER
-# define zone_always_inline() zone_attribute((always_inline))
-# define zone_never_inline() zone_attribute((noinline))
-# if zone_has_attribute(noreturn)
-#   define zone_noreturn() zone_attribute((noreturn))
+# define zone_really_inline inline zone_attribute((always_inline))
+# define zone_never_inline zone_attribute((noinline))
+# if zone_has_attribute(warn_unused_result)
+#   define zone_warn_unused_result zone_attribute((warn_unused_result))
 # else
-#   define zone_noreturn()
+#   define zone_warn_unused_result
 # endif
 
-# if zone_has_attribute(malloc)
-#   if zone_gcc
-#     define zone_allocator(...) zone_attribute((malloc(__VA_ARGS__)))
-#   else
-#     define zone_allocator(...) zone_attribute((malloc))
-#   endif
-# else
-#   define zone_allocator(...)
-# endif
-
-# define zone_unlikely(params) __builtin_expect((params), 0)
+# define zone_likely(params) __builtin_expect(!!(params), 1)
+# define zone_unlikely(params) __builtin_expect(!!(params), 0)
 
 # if zone_has_attribute(format)
 #   define zone_format(params) zone_attribute((__format__ params))

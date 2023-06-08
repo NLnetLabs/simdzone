@@ -7,7 +7,6 @@
  *
  */
 #include <assert.h>
-#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +20,7 @@
 #include "zone.h"
 #include "config.h"
 #include "isadetection.h"
+#include "diagnostic.h"
 
 #if _WIN32
 #define strcasecmp(s1, s2) _stricmp(s1, s2)
@@ -28,24 +28,24 @@
 #endif
 
 #if HAVE_HASWELL
-extern zone_return_t zone_bench_haswell_lex(zone_parser_t *, size_t *);
-extern zone_return_t zone_haswell_parse(zone_parser_t *, void *);
+extern int32_t zone_bench_haswell_lex(zone_parser_t *, size_t *);
+extern int32_t zone_haswell_parse(zone_parser_t *);
 #endif
 
 #if HAVE_WESTMERE
-extern zone_return_t zone_bench_westmere_lex(zone_parser_t *, size_t *);
-extern zone_return_t zone_westmere_parse(zone_parser_t *, void *);
+extern int32_t zone_bench_westmere_lex(zone_parser_t *, size_t *);
+extern int32_t zone_westmere_parse(zone_parser_t *);
 #endif
 
-extern zone_return_t zone_bench_fallback_lex(zone_parser_t *, size_t *);
-extern zone_return_t zone_fallback_parse(zone_parser_t *, void *);
+extern int32_t zone_bench_fallback_lex(zone_parser_t *, size_t *);
+extern int32_t zone_fallback_parse(zone_parser_t *);
 
 typedef struct target target_t;
 struct target {
   const char *name;
   uint32_t instruction_set;
-  zone_return_t (*bench_lex)(zone_parser_t *, size_t *);
-  zone_return_t (*parse)(zone_parser_t *, void *);
+  int32_t (*bench_lex)(zone_parser_t *, size_t *);
+  int32_t (*parse)(zone_parser_t *);
 };
 
 static const target_t targets[] = {
@@ -58,7 +58,7 @@ static const target_t targets[] = {
   { "fallback", 0, &zone_bench_fallback_lex, &zone_fallback_parse }
 };
 
-extern zone_return_t zone_open(
+extern int32_t zone_open(
   zone_parser_t *,
   const zone_options_t *,
   zone_cache_t *,
@@ -68,29 +68,19 @@ extern zone_return_t zone_open(
 extern void zone_close(
   zone_parser_t *);
 
-static zone_return_t bench_lex(zone_parser_t *parser, const target_t *target)
+static int32_t bench_lex(zone_parser_t *parser, const target_t *target)
 {
   size_t tokens = 0;
-  zone_return_t result;
-  volatile jmp_buf environment;
+  int32_t result;
 
-  switch ((result = setjmp((void *)environment))) {
-    case 0:
-      parser->environment = environment;
-      result = target->bench_lex(parser, &tokens);
-      assert(result == ZONE_SUCCESS);
-      break;
-    default:
-      assert(result < 0);
-      assert(parser->environment == environment);
-      break;
-  }
+  if ((result = target->bench_lex(parser, &tokens)) < 0)
+    return result;
 
   printf("Lexed %zu tokens\n", tokens);
-  return result;
+  return 0;
 }
 
-static zone_return_t bench_accept(
+static int32_t bench_accept(
   zone_parser_t *parser,
   const zone_name_t *owner,
   uint16_t type,
@@ -111,27 +101,20 @@ static zone_return_t bench_accept(
   return ZONE_SUCCESS;
 }
 
-static zone_return_t bench_parse(zone_parser_t *parser, const target_t *target)
+static int32_t bench_parse(zone_parser_t *parser, const target_t *target)
 {
   size_t records = 0;
-  zone_return_t result;
-  volatile jmp_buf environment;
+  int32_t result;
 
-  switch ((result = setjmp((void *)environment))) {
-    case 0:
-      parser->environment = environment;
-      result = target->parse(parser, &records);
-      assert(result == ZONE_SUCCESS);
-      break;
-    default:
-      assert(result < 0);
-      assert(parser->environment == environment);
-      break;
-  }
+  parser->user_data = &records;
+  result = target->parse(parser);
 
   printf("Parsed %zu records\n", records);
   return result;
 }
+
+diagnostic_push()
+msvc_diagnostic_ignored(4996)
 
 static const target_t *select_target(const char *name)
 {
@@ -159,6 +142,8 @@ static const target_t *select_target(const char *name)
   printf("Selected target %s\n", target->name);
   return target;
 }
+
+diagnostic_pop()
 
 static void help(const char *program)
 {
@@ -207,7 +192,7 @@ int main(int argc, char *argv[])
   if (optind > argc || argc - optind < 2)
     usage(program);
 
-  zone_return_t (*bench)(zone_parser_t *, const target_t *) = 0;
+  int32_t (*bench)(zone_parser_t *, const target_t *) = 0;
   if (strcasecmp(argv[optind], "lex") == 0)
     bench = &bench_lex;
   else if (strcasecmp(argv[optind], "parse") == 0)

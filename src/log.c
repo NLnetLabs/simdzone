@@ -10,7 +10,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <setjmp.h>
 
 #include "zone.h"
 #include "log.h"
@@ -74,21 +73,4 @@ void zone_log(
   va_start(ap, format);
   log_message(parser, file, line, function, category, format, ap);
   va_end(ap);
-}
-
-void zone_raise(
-  zone_parser_t *parser,
-  const char *file,
-  size_t line,
-  const char *function,
-  zone_return_t code,
-  const char *format,
-  ...)
-{
-  va_list ap;
-
-  va_start(ap, format);
-  log_message(parser, file, line, function, ZONE_ERROR, format, ap);
-  va_end(ap);
-  longjmp((void *)parser->environment, code);
 }

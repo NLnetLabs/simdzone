@@ -9,10 +9,7 @@
 #ifndef VISIT_H
 #define VISIT_H
 
-#include <setjmp.h>
-
-zone_always_inline()
-static inline void accept_rr(zone_parser_t *parser, void *user_data)
+static zone_really_inline int32_t accept_rr(zone_parser_t *parser)
 {
   zone_return_t result;
 
@@ -26,12 +23,13 @@ static inline void accept_rr(zone_parser_t *parser, void *user_data)
     parser->file->last_ttl,
     (uint16_t)parser->rdata->length,
     parser->rdata->octets,
-    user_data);
+    parser->user_data);
 
-  if (result < 0)
-    longjmp((void*)parser->environment, result);
   assert((size_t)result < parser->cache.size);
+  if (result < 0)
+    return result;
   parser->rdata = &parser->cache.rdata.blocks[result];
+  return 0;
 }
 
 #endif // VISIT_H

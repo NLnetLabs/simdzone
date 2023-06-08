@@ -19,7 +19,7 @@
 #include "zone.h"
 
 // automatically pad string literal
-#define TEXT(literal) \
+#define PAD(literal) \
   literal \
   "\0\0\0\0\0\0\0\0" /*  0 -  7 */ \
   "\0\0\0\0\0\0\0\0" /*  8 - 15 */ \
@@ -47,14 +47,14 @@ struct field {
 #define RDATA(x) x, sizeof(x)/sizeof(x[0])
 
 
-static const char a_text[] = TEXT("host.example.com. 1 IN A 192.0.2.1");
+static const char a_text[] = PAD("host.example.com. 1 IN A 192.0.2.1");
 
 static const field_t a[] = {
   IP4(0, 16908480)
 };
 
 
-static const char ns_text[] = TEXT("example.com. 1 IN NS host.example.com.");
+static const char ns_text[] = PAD("example.com. 1 IN NS host.example.com.");
 
 static const field_t ns[] = {
   NAME(ZONE_COMPRESSED,

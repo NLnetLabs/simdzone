@@ -24,7 +24,6 @@ typedef uint8_t simd_table_t[SIMD_8X_SIZE];
     v08, v09, v0a, v0b, v0c, v0d, v0e, v0f                 \
   }
 
-
 typedef struct { __m256i chunks[1]; } simd_8x_t;
 
 typedef struct { __m128i chunks[1]; } simd_8x16_t;
@@ -32,32 +31,28 @@ typedef struct { __m128i chunks[1]; } simd_8x16_t;
 typedef struct { __m256i chunks[2]; } simd_8x64_t;
 
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void simd_loadu_8x(simd_8x_t *simd, const void *address)
+zone_nonnull_all
+static zone_really_inline void simd_loadu_8x(simd_8x_t *simd, const void *address)
 {
   simd->chunks[0] = _mm256_loadu_si256((const __m256i *)(address));
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void simd_storeu_8x(void *address, simd_8x_t *simd)
+zone_nonnull_all
+static zone_really_inline void simd_storeu_8x(void *address, simd_8x_t *simd)
 {
   _mm256_storeu_si256((__m256i *)address, simd->chunks[0]);
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline uint64_t simd_find_8x(const simd_8x_t *simd, char key)
+zone_nonnull_all
+static zone_really_inline uint64_t simd_find_8x(const simd_8x_t *simd, char key)
 {
   const __m256i k = _mm256_set1_epi8(key);
   const __m256i r = _mm256_cmpeq_epi8(simd->chunks[0], k);
   return (uint32_t)_mm256_movemask_epi8(r);
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline uint64_t simd_find_any_8x(
+zone_nonnull_all
+static zone_really_inline uint64_t simd_find_any_8x(
   const simd_8x_t *simd, const simd_table_t table)
 {
   const __m256i t = _mm256_loadu_si256((const __m256i *)table);
@@ -66,16 +61,14 @@ static inline uint64_t simd_find_any_8x(
   return (uint32_t)_mm256_movemask_epi8(r);
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void simd_loadu_8x16(simd_8x16_t *simd, const uint8_t *address)
+zone_nonnull_all
+static zone_really_inline void simd_loadu_8x16(simd_8x16_t *simd, const uint8_t *address)
 {
   simd->chunks[0] = _mm_loadu_si128((const __m128i *)address);
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline uint64_t simd_find_8x16(const simd_8x16_t *simd, char key)
+zone_nonnull_all
+static zone_really_inline uint64_t simd_find_8x16(const simd_8x16_t *simd, char key)
 {
   const __m128i k = _mm_set1_epi8(key);
   const __m128i r = _mm_cmpeq_epi8(simd->chunks[0], k);
@@ -83,17 +76,15 @@ static inline uint64_t simd_find_8x16(const simd_8x16_t *simd, char key)
   return m;
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void simd_loadu_8x64(simd_8x64_t *simd, const uint8_t *address)
+zone_nonnull_all
+static zone_really_inline void simd_loadu_8x64(simd_8x64_t *simd, const uint8_t *address)
 {
   simd->chunks[0] = _mm256_loadu_si256((const __m256i *)(address));
   simd->chunks[1] = _mm256_loadu_si256((const __m256i *)(address+32));
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline uint64_t simd_find_8x64(const simd_8x64_t *simd, char key)
+zone_nonnull_all
+static zone_really_inline uint64_t simd_find_8x64(const simd_8x64_t *simd, char key)
 {
   const __m256i k = _mm256_set1_epi8(key);
 
@@ -106,9 +97,8 @@ static inline uint64_t simd_find_8x64(const simd_8x64_t *simd, char key)
   return m0 | (m1 << 32);
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline uint64_t simd_find_any_8x64(
+zone_nonnull_all
+static zone_really_inline uint64_t simd_find_any_8x64(
   const simd_8x64_t *simd, const simd_table_t table)
 {
   const __m256i t = _mm256_loadu_si256((const __m256i *)table);

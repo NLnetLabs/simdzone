@@ -17,6 +17,7 @@
 #endif
 
 #include "zone.h"
+#include "diagnostic.h"
 
 typedef struct input input_t;
 struct input {
@@ -26,6 +27,9 @@ struct input {
     FILE *handle;
   } includer, include;
 };
+
+diagnostic_push()
+msvc_diagnostic_ignored(4996)
 
 /*!cmocka */
 int teardown(void **state)
@@ -118,6 +122,8 @@ err:
   teardown((void **)&input);
   return -1;
 }
+
+diagnostic_pop()
 
 static zone_return_t add_rr(
   zone_parser_t *parser,

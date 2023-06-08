@@ -11,13 +11,12 @@
 
 typedef uint8_t zone_nsec_t[256 + 2];
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void parse_nsec(
+zone_nonnull_all
+static zone_really_inline int32_t parse_nsec(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  token_t *token)
 {
   uint16_t code;
   uint16_t highest_bit = 0;
@@ -46,7 +45,8 @@ static inline void parse_nsec(
     if (bit > bitmap[window][1])
       bitmap[window][1] = bit;
     bitmap[window][2 + bit / 8] |= (1 << (7 - bit % 8));
-  } while (lex(parser, token));
+    lex(parser, token);
+  } while (token->code == CONTIGUOUS);
 
   // iterate and compress all (maybe 256) windows
   size_t length = 0;
@@ -62,6 +62,7 @@ static inline void parse_nsec(
   }
 
   parser->rdata->length += length;
+  return ZONE_TYPE_BITMAP;
 }
 
 #endif // NSEC_H
