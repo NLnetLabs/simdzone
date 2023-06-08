@@ -20,9 +20,12 @@
 #include "log.h"
 #include "visit.h"
 
+#if _WIN32
+typedef SSIZE_T ssize_t;
+#endif
+
 zone_nonnull((1,2,3,4))
-zone_always_inline()
-static inline size_t check_bytes(
+static zone_really_inline ssize_t check_bytes(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
@@ -32,9 +35,8 @@ static inline size_t check_bytes(
 {
   (void)data;
   if (length < size)
-    SEMANTIC_ERROR(parser, "Missing %s in %s record",
-                   field->name.data, type->name.data);
-  return size;
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
+  return (ssize_t)size;
 }
 
 #define check_int8(...) check_bytes(__VA_ARGS__, sizeof(uint8_t))
@@ -47,9 +49,9 @@ static inline size_t check_bytes(
 
 #define check_ip6(...) check_bytes(__VA_ARGS__, sizeof(struct in6_addr))
 
-zone_always_inline()
+
 zone_nonnull((1,2,3,4))
-static inline size_t check_ttl(
+static zone_really_inline ssize_t check_ttl(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
@@ -59,22 +61,19 @@ static inline size_t check_ttl(
   uint32_t number;
 
   if (length < sizeof(number))
-    SEMANTIC_ERROR(parser, "Missing %s in %s record",
-                   field->name.data, type->name.data);
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
 
   memcpy(&number, data, sizeof(number));
   number = ntohl(number);
 
   if (number > INT32_MAX)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s record",
-                   field->name.data, type->name.data);
+    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
   return 4;
 }
 
-zone_always_inline()
 zone_nonnull((1,2,3,4))
-static inline size_t check_type(
+static zone_really_inline ssize_t check_type(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
@@ -84,20 +83,18 @@ static inline size_t check_type(
   uint16_t number;
 
   if (length < sizeof(number))
-    SEMANTIC_ERROR(parser, "Missing %s in %s record",
-                   field->name.data, type->name.data);
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
 
   memcpy(&number, data, sizeof(number));
 
   if (!number)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s record",
-                   field->name.data, type->name.data);
+    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
   return 2;
 }
 
-zone_always_inline()
 zone_nonnull((1,2,3,4))
-static inline size_t check_name(
+static zone_really_inline ssize_t check_name(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
@@ -111,14 +108,13 @@ static inline size_t check_name(
   }
 
   if (!count || count > length)
-    SEMANTIC_ERROR(parser, "Invalid %s in  %s record",
-                   field->name.data, type->name.data);
-  return count;
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  return (ssize_t)count;
 }
 
-zone_always_inline()
 zone_nonnull((1,2,3,4))
-static inline size_t check_string(
+static zone_really_inline ssize_t check_string(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
@@ -128,14 +124,13 @@ static inline size_t check_string(
   size_t count;
 
   if (!length || (count = 1 + (size_t)data[0]) > length)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s record",
-                   field->name.data, type->name.data);
-  return count;
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  return (ssize_t)count;
 }
 
-zone_always_inline()
 zone_nonnull((1,2,3,4))
-static inline size_t check_nsec(
+static zone_really_inline ssize_t check_nsec(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
@@ -149,19 +144,28 @@ static inline size_t check_nsec(
     const size_t window = (size_t)data[0];
     const size_t blocks = 1 + (size_t)data[1];
     if (window < last_window || !window != !last_window)
-      SEMANTIC_ERROR(parser, "Invalid %s in %s, windows are out-of-order",
-                     field->name.data, type->name.data);
+      SYNTAX_ERROR(parser, "Invalid %s in %s, windows are out-of-order",
+                   NAME(field), NAME(type));
     if (blocks > 32)
-      SEMANTIC_ERROR(parser, "Invalid %s in %s, blocks are out-of-bounds",
-                     field->name.data, type->name.data);
+      SYNTAX_ERROR(parser, "Invalid %s in %s, blocks are out-of-bounds",
+                   NAME(field), NAME(type));
     count += 2 + blocks;
     last_window = window;
   }
 
   if (count != length)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s",
-                   field->name.data, type->name.data);
-  return count;
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  return (ssize_t)count;
+}
+
+zone_nonnull((1))
+static int32_t add(size_t *length, ssize_t count)
+{
+  if (count < 0)
+    return (int32_t)count;
+  *length = (size_t)count;
+  return 0;
 }
 
 diagnostic_push()
@@ -169,269 +173,301 @@ clang_diagnostic_ignored(implicit-function-declaration)
 clang_diagnostic_ignored(missing-prototypes)
 
 zone_nonnull((1,2))
-void zone_check_a_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_a_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_ip4(parser, type, &fields[0], data, length);
-  if (count != length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
+  if ((r = add(&c, check_ip4(parser, type, &f[0], o, n))))
+    return r;
 
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_ns_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_ns_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_name(parser, type, &fields[0], data, length);
-  if (count != length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
+  if ((r = add(&c, check_name(parser, type, &f[0], o, n))) < 0)
+    return r;
 
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_cname_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_cname_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_name(parser, type, &fields[0], data, length);
-  if (count != length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-  accept_rr(parser, user_data);
+  if ((r = add(&c, check_name(parser, type, &f[0], o, n))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_soa_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_soa_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_name(parser, type, &fields[0], data, length);
-  count += check_name(parser, type, &fields[1], data + count, length - count);
-  count += check_int32(parser, type, &fields[2], data + count, length - count);
-  count += check_ttl(parser, type, &fields[3], data + count, length - count);
-  count += check_ttl(parser, type, &fields[4], data + count, length - count);
-  count += check_ttl(parser, type, &fields[5], data + count, length - count);
-  count += check_ttl(parser, type, &fields[6], data + count, length - count);
+  if ((r = add(&c, check_name(parser, type, &f[0], o, n))) ||
+      (r = add(&c, check_name(parser, type, &f[1], o+c, n-c))) ||
+      (r = add(&c, check_int32(parser, type, &f[2], o+c, n-c))) ||
+      (r = add(&c, check_ttl(parser, type, &f[3], o+c, n-c))) ||
+      (r = add(&c, check_ttl(parser, type, &f[4], o+c, n-c))) ||
+      (r = add(&c, check_ttl(parser, type, &f[5], o+c, n-c))) ||
+      (r = add(&c, check_ttl(parser, type, &f[6], o+c, n-c))))
+    return r;
 
-  if (count != length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_mx_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_mx_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_int16(parser, type, &fields[0], data, length);
-  count += check_name(parser, type, &fields[1], data + count, length - count);
+  if ((r = add(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = add(&c, check_name(parser, type, &f[1], o+c, n-c))))
+    return r;
 
-  if (count != length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_txt_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_txt_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_string(parser, type, &fields[0], data, length);
-  while (count < length)
-    count += check_string(parser, type, &fields[0], data+count, length-count);
+  if ((r = add(&c, check_string(parser, type, &f[0], o, n))))
+    return r;
 
-  if (count != length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-  accept_rr(parser, user_data);
+  while (c < n)
+    if ((r = add(&c, check_string(parser, type, &f[0], o+c, n-c))))
+      return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_aaaa_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_aaaa_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_ip6(parser, type, &fields[0], data, length);
+  if ((r = add(&c, check_ip6(parser, type, &f[0], o, n))))
+    return r;
 
-  if (count != length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s record", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_srv_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_srv_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_int16(parser, type, &fields[0], data, length);
-  count += check_int16(parser, type, &fields[1], data+count, length-count);
-  count += check_int16(parser, type, &fields[2], data+count, length-count);
-  count += check_name(parser, type, &fields[3], data+count, length-count);
+  if ((r = add(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = add(&c, check_int16(parser, type, &f[1], o+c, n-c))) ||
+      (r = add(&c, check_int16(parser, type, &f[2], o+c, n-c))) ||
+      (r = add(&c, check_name(parser, type, &f[3], o+c, n-c))))
+    return r;
 
-  if (count != length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_ds_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_ds_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_int16(parser, type, &fields[0], data, length);
-  count += check_int8(parser, type, &fields[1], data+count, length-count);
-  count += check_int8(parser, type, &fields[2], data+count, length-count);
+  if ((r = add(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = add(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = add(&c, check_int8(parser, type, &f[2], o+c, n-c))))
+    return r;
 
-  if (count <= length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_rrsig_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_rrsig_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_type(parser, type, &fields[0], data, length);
-  count += check_int8(parser, type, &fields[1], data, length);
-  count += check_int8(parser, type, &fields[2], data, length);
-  count += check_ttl(parser, type, &fields[3], data, length);
-  count += check_int32(parser, type, &fields[4], data, length);
-  count += check_int32(parser, type, &fields[5], data, length);
-  count += check_int16(parser, type, &fields[6], data, length);
-  count += check_name(parser, type, &fields[7], data, length);
+  if ((r = add(&c, check_type(parser, type, &f[0], o, n))) ||
+      (r = add(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = add(&c, check_int8(parser, type, &f[2], o+c, n-c))) ||
+      (r = add(&c, check_ttl(parser, type, &f[3], o+c, n-c))) ||
+      (r = add(&c, check_int32(parser, type, &f[4], o+c, n-c))) ||
+      (r = add(&c, check_int32(parser, type, &f[5], o+c, n-c))) ||
+      (r = add(&c, check_int16(parser, type, &f[6], o+c, n-c))) ||
+      (r = add(&c, check_name(parser, type, &f[7], o+c, n-c))))
+    return r;
 
-  if (count <= length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_nsec_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_nsec_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_name(parser, type, &fields[0], data, length);
-  count += check_nsec(parser, type, &fields[1], data, length);
+  if ((r = add(&c, check_name(parser, type, &f[0], o, n))) ||
+      (r = add(&c, check_nsec(parser, type, &f[1], o+c, n-c))))
+    return r;
 
-  if (count <= length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_dnskey_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_dnskey_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_int16(parser, type, &fields[0], data, length);
-  count += check_int8(parser, type, &fields[1], data+count, length-count);
-  count += check_int8(parser, type, &fields[2], data+count, length-count);
+  if ((r = add(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = add(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = add(&c, check_int8(parser, type, &f[2], o+c, n-c))))
+    return r;
 
-  if (count <= length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_nsec3_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_nsec3_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_int8(parser, type, &fields[0], data, length);
-  count += check_int8(parser, type, &fields[1], data+count, length-count);
-  count += check_int16(parser, type, &fields[2], data+count, length-count);
-  count += check_string(parser, type, &fields[3], data+count, length-count);
-  count += check_string(parser, type, &fields[4], data+count, length-count);
-  count += check_nsec(parser, type, &fields[5], data+count, length-count);
+  if ((r = add(&c, check_int8(parser, type, &f[0], o, n))) ||
+      (r = add(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = add(&c, check_int16(parser, type, &f[2], o+c, n-c))) ||
+      (r = add(&c, check_string(parser, type, &f[3], o+c, n-c))) ||
+      (r = add(&c, check_string(parser, type, &f[4], o+c, n-c))) ||
+      (r = add(&c, check_nsec(parser, type, &f[5], o+c, n-c))))
+    return r;
 
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_nsec3param_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_nsec3param_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
-  size_t count = 0;
-  const size_t length = parser->rdata->length;
-  const uint8_t *data = parser->rdata->octets;
-  const zone_field_info_t *fields = type->rdata.fields;
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
 
-  count += check_int8(parser, type, &fields[0], data, length);
-  count += check_int8(parser, type, &fields[1], data+count, length-count);
-  count += check_int16(parser, type, &fields[2], data+count, length-count);
-  count += check_string(parser, type, &fields[3], data+count, length-count);
+  if ((r = add(&c, check_int8(parser, type, &f[0], o, n))) ||
+      (r = add(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = add(&c, check_int16(parser, type, &f[2], o+c, n-c))) ||
+      (r = add(&c, check_string(parser, type, &f[3], o+c, n-c))))
+    return r;
 
-  if (count <= length)
-    SEMANTIC_ERROR(parser, "Invalid %s record", type->name.data);
-
-  accept_rr(parser, user_data);
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser);
 }
 
 zone_nonnull((1,2))
-void zone_check_unknown_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data)
+int32_t zone_check_unknown_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
 {
   (void)parser;
   (void)type;
-  (void)user_data;
 
-  // implement
+  // FIXME: implement
+
+  return 0;
 }
 
 diagnostic_pop()

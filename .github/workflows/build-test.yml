@@ -26,7 +26,6 @@ jobs:
             generator: "Visual Studio 17 2022"
             build_type: Debug
             build_tool_options: "-nologo -verbosity:minimal -maxcpucount:4 -p:CL_MPCount=4"
-            warnings_as_errors: off
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4

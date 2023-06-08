@@ -6,17 +6,15 @@
  * See LICENSE for the license.
  *
  */
-#define _XOPEN_SOURCE
-#include <time.h>
-#undef _XOPEN_SOURCE
-
 #include "zone.h"
 #include "diagnostic.h"
 #include "log.h"
 #include "westmere/simd.h"
 #include "westmere/bits.h"
 #include "lexer.h"
+#include "table.h"
 #include "generic/scanner.h"
+#include "westmere/delimited.h"
 #include "generic/number.h"
 #include "generic/ttl.h"
 #include "generic/time.h"
@@ -35,9 +33,9 @@
 diagnostic_push()
 clang_diagnostic_ignored(missing-prototypes)
 
-zone_return_t zone_westmere_parse(zone_parser_t *parser, void *user_data)
+int32_t zone_westmere_parse(zone_parser_t *parser)
 {
-  return parse(parser, user_data);
+  return parse(parser);
 }
 
 diagnostic_pop()

@@ -20,103 +20,97 @@
 
 extern const zone_table_t *zone_identifiers;
 
-zone_always_inline()
-zone_nonnull_all()
-static inline zone_return_t scan_type_or_class(
+zone_nonnull_all
+static zone_really_inline int32_t scan_type_or_class(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  const zone_token_t *token,
+  const token_t *token,
   uint16_t *code)
 {
-  const zone_symbol_t *symbol = NULL;
+  int32_t r;
+  const zone_symbol_t *s = NULL;
 
-  if ((symbol = zone_lookup(zone_identifiers, token))) {
-    *code = symbol->value & 0xffff;
-    return symbol->value >> 16;
-  } else if (token->length > 4 && strncasecmp(token->data, "TYPE", 4) == 0) {
-    uint64_t v = 0;
-    for (size_t i=4; i < token->length; i++) {
-      const uint64_t n = (uint8_t)token->data[i] - '0';
-      if (n > 9)
-        goto bad_type;
-      v = v * 10 + n;
-      if (v > UINT16_MAX)
-        goto bad_type;
-    }
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
+  if ((s = lookup_symbol(zone_identifiers, token)))
+    return (void)(*code = s->value & 0xffff), s->value >> 16;
 
-    *code = (uint16_t)v;
-    return ZONE_TYPE;
-  } else if (token->length > 5 && strncasecmp(token->data, "CLASS", 5) == 0) {
-    uint64_t v = 0;
-    for (size_t i=5; i < token->length; i++) {
-      const uint64_t n = (uint8_t)token->data[i] - '0';
-      if (n > 9)
-        goto bad_type;
-      v = v * 10 + n;
-      if (v > UINT16_MAX)
-        goto bad_type;
-    }
+  if (strncasecmp(token->data, "TYPE", 4) == 0)
+    r = ZONE_TYPE;
+  else if (strncasecmp(token->data, "CLASS", 5) == 0)
+    r = ZONE_CLASS;
+  else
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-    *code = (uint16_t)v;
-    return ZONE_CLASS;
+  uint64_t n = 0;
+  const char *p, *q;
+  p = q = token->data + 4 + (r == ZONE_CLASS);
+  for (;; p++) {
+    const uint64_t d = (uint8_t)*p - '0';
+    if (d > 9)
+      break;
+    n = n * 10 + d;
   }
 
-bad_type:
-  SEMANTIC_ERROR(parser, "Invalid %s in %s",
-                 field->name.data, type->name.data);
+  if (!n || n > UINT16_MAX || p - q >= 5 || is_contiguous((uint8_t)*p))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  *code = (uint16_t)n;
+  return r;
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline zone_return_t scan_type(
+zone_nonnull_all
+static zone_really_inline int32_t scan_type(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  const zone_token_t *token,
+  const token_t *token,
   uint16_t *code)
 {
-  const zone_symbol_t *symbol = NULL;
+  int32_t r;
+  const zone_symbol_t *s;
 
-  if ((symbol = zone_lookup(zone_identifiers, token))) {
-    if (symbol->value >> 16 != ZONE_TYPE)
-      goto bad_type;
-    *code = symbol->value & 0xffff;
-    return ZONE_TYPE;
-  } else if (token->length > 4 && strncasecmp(token->data, "TYPE", 4) == 0) {
-    uint64_t v = 0;
-    for (size_t i=4; i < token->length; i++) {
-      const uint64_t n = (uint8_t)token->data[i] - '0';
-      if (n > 9)
-        goto bad_type;
-      v = v * 10 + n;
-      if (v > UINT16_MAX)
-        goto bad_type;
-    }
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
+  if ((s = lookup_symbol(zone_identifiers, token)))
+    return (void)(*code = s->value & 0xffff), s->value >> 16;
 
-    *code = (uint16_t)v;
-    return ZONE_TYPE;
+  if (strncasecmp(token->data, "TYPE", 4) != 0)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  uint64_t n = 0;
+  const char *p, *q;
+  p = q = token->data + 4;
+  for (;; p++) {
+    const uint64_t d = (uint8_t)*p - '0';
+    if (d > 9)
+      break;
+    n = n * 10 + d;
   }
 
-bad_type:
-  SEMANTIC_ERROR(parser, "Invalid %s in %s",
-                 field->name.data, type->name.data);
+  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  return ZONE_NAME;
 }
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void parse_type(
+zone_nonnull_all
+static zone_really_inline int32_t parse_type(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  token_t *token)
 {
-  uint16_t code;
+  int32_t r;
+  uint16_t c = 0;
 
-  scan_type(parser, type, field, token, &code);
-  code = htons(code);
-  memcpy(&parser->rdata->octets[parser->rdata->length], &code, sizeof(code));
-  parser->rdata->length += sizeof(uint16_t);
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
+
+  scan_type(parser, type, field, token, &c);
+  c = htons(c);
+  memcpy(&parser->rdata->octets[parser->rdata->length], &c, sizeof(c));
+  parser->rdata->length += sizeof(c);
+  return ZONE_NAME;
 }
 
 #endif // TYPE_H

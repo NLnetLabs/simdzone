@@ -11,38 +11,31 @@
 
 extern const uint8_t *zone_b64rmap;
 
-static const char Pad64 = '=';
-
 static const uint8_t b64rmap_special = 0xf0;
 static const uint8_t b64rmap_end = 0xfd;
 static const uint8_t b64rmap_space = 0xfe;
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void parse_base64(
+zone_nonnull_all
+static zone_really_inline int32_t parse_base64(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  token_t *token)
 {
+  int32_t r;
   uint32_t state = 0;
 
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
+
   do {
-    size_t i=0;
+    const char *p = token->data;
 
-    for (; i < token->length; i++) {
-      const uint8_t ofs = zone_b64rmap[(uint8_t)token->data[i]];
+    for (;; p++) {
+      const uint8_t ofs = zone_b64rmap[(uint8_t)*p];
 
-      if (ofs >= b64rmap_special) {
-        // ignore whitespaces
-        if (ofs == b64rmap_space)
-          continue;
-        // end of base64 characters
-        if (ofs == b64rmap_end)
-          break;
-        // non-base64 character
-        goto bad_char;
-      }
+      if (ofs >= b64rmap_special)
+        break;
 
       switch (state) {
         case 0:
@@ -65,58 +58,41 @@ static inline void parse_base64(
           state = 0;
           break;
         default:
-          goto bad_char;
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
       }
     }
 
-    assert(i == token->length || token->data[i] == Pad64);
-    if (i < token->length) {
+    if (*p == '=') {
       switch (state) {
         case 0: // invalid, pad character in first position
         case 1: // invalid, pad character in second position
-          goto bad_char;
-
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
         case 2: // valid, one byte of info
           state = 4;
-          // fall through
-        case 4:
-          for (++i; i < token->length; i++) {
-            const uint8_t ofs = zone_b64rmap[(uint8_t)token->data[i]];
-            if (ofs == b64rmap_space)
-              continue;
-            if (ofs == b64rmap_end)
-              break;
-            goto bad_char;
-          }
-
-          if (i == token->length)
+          if (*p++ != '=')
             break;
           // fall through
-
         case 3: // valid, two bytes of info
+        case 4:
           state = 5;
-          // fall through
-        case 5:
-          for (++i; i < token->length; i++) {
-            const uint8_t ofs = zone_b64rmap[(uint8_t)token->data[i]];
-            if (ofs == b64rmap_space)
-              continue;
-            goto bad_char;
-          }
+          p++;
+          break;
+        default:
           break;
       }
     }
-  } while (lex(parser, token));
 
+    if (is_contiguous((uint8_t)*p))
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    lex(parser, token);
+  } while (token->code == CONTIGUOUS);
+
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
   if (state != 0 && state != 5)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s record",
-                   field->name.data, type->name.data);
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  return;
-
-bad_char:
-  SEMANTIC_ERROR(parser, "Invalid %s in %s record",
-                 field->name.data, type->name.data);
+  return ZONE_BLOB;
 }
 
 #endif // BASE64_H

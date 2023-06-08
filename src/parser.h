@@ -9,353 +9,375 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-zone_nonnull((1,2))
-extern void zone_check_a_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_a_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_a_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_a_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_ip4(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_delimiter(parser, type, token);
-  accept_rr(parser, user_data);
+  if ((r = parse_ip4(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_ns_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_ns_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_ns_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_ns_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_name(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_delimiter(parser, type, token);
-  accept_rr(parser, user_data);
+  if ((r = parse_name(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_cname_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_cname_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_cname_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_cname_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_name(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_delimiter(parser, type, token);
-  accept_rr(parser, user_data);
+  if ((r = parse_name(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_soa_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_soa_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_soa_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_soa_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_name(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_field(parser, type, &type->rdata.fields[1], token);
-  parse_name(parser, type, &type->rdata.fields[1], token);
+  if ((r = parse_name(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_name(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int32(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_ttl(parser, type, &type->rdata.fields[3], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_ttl(parser, type, &type->rdata.fields[4], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_ttl(parser, type, &type->rdata.fields[5], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_ttl(parser, type, &type->rdata.fields[6], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
 
-  lex_field(parser, type, &type->rdata.fields[2], token);
-  parse_int32(parser, type, &type->rdata.fields[2], token);
-
-  lex_field(parser, type, &type->rdata.fields[3], token);
-  parse_ttl(parser, type, &type->rdata.fields[3], token);
-
-  lex_field(parser, type, &type->rdata.fields[4], token);
-  parse_ttl(parser, type, &type->rdata.fields[4], token);
-
-  lex_field(parser, type, &type->rdata.fields[5], token);
-  parse_ttl(parser, type, &type->rdata.fields[5], token);
-
-  lex_field(parser, type, &type->rdata.fields[6], token);
-  parse_ttl(parser, type, &type->rdata.fields[6], token);
-
-  lex_delimiter(parser, type, token);
-  accept_rr(parser, user_data);
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_mx_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_mx_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_mx_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_mx_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_int16(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_field(parser, type, &type->rdata.fields[1], token);
-  parse_name(parser, type, &type->rdata.fields[1], token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_name(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
 
-  lex_delimiter(parser, type, token);
-  accept_rr(parser, user_data);
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_txt_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_txt_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_txt_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_txt_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_string(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  while (lex(parser, token))
-    parse_string(parser, type, &type->rdata.fields[0], token);
+  do {
+    if ((r = parse_string(parser, type, &type->rdata.fields[0], token)) < 0)
+      return r;
+    lex(parser, token);
+  } while (token->code & (CONTIGUOUS | QUOTED));
 
-  accept_rr(parser, user_data);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_aaaa_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_aaaa_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_aaaa_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_aaaa_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_ip6(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_delimiter(parser, type, token);
-  accept_rr(parser, user_data);
+  if ((r = parse_ip6(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_srv_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_srv_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_srv_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_srv_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_int16(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_field(parser, type, &type->rdata.fields[1], token);
-  parse_int16(parser, type, &type->rdata.fields[1], token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_name(parser, type, &type->rdata.fields[3], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
 
-  lex_field(parser, type, &type->rdata.fields[2], token);
-  parse_int16(parser, type, &type->rdata.fields[2], token);
-
-  lex_field(parser, type, &type->rdata.fields[3], token);
-  parse_name(parser, type, &type->rdata.fields[3], token);
-
-  lex_delimiter(parser, type, token);
-  accept_rr(parser, user_data);
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_ds_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_ds_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_ds_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_ds_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_int16(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_field(parser, type, &type->rdata.fields[1], token);
-  parse_int8(parser, type, &type->rdata.fields[1], token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_symbol(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_symbol(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_base16(parser, type, &type->rdata.fields[3], token)) < 0)
+    return r;
 
-  lex_field(parser, type, &type->rdata.fields[2], token);
-  parse_int8(parser, type, &type->rdata.fields[2], token);
-
-  lex_field(parser, type, &type->rdata.fields[3], token);
-  parse_base16(parser, type, &type->rdata.fields[3], token);
-
-  accept_rr(parser, user_data);
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_rrsig_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_rrsig_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_rrsig_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_rrsig_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_type(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_field(parser, type, &type->rdata.fields[1], token);
-  parse_int8(parser, type, &type->rdata.fields[1], token);
+  if ((r = parse_type(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_symbol(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int8(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_ttl(parser, type, &type->rdata.fields[3], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_time(parser, type, &type->rdata.fields[4], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_time(parser, type, &type->rdata.fields[5], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[6], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_name(parser, type, &type->rdata.fields[7], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_base64(parser, type, &type->rdata.fields[8], token)) < 0)
+    return r;
 
-  lex_field(parser, type, &type->rdata.fields[2], token);
-  parse_int8(parser, type, &type->rdata.fields[2], token);
-
-  lex_field(parser, type, &type->rdata.fields[3], token);
-  parse_ttl(parser, type, &type->rdata.fields[3], token);
-
-  lex_field(parser, type, &type->rdata.fields[4], token);
-  parse_time(parser, type, &type->rdata.fields[4], token);
-
-  lex_field(parser, type, &type->rdata.fields[5], token);
-  parse_time(parser, type, &type->rdata.fields[5], token);
-
-  lex_field(parser, type, &type->rdata.fields[6], token);
-  parse_int16(parser, type, &type->rdata.fields[6], token);
-
-  lex_field(parser, type, &type->rdata.fields[7], token);
-  parse_name(parser, type, &type->rdata.fields[7], token);
-
-  lex_field(parser, type, &type->rdata.fields[8], token);
-  parse_base64(parser, type, &type->rdata.fields[8], token);
-
-  accept_rr(parser, user_data);
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_nsec_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_nsec_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_nsec_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_nsec_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_name(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_field(parser, type, &type->rdata.fields[1], token);
-  parse_nsec(parser, type, &type->rdata.fields[1], token);
+  if ((r = parse_name(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_nsec(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
 
-  accept_rr(parser, user_data);
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_dnskey_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_dnskey_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_dnskey_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_dnskey_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_int16(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_field(parser, type, &type->rdata.fields[1], token);
-  parse_int8(parser, type, &type->rdata.fields[1], token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int8(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_symbol(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_base64(parser, type, &type->rdata.fields[3], token)) < 0)
+    return r;
 
-  lex_field(parser, type, &type->rdata.fields[2], token);
-  parse_int8(parser, type, &type->rdata.fields[2], token);
-
-  lex_field(parser, type, &type->rdata.fields[3], token);
-  parse_base64(parser, type, &type->rdata.fields[3], token);
-
-  accept_rr(parser, user_data);
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_nsec3_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_nsec3_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_nsec3_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_nsec3_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_int8(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_field(parser, type, &type->rdata.fields[1], token);
-  parse_int8(parser, type, &type->rdata.fields[1], token);
+  if ((r = parse_symbol(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_symbol(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_salt(parser, type, &type->rdata.fields[3], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_base32(parser, type, &type->rdata.fields[4], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_nsec(parser, type, &type->rdata.fields[5], token)) < 0)
+    return r;
 
-  lex_field(parser, type, &type->rdata.fields[2], token);
-  parse_int16(parser, type, &type->rdata.fields[2], token);
-
-  lex_field(parser, type, &type->rdata.fields[3], token);
-  parse_salt(parser, type, &type->rdata.fields[3], token);
-
-  lex_field(parser, type, &type->rdata.fields[4], token);
-  parse_base32(parser, type, &type->rdata.fields[4], token);
-
-  lex_field(parser, type, &type->rdata.fields[5], token);
-  parse_nsec(parser, type, &type->rdata.fields[5], token);
-
-  accept_rr(parser, user_data);
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
-extern void zone_check_nsec3param_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+zone_nonnull_all
+extern int32_t zone_check_nsec3param_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_nsec3param_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_nsec3param_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  parse_int8(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
 
-  lex_field(parser, type, &type->rdata.fields[1], token);
-  parse_int8(parser, type, &type->rdata.fields[1], token);
+  if ((r = parse_symbol(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_symbol(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_salt(parser, type, &type->rdata.fields[3], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
 
-  lex_field(parser, type, &type->rdata.fields[2], token);
-  parse_int16(parser, type, &type->rdata.fields[2], token);
-
-  lex_field(parser, type, &type->rdata.fields[3], token);
-  parse_salt(parser, type, &type->rdata.fields[3], token);
-
-  lex_delimiter(parser, type, token);
-  accept_rr(parser, user_data);
+  return accept_rr(parser);
 }
 
-zone_nonnull((1,2))
+zone_nonnull_all
 extern void zone_check_unknown_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type, void *user_data);
+  zone_parser_t *parser, const zone_type_info_t *type);
 
-zone_nonnull((1,2,3))
-static void parse_unknown_rdata(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  zone_token_t *token,
-  void *user_data)
+zone_nonnull_all
+static int32_t parse_unknown_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
-  (void)user_data;
-  parse_base16(parser, type, &type->rdata.fields[0], token);
+  int32_t r;
+
+  if ((r = parse_base16(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+
+  // FIXME: verify date using the corresponding check_xxx_rdata function
+
+  return accept_rr(parser);
 }
 
 #define SYMBOLS(symbols) \
@@ -379,8 +401,8 @@ static void parse_unknown_rdata(
 typedef struct zone_type_descriptor zone_type_descriptor_t;
 struct zone_type_descriptor {
   zone_type_info_t info;
-  void (*check)(zone_parser_t *, const zone_type_info_t *, void *);
-  void (*parse)(zone_parser_t *, const zone_type_info_t *, zone_token_t *, void *);
+  int32_t (*check)(zone_parser_t *, const zone_type_info_t *);
+  int32_t (*parse)(zone_parser_t *, const zone_type_info_t *, token_t *);
 };
 
 diagnostic_push()
@@ -683,43 +705,47 @@ static const zone_type_descriptor_t types[] = {
 
 diagnostic_pop()
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void parse_owner(
+zone_nonnull_all
+static zone_really_inline int32_t parse_owner(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  const token_t *token)
 {
-  // a freestanding "@" denotes the origin
-  if (token->length == 1 && token->data[0] == '@') {
-    parser->owner = &parser->file->origin;
-    return;
+  int32_t r;
+  size_t n = 0;
+  uint8_t *o = parser->file->owner.octets;
+
+  if (zone_likely(token->code == CONTIGUOUS)) {
+    // a freestanding "@" denotes the origin
+    if (token->data[0] == '@' && !is_contiguous((uint8_t)token->data[1]))
+      goto relative;
+    r = scan_contiguous_name(parser, type, field, token, o, &n);
+    if (r == 0)
+      return (void)(parser->owner->length = n), ZONE_NAME;
+    if (r < 0)
+      return r;
+  } else if (token->code == QUOTED) {
+    r = scan_quoted_name(parser, type, field, token, o, &n);
+    if (r == 0)
+      return (void)(parser->owner->length = n), ZONE_NAME;
+    if (r < 0)
+      return r;
+  } else {
+    return have_string(parser, type, field, token);
   }
 
-  parser->cache.owner.serial++;
-  if (parser->cache.owner.serial == parser->cache.size)
-    parser->cache.owner.serial = 0;
-
-  parser->owner = &parser->cache.owner.blocks[parser->cache.owner.serial];
-  scan_name(parser, type, field, token,
-            parser->owner->octets,
-           &parser->owner->length);
-
-  if (parser->owner->octets[parser->owner->length - 1] == 0)
-    return;
-  if (parser->owner->length > 255 - parser->file->origin.length)
-    SEMANTIC_ERROR(parser, "Invalid name in owner");
-
-  memcpy(&parser->owner->octets[parser->owner->length],
-          parser->file->origin.octets,
-          parser->file->origin.length);
-  parser->owner->length += parser->file->origin.length;
+relative:
+  if (n > 255 - parser->file->origin.length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  memcpy(o+n, parser->file->origin.octets, parser->file->origin.length);
+  parser->owner->length = n + parser->file->origin.length;
+  return ZONE_NAME;
 }
 
-zone_always_inline()
-static inline void parse_rr(
-  zone_parser_t *parser, zone_token_t *token, void *user_data)
+zone_nonnull_all
+static zone_really_inline int32_t parse_rr(
+  zone_parser_t *parser, token_t *token)
 {
   static const zone_type_info_t unknown =
     { { 6, "record" }, 0, 0, { 0, NULL } };
@@ -729,112 +755,144 @@ static inline void parse_rr(
     { { 3, "ttl" }, ZONE_INT32, 0, { 0 } };
   static const zone_field_info_t type =
     { { 4, "type" }, ZONE_INT16, 0, { 0 } };
+  static const zone_string_t backslash_hash = { 2, "\\#" };
 
+  int32_t r;
   const zone_type_descriptor_t *descriptor;
   uint16_t code;
   uint32_t epoch;
 
   if (parser->file->start_of_line) {
     parse_owner(parser, &unknown, &owner, token);
-    lex_field(parser, &unknown, &type, token);
+    lex(parser, token);
   }
 
   if ((uint8_t)token->data[0] - '0' <= 9) {
-    scan_ttl(parser, &unknown, &ttl, token, &epoch);
+    if ((r = scan_ttl(parser, &unknown, &ttl, token, &epoch)) < 0)
+      return r;
     goto class_or_type;
-  }
-
-  switch (scan_type_or_class(parser, &unknown, &type, token, &code)) {
-    case ZONE_CLASS:
-      parser->file->last_class = code;
-      goto ttl_or_type;
-    default:
+  } else {
+    r = scan_type_or_class(parser, &unknown, &type, token, &code);
+    if (zone_likely(r == ZONE_TYPE)) {
       parser->file->last_type = code;
       goto rdata;
+    } else if (r == ZONE_CLASS) {
+      parser->file->last_class = code;
+      goto ttl_or_type;
+    } else {
+      assert(r < 0);
+      return r;
+    }
   }
 
 ttl_or_type:
-  lex_field(parser, &unknown, &type, token);
-  if ((uint8_t)token->data[0] - '0' <= 9) {
-    scan_ttl(parser, &unknown, &ttl, token, &epoch);
+  lex(parser, token);
+  if ((uint8_t)token->data[0] - '0' <= 9) { // << this is illegal before checking the code
+    if ((r = scan_ttl(parser, &unknown, &ttl, token, &epoch)) < 0)
+      return r;
     goto type;
   } else {
-    scan_type(parser, &unknown, &type, token, &code);
+    if ((r = scan_type(parser, &unknown, &type, token, &code)) < 0)
+      return r;
     parser->file->last_type = code;
     goto rdata;
   }
 
 class_or_type:
-  lex_field(parser, &unknown, &type, token);
-  switch (scan_type_or_class(parser, &unknown, &type, token, &code)) {
-    case ZONE_CLASS:
-      parser->file->last_class = code;
-      goto type;
-    default:
-      parser->file->last_type = code;
-      goto rdata;
+  lex(parser, token);
+  r = scan_type_or_class(parser, &unknown, &type, token, &code);
+  if (zone_likely(r == ZONE_TYPE)) {
+    parser->file->last_type = code;
+    goto rdata;
+  } else if (r == ZONE_CLASS) {
+    parser->file->last_class = code;
+    goto type;
+  } else {
+    assert(r < 0);
+    return r;
   }
 
 type:
-  lex_field(parser, &unknown, &type, token);
-  scan_type(parser, &unknown, &type, token, &code);
+  lex(parser, token);
+  if ((r = scan_type(parser, &unknown, &type, token, &code)) < 0)
+    return r;
   parser->file->last_type = code;
 
 rdata:
   // FIXME: check if type is directly indexable
   descriptor = &types[code];
 
-  // check if rdata starts with "\#" and, if so, parse generic rdata
-  lex_field(parser, &descriptor->info, &descriptor->info.rdata.fields[0], token);
-
   parser->rdata->length = 0;
 
-  if (token->length == 2 && strncmp(token->data, "\\#", 2) == 0) {
-    parse_unknown_rdata(parser, &descriptor->info, token, user_data);
-    descriptor->check(parser, &descriptor->info, user_data);
+  // check if rdata starts with "\#" and, if so, parse generic rdata
+  lex(parser, token);
+  if (token->code == CONTIGUOUS && compare(token, &backslash_hash) == 0) {
+    parse_unknown_rdata(parser, &descriptor->info, token);
+    return descriptor->check(parser, &descriptor->info);
   } else if (descriptor->parse) {
-    descriptor->parse(parser, &descriptor->info, token, user_data);
-  } else {
-    SEMANTIC_ERROR(parser, "Unknown record type in record");
+    return descriptor->parse(parser, &descriptor->info, token);
   }
+
+  SYNTAX_ERROR(parser, "Unknown record type in record");
 }
 
 // RFC1035 section 5.1
 // $INCLUDE <file-name> [<domain-name>] [<comment>]
-zone_nonnull((1,2))
-static inline void parse_dollar_include(
-  zone_parser_t *parser, zone_token_t *token, void *user_data)
+zone_nonnull_all
+static zone_really_inline int32_t parse_dollar_include(
+  zone_parser_t *parser, token_t *token)
 {
-  static const zone_field_info_t field =
-    { { 11, "domain-name" }, ZONE_NAME, 0, { 0 } };
+  static const zone_field_info_t fields[] = {
+    { { 9, "file-name" }, ZONE_STRING, 0, { 0 } },
+    { { 11, "domain-name" }, ZONE_NAME, 0, { 0 } }
+  };
   static const zone_type_info_t type =
-    { { 8, "$INCLUDE" }, 0, 0, { 1, &field } };
+    { { 8, "$INCLUDE" }, 0, 0, { 1, fields } };
 
+  int32_t r;
   zone_file_t *includer, *file;
   zone_name_block_t name;
   const zone_name_block_t *origin = &parser->file->origin;
-  zone_return_t result;
-
-  (void)user_data;
+  const uint8_t *delimiters;
 
   if (parser->options.no_includes)
     NOT_PERMITTED(parser, "$INCLUDE directive is disabled");
-  if (!lex(parser, token))
-    SYNTAX_ERROR(parser, "$INCLUDE directive takes a file-name argument");
-  if ((result = zone_open_file(parser, token, &file)) < 0)
-    RAISE(parser, result, "Cannot open file specified in $INCLUDE directive");
+  lex(parser, token);
+  if (token->code == CONTIGUOUS)
+    delimiters = contiguous;
+  else if (token->code == QUOTED)
+    delimiters = quoted;
+  else
+    return have_string(parser, &type, &fields[0], token);
 
-  if (lex(parser, token)) {
-    scan_name(parser, &type, &field, token, name.octets, &name.length);
-    if (name.octets[name.length - 1] != 0) {
-      zone_close_file(parser, file);
-      SYNTAX_ERROR(parser, "$INCLUDE directive requires an absolute domain");
-    }
-    if (lex(parser, token)) {
-      zone_close_file(parser, file);
-      SYNTAX_ERROR(parser, "$INCLUDE directive takes at most two arguments");
-    }
+  // FIXME: a more elegant solution probably exists
+  const char *p = token->data;
+  for (; delimiters[(uint8_t)*p] == token->code; p++) ;
+  const size_t n = (size_t)(p - token->data);
+
+  if ((r = zone_open_file(parser, &(zone_string_t){ n, token->data }, &file)) < 0)
+    return r;
+
+  // $INCLUDE directive may specify an origin
+  lex(parser, token);
+  if (token->code == CONTIGUOUS) {
+    r = scan_contiguous_name(
+      parser, &type, &fields[1], token, name.octets, &name.length);
+    if (r < 0)
+      goto invalid_name;
+    if (r != 0)
+      goto relative_name;
     origin = &name;
+    lex(parser, token);
+  } else if (token->code == QUOTED) {
+    r = scan_quoted_name(
+      parser, &type, &fields[1], token, name.octets, &name.length);
+    if (r < 0)
+      goto invalid_name;
+    if (r != 0)
+      goto relative_name;
+    origin = &name;
+    lex(parser, token);
   }
 
   // store the current owner to restore later if necessary
@@ -848,7 +906,10 @@ static inline void parse_dollar_include(
   file->last_ttl = includer->last_ttl;
   file->line = 1;
 
-  // check for circular includes
+  if ((r = have_delimiter(parser, &type, token)) < 0)
+    return r;
+
+  // check for recursive includes
   do {
     if (strcmp(includer->path, file->path) != 0)
       continue;
@@ -857,90 +918,105 @@ static inline void parse_dollar_include(
   } while ((includer = includer->includer));
 
   parser->file = file;
+  return 0;
+relative_name:
+  zone_close_file(parser, file);
+  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&type), NAME(&fields[1]));
+invalid_name:
+  zone_close_file(parser, file);
+  return r;
 }
 
 // RFC1035 section 5.1
 // $ORIGIN <domain-name> [<comment>]
 zone_nonnull((1,2))
-static inline void parse_dollar_origin(
-  zone_parser_t *parser, zone_token_t *token, void *user_data)
+static inline int32_t parse_dollar_origin(
+  zone_parser_t *parser, token_t *token)
 {
   static const zone_field_info_t field =
     { { 4, "name" }, ZONE_NAME, 0, { 0 } };
   static const zone_type_info_t type =
     { { 7, "$ORIGIN" }, 0, 0, { 1, &field } };
 
-  (void)user_data;
+  int32_t r;
 
-  if (!lex(parser, token))
-  scan_name(parser, &type, &field, token,
-            parser->file->origin.octets,
-           &parser->file->origin.length);
-  if (parser->file->origin.octets[parser->file->origin.length - 1] != 0)
-    SYNTAX_ERROR(parser, "Invalid name in $ORIGIN, not fully qualified");
-  if (lex(parser, token))
-    SYNTAX_ERROR(parser, "$ORIGIN takes just a single argument");
+  lex(parser, token);
+  if (zone_likely(token->code == CONTIGUOUS))
+    r = scan_contiguous_name(parser, &type, &field, token,
+                             parser->file->origin.octets,
+                            &parser->file->origin.length);
+  else if (token->code == QUOTED)
+    r = scan_quoted_name(parser, &type, &field, token,
+                         parser->file->origin.octets,
+                        &parser->file->origin.length);
+  else
+    return have_string(parser, &type, &field, token);
+
+  if (r < 0)
+    return r;
+  if (r > 0)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&field), NAME(&type));
+
+  lex(parser, token);
+  return have_delimiter(parser, &type, token);
 }
 
 // RFC2308 section 4
 // $TTL <TTL> [<comment>]
 zone_nonnull((1,2))
-static inline void parse_dollar_ttl(
-  zone_parser_t *parser, zone_token_t *token, void *user_data)
+static inline int32_t parse_dollar_ttl(
+  zone_parser_t *parser, token_t *token)
 {
   static const zone_field_info_t field =
     { { 3, "ttl" }, ZONE_INT32, 0, { 0 } };
   static const zone_type_info_t type =
     { { 4, "$TTL" }, 0, 0, { 1, &field } };
 
-  (void)user_data;
+  int32_t r;
 
-  if (!lex(parser, token))
-    SYNTAX_ERROR(parser, "$TTL directive takes a ttl argument");
+  lex(parser, token);
+  if ((r = scan_ttl(parser, &type, &field, token,
+                   &parser->file->last_ttl)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, &type, token)) < 0)
+    return r;
 
-  scan_ttl(parser, &type, &field, token, &parser->file->default_ttl);
-
-  if (lex(parser, token))
-    SYNTAX_ERROR(parser, "$TTL directive takes only a ttl argument");
-
-  parser->file->last_ttl = parser->file->default_ttl;
+  parser->file->default_ttl = parser->file->last_ttl;
+  return 0;
 }
 
-static inline zone_return_t parse(zone_parser_t *parser, void *user_data)
+static inline int32_t parse(zone_parser_t *parser)
 {
   static const zone_string_t ttl = { 4, "$TTL" };
   static const zone_string_t origin = { 7, "$ORIGIN" };
   static const zone_string_t include = { 8, "$INCLUDE" };
 
-  zone_token_t token;
+  int32_t r = 0;
+  token_t token;
 
-  for (;;) {
-    switch (lex(parser, &token)) {
-      case ZONE_CONTIGUOUS: // contiguous
-        if (!parser->file->start_of_line || token.data[0] != '$')
-          parse_rr(parser, &token, user_data);
-        else if (zone_compare(&token, &ttl) == 0)
-          parse_dollar_ttl(parser, &token, user_data);
-        else if (zone_compare(&token, &origin) == 0)
-          parse_dollar_origin(parser, &token, user_data);
-        else if (zone_compare(&token, &include) == 0)
-          parse_dollar_include(parser, &token, user_data);
-        else
-          parse_rr(parser, &token, user_data);
-        break;
-      case ZONE_QUOTED: // quoted (never a directive)
-        parse_rr(parser, &token, user_data);
-        break;
-      case ZONE_DELIMITER:
-        if (token.data == zone_end_of_file && parser->file->end_of_file == ZONE_NO_MORE_DATA)
-          return 0;
-        break;
-      default:
+  while (r >= 0) {
+    lex(parser, &token);
+    if (zone_likely(token.code == CONTIGUOUS)) {
+      if (!parser->file->start_of_line || token.data[0] != '$')
+        r = parse_rr(parser, &token);
+      else if (compare(&token, &ttl) == 0)
+        r = parse_dollar_ttl(parser, &token);
+      else if (compare(&token, &origin) == 0)
+        r = parse_dollar_origin(parser, &token);
+      else if (compare(&token, &include) == 0)
+        r = parse_dollar_include(parser, &token);
+      else
+        r = parse_rr(parser, &token);
+    } else if (token.code == QUOTED) {
+      r = parse_rr(parser, &token);
+    } else if (token.code == END_OF_FILE) {
+      if (parser->file->end_of_file == ZONE_NO_MORE_DATA)
         break;
     }
   }
 
-  return 0;
+  return r;
 }
 
 #endif // PARSER_H

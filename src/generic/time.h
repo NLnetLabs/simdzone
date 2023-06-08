@@ -9,76 +9,80 @@
 #ifndef TIME_H
 #define TIME_H
 
-/* Number of days per month (except for February in leap years). */
-static const int mdays[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+/* number of days per month (except for February in leap years) */
+static const uint8_t days_in_month[13] = {
+  0 /* no --month */, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-static int is_leap_year(int year)
+static const uint16_t days_to_month[13] = {
+  0 /* no --month */, 0, 31, 59,  90, 120, 151, 181, 212, 243, 273, 304, 334 };
+
+static uint64_t is_leap_year(uint64_t year)
 {
   return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
 }
 
-static int leap_days(int y1, int y2)
+static uint64_t leap_days(uint64_t y1, uint64_t y2)
 {
   --y1;
   --y2;
   return (y2/4 - y1/4) - (y2/100 - y1/100) + (y2/400 - y1/400);
 }
 
-/*
- * Code adapted from Python 2.4.1 sources (Lib/calendar.py).
- */
-static time_t mktime_from_utc(const struct tm *tm)
-{
-  int year = 1900 + tm->tm_year;
-  time_t days = 365 * (year - 1970) + leap_days(1970, year);
-  time_t hours;
-  time_t minutes;
-  time_t seconds;
-  int i;
-
-  for (i = 0; i < tm->tm_mon; ++i) {
-      days += mdays[i];
-  }
-  if (tm->tm_mon > 1 && is_leap_year(year)) {
-      ++days;
-  }
-  days += tm->tm_mday - 1;
-
-  hours = days * 24 + tm->tm_hour;
-  minutes = hours * 60 + tm->tm_min;
-  seconds = minutes * 60 + tm->tm_sec;
-
-  return seconds;
-}
-
-// FIXME: likely eligible for vectorization, see issue #22
-zone_nonnull_all()
-static inline void parse_time(
+// FIXME: very likely eligible for vectorization, see issue #22
+zone_nonnull_all
+static zone_really_inline int32_t parse_time(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  token_t *token)
 {
-  char buf[] = "YYYYmmddHHMMSS";
+  int32_t r;
 
-  if (token->length >= sizeof(buf))
-    SYNTAX_ERROR(parser, "Invalid %s in %s",
-                 field->name.data, type->name.data);
-  memcpy(buf, token->data, token->length);
-  buf[token->length] = '\0';
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
 
-  int matched;
-  struct tm tm;
-  matched = sscanf(buf, "%4d%2d%2d%2d%2d%2d",
-    &tm.tm_year, &tm.tm_mon, &tm.tm_mday, &tm.tm_hour, &tm.tm_min, &tm.tm_sec);
-  if (matched != 6 || matched == EOF)
-    SYNTAX_ERROR(parser, "Invalid %s in %s",
-                 field->name.data, type->name.data);
-  tm.tm_year -= 1900;
-  tm.tm_mon -= 1;
-  uint32_t time = htonl((uint32_t)mktime_from_utc(&tm));
+  uint64_t d[14]; // YYYYmmddHHMMSS
+  const char *p = token->data;
+  for (int i = 0; i < 14; i++) {
+    d[i] = (uint8_t)p[i] - '0';
+    if (d[i] > 9)
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  }
+
+  if (contiguous[ (uint8_t)p[14] ] == CONTIGUOUS)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  // code adapted from Python 2.4.1 sources (Lib/calendar.py)
+  const uint64_t year = (d[0] * 1000) + (d[1] * 100) + (d[2] * 10) + d[3];
+  const uint64_t mon = (d[4] * 10) + d[5];
+  const uint64_t mday = (d[6] * 10) + d[7];
+  const uint64_t hour = (d[8] * 10) + d[9];
+  const uint64_t min = (d[10] * 10) + d[11];
+  const uint64_t sec = (d[12] * 10) + d[13];
+
+  uint64_t days = 365 * (year - 1970) + leap_days(1970, year);
+
+  if (!mon || mon > 12)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  if (!mday || mday > days_in_month[mon])
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  if (hour > 23 || min > 59 || sec > 59)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  days += days_to_month[mday];
+  if (mon > 1 && is_leap_year(year))
+    days++;
+
+  days += mday - 1;
+
+  const uint64_t hours = days * 24 + hour;
+  const uint64_t minutes = hours * 60 + min;
+  const uint64_t seconds = minutes * 60 + sec;
+
+  uint32_t time = htonl((uint32_t)seconds);
   memcpy(&parser->rdata->octets[parser->rdata->length], &time, sizeof(time));
-  parser->rdata->length += sizeof(uint32_t);
+  parser->rdata->length += sizeof(time);
+  return ZONE_INT32;
 }
 
 #endif // TIME_H

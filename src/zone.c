@@ -14,7 +14,6 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <limits.h>
-#include <setjmp.h>
 #if _WIN32
 # include <windows.h>
 #endif
@@ -40,7 +39,7 @@ static char *strndup(const char *s, size_t n)
 
 static const char not_a_file[] = "<string>";
 
-static zone_return_t check_options(const zone_options_t *options)
+static int32_t check_options(const zone_options_t *options)
 {
   if (!options->accept.add)
     return ZONE_BAD_PARAMETER;
@@ -100,11 +99,11 @@ static int parse_origin(const char *origin, uint8_t str[255], size_t *len)
 #include "isadetection.h"
 
 #if HAVE_HASWELL
-extern zone_return_t zone_haswell_parse(zone_parser_t *, void *);
+extern int32_t zone_haswell_parse(zone_parser_t *, void *);
 #endif
 
 #if HAVE_WESTMERE
-extern zone_return_t zone_westmere_parse(zone_parser_t *, void *);
+extern int32_t zone_westmere_parse(zone_parser_t *, void *);
 #endif
 
 extern zone_return_t zone_fallback_parse(zone_parser_t *, void *);
@@ -113,7 +112,7 @@ typedef struct target target_t;
 struct target {
   const char *name;
   uint32_t instruction_set;
-  zone_return_t (*parse)(zone_parser_t *, void *);
+  int32_t (*parse)(zone_parser_t *, void *);
 };
 
 static const target_t targets[] = {
@@ -125,6 +124,9 @@ static const target_t targets[] = {
 #endif
   { "fallback", 0, &zone_fallback_parse }
 };
+
+diagnostic_push()
+msvc_diagnostic_ignored(4996)
 
 static inline const target_t *
 select_target(void)
@@ -149,29 +151,23 @@ select_target(void)
   return &targets[length - 1];
 }
 
-static zone_return_t parse(zone_parser_t *parser, void *user_data)
+diagnostic_pop()
+
+static int32_t parse(zone_parser_t *parser, void *user_data)
 {
   const target_t *target;
-  zone_return_t result;
 
   target = select_target();
   assert(target);
-
-  switch ((result = setjmp((void *)parser->environment))) {
-    case 0:
-      result = target->parse(parser, user_data);
-      assert(result == ZONE_SUCCESS);
-      break;
-    default:
-      assert(result < 0);
-      break;
-  }
-
-  return result;
+  parser->user_data = user_data;
+  return target->parse(parser, user_data);
 }
 
-zone_nonnull_all()
-static zone_return_t open_file(
+diagnostic_push()
+msvc_diagnostic_ignored(4996)
+
+zone_nonnull_all
+static int32_t open_file(
   zone_parser_t *parser, zone_file_t *file, const zone_string_t *path)
 {
   (void)parser;
@@ -181,7 +177,7 @@ static zone_return_t open_file(
 
 #if _WIN32
   char buf[1];
-  size_t length, size = GetFullPathName(file->name, sizeof(buf), buf, NULL);
+  DWORD length, size = GetFullPathName(file->name, sizeof(buf), buf, NULL);
   if (!size)
     return ZONE_IO_ERROR;
   if (!(file->path = malloc(size)))
@@ -215,12 +211,17 @@ static zone_return_t open_file(
   file->buffer.index = 0;
   file->start_of_line = true;
   file->end_of_file = ZONE_HAVE_DATA;
-  file->indexer.tape[0] = (zone_index_t){ file->buffer.data, 0 };
-  file->indexer.tape[1] = (zone_index_t){ file->buffer.data, 0 };
-  file->indexer.head = file->indexer.tape;
-  file->indexer.tail = file->indexer.tape;
+  file->fields.tape[0] = file->buffer.data;
+  file->fields.tape[1] = NULL;
+  file->fields.head = file->fields.tape;
+  file->fields.tail = file->fields.tape;
+  file->lines.tape[0] = 0;
+  file->lines.head = file->lines.tape;
+  file->lines.tail = file->lines.tape;
   return 0;
 }
+
+diagnostic_pop()
 
 static void set_defaults(zone_parser_t *parser)
 {
@@ -233,7 +234,7 @@ static void set_defaults(zone_parser_t *parser)
 diagnostic_push()
 clang_diagnostic_ignored(missing-prototypes)
 
-zone_nonnull_all()
+zone_nonnull_all
 void zone_close_file(
   zone_parser_t *parser, zone_file_t *file)
 {
@@ -246,10 +247,10 @@ void zone_close_file(
   if (file->buffer.data)
     free(file->buffer.data);
   file->buffer.data = NULL;
-  if (file->name)
+  if (file->name && file->name != not_a_file)
     free((char *)file->name);
   file->name = NULL;
-  if (file->path)
+  if (file->path && file->name != not_a_file)
     free((char *)file->path);
   file->path = NULL;
   (void)fclose(file->handle);
@@ -258,16 +259,16 @@ void zone_close_file(
     free(file);
 }
 
-zone_nonnull_all()
-zone_return_t zone_open_file(
+zone_nonnull_all
+int32_t zone_open_file(
   zone_parser_t *parser, const zone_string_t *path, zone_file_t **fileptr)
 {
   zone_file_t *file;
-  zone_return_t result;
+  int32_t result;
 
   if (!(file = malloc(sizeof(*file))))
     return ZONE_OUT_OF_MEMORY;
-  memset(file, 0, sizeof(*file) - sizeof(file->indexer.tape));
+  memset(file, 0, sizeof(*file));// - sizeof(file->fields.tape));
   if ((result = open_file(parser, file, path)) < 0)
     goto err_open;
 
@@ -290,7 +291,7 @@ void zone_close(zone_parser_t *parser)
   }
 }
 
-zone_return_t zone_open(
+int32_t zone_open(
   zone_parser_t *parser,
   const zone_options_t *options,
   zone_cache_t *cache,
@@ -298,7 +299,7 @@ zone_return_t zone_open(
   void *user_data)
 {
   zone_file_t *file;
-  zone_return_t result;
+  int32_t result;
 
   if ((result = check_options(options)) < 0)
     return result;
@@ -332,25 +333,23 @@ error:
 
 diagnostic_pop()
 
-zone_return_t zone_parse(
+int32_t zone_parse(
   zone_parser_t *parser,
   const zone_options_t *options,
   zone_cache_t *cache,
   const char *path,
   void *user_data)
 {
-  zone_return_t result;
-  volatile jmp_buf environment;
+  int32_t result;
 
   if ((result = zone_open(parser, options, cache, path, user_data)) < 0)
     return result;
-  parser->environment = &environment;
   result = parse(parser, user_data);
   zone_close(parser);
   return result;
 }
 
-zone_return_t zone_parse_string(
+int32_t zone_parse_string(
   zone_parser_t *parser,
   const zone_options_t *options,
   zone_cache_t *cache,
@@ -359,8 +358,7 @@ zone_return_t zone_parse_string(
   void *user_data)
 {
   zone_file_t *file;
-  zone_return_t result;
-  volatile jmp_buf environment;
+  int32_t result;
 
   if ((result = check_options(options)) < 0)
     return result;
@@ -372,8 +370,8 @@ zone_return_t zone_parse_string(
   if ((result = parse_origin(options->origin, file->origin.octets, &file->origin.length)) < 0)
     return result;
 
-  file->name = not_a_file;
-  file->path = not_a_file;
+  file->name = (char *)not_a_file;
+  file->path = (char *)not_a_file;
   file->handle = NULL;
   file->buffer.index = 0;
   file->buffer.length = length;
@@ -381,10 +379,13 @@ zone_return_t zone_parse_string(
   file->buffer.data = (char *)string;
   file->start_of_line = true;
   file->end_of_file = ZONE_READ_ALL_DATA;
-  file->indexer.tape[0] = (zone_index_t){ "\0", 0 };
-  file->indexer.tape[1] = (zone_index_t){ "\0", 0 };
-  file->indexer.head = file->indexer.tape;
-  file->indexer.tail = file->indexer.tape;
+  file->fields.tape[0] = "\0";
+  file->fields.tape[1] = NULL;
+  file->fields.head = file->fields.tape;
+  file->fields.tail = file->fields.tape;
+  file->lines.tape[0] = 0;
+  file->lines.head = file->lines.tape;
+  file->lines.tail = file->lines.tape;
 
   parser->cache.size = cache->size;
   parser->cache.owner.serial = 0;
@@ -397,7 +398,6 @@ zone_return_t zone_parse_string(
   file->line = 1;
 
   set_defaults(parser);
-  parser->environment = &environment;
   result = parse(parser, user_data);
   zone_close(parser);
   return result;

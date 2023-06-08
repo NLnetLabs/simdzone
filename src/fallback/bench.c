@@ -15,16 +15,18 @@
 diagnostic_push()
 clang_diagnostic_ignored(missing-prototypes)
 
-zone_return_t zone_bench_fallback_lex(zone_parser_t *parser, size_t *tokens)
+int32_t zone_bench_fallback_lex(zone_parser_t *parser, size_t *tokens)
 {
-  zone_token_t token;
-  zone_return_t result;
+  token_t token;
 
   (*tokens) = 0;
-  while ((result = lex(parser, &token)) >= 0 && token.data != zone_end_of_file)
+  lex(parser, &token);
+  while (token.code > 0) {
     (*tokens)++;
+    lex(parser, &token);
+  }
 
-  return result;
+  return token.code ? -1 : 0;
 }
 
 diagnostic_pop()

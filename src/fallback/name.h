@@ -9,84 +9,128 @@
 #ifndef NAME_H
 #define NAME_H
 
-#include <string.h>
-
-static inline zone_return_t scan_name(
+zone_nonnull_all
+static zone_really_inline int32_t scan_name(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token,
-  uint8_t octets[256],
+  const uint8_t delimiters[256],
+  const token_t *token,
+  uint8_t octets[255 + ZONE_BLOCK_SIZE],
   size_t *length)
 {
-  size_t label = 0, octet = 1;
+  uint8_t *l = octets, *b = octets + 1;
+  const uint8_t *bs = octets + 255;
+  const char *s = token->data;
 
-  (void)type;
+  l[0] = 0;
 
-  for (size_t i=0; i < token->length; i++) {
-    if (octet >= 255)
-      SYNTAX_ERROR(parser, "Invalid name in %s, name exceeds maximum",
-        field->name.data);
+  while (b < bs) {
+    const uint8_t c = (uint8_t)s[0];
+    if (c == '\\') {
+      uint8_t d[3];
+      d[0] = (uint8_t)s[1] - '0';
 
-    // FIXME: implement support for escape sequences
-
-    switch (token->data[i]) {
-      case '.':
-        if (octet - 1 == label)
-          SYNTAX_ERROR(parser, "Invalid name in %s, empty label",
-            field->name.data);
-        // fall through
-      case '\0':
-        if ((octet - 1) - label > 63)
-          SYNTAX_ERROR(parser, "Invalid name in %s, label exceeds maximum",
-            field->name.data);
-        octets[label] = (uint8_t)((octet - label) - 1);
-        if (token->data[i] != '.')
-          break;
-        label = octet;
-        octets[octet++] = 0;
-        break;
-      default:
-        octets[octet++] = (unsigned char)token->data[i];
-        break;
+      if (d[0] > 2) {
+        b[0] = (uint8_t)s[1];
+        b += 1; s += 2;
+      } else {
+        uint8_t m = d[0] < 2 ? 9 : 5;
+        d[1] = (uint8_t)s[2] - '0';
+        d[2] = (uint8_t)s[3] - '0';
+        if (d[1] > m || d[2] > m)
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        b[0] = d[0] * 100 + d[1] * 10 + d[0];
+        b += 1; s += 4;
+      }
+    } else if (c == '.') {
+      if ((b - 1) - l > 63 || (b - 1) - l == 0)
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      l[0] = (uint8_t)((b - 1) - l);
+      l = b;
+      l[0] = 0;
+      b += 1; s += 1;
+    } else if (delimiters[c] != token->code) {
+      if ((b - 1) - l > 63)
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      l[0] = (uint8_t)((b - 1) - l);
+      break;
+    } else {
+      b[0] = c;
+      b += 1; s += 1;
     }
   }
 
-  *length = octet;
-  return 0;
+  if (delimiters[(uint8_t)*s] == token->code)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  *length = (size_t)(b - octets);
+  return l[0] == 0 ? 0 : ZONE_NAME;
 }
 
-static inline void parse_name(
+zone_nonnull_all
+static zone_really_inline int32_t scan_contiguous_name(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  const token_t *token,
+  uint8_t octets[255 + ZONE_BLOCK_SIZE],
+  size_t *length)
 {
-  // a freestanding "@" denotes the current origin
-  if (token->length == 1 && token->data[0] == '@') {
-    memcpy(&parser->rdata->octets[parser->rdata->length],
-            parser->file->origin.octets,
-            parser->file->origin.length);
-    parser->rdata->length += parser->file->origin.length;
-    return;
+  return scan_name(parser, type, field, contiguous, token, octets, length);
+}
+
+zone_nonnull_all
+static zone_really_inline int32_t scan_quoted_name(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const token_t *token,
+  uint8_t octets[255 + ZONE_BLOCK_SIZE],
+  size_t *length)
+{
+  return scan_name(parser, type, field, quoted, token, octets, length);
+}
+
+zone_nonnull_all
+static zone_really_inline int32_t parse_name(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const token_t *token)
+{
+  int32_t r;
+  size_t n = 0;
+  uint8_t *o = &parser->rdata->octets[parser->rdata->length];
+
+  if (zone_likely(token->code == CONTIGUOUS)) {
+    // a freestanding "@" denotes the current origin
+    if (token->data[0] == '@' && !is_contiguous((uint8_t)token->data[1]))
+      goto relative;
+    r = scan_contiguous_name(parser, type, field, token, o, &n);
+    if (r == 0)
+      goto absolute;
+    if (r < 0)
+      return r;
+  } else if (token->code == QUOTED) {
+    r = scan_quoted_name(parser, type, field, token, o, &n);
+    if (r == 0)
+      goto absolute;
+    if (r < 0)
+      return r;
+  } else {
+    return have_string(parser, type, field, token);
   }
 
-  size_t length;
-  uint8_t *data = &parser->rdata->octets[parser->rdata->length];
-
-  scan_name(parser, type, field, token, data, &length);
-  assert(length != 0);
-  if (data[length - 1] == 0)
-    return;
-
-  if (length > 256 - parser->file->origin.length)
-    SYNTAX_ERROR(parser, "Invalid name in %s, exceeds 255 octets", field->name.data);
-
-  parser->rdata->length += length;
-  memcpy(&parser->rdata->octets[parser->rdata->length],
-          parser->file->origin.octets,
-          parser->file->origin.length);
-  parser->rdata->length += parser->file->origin.length;
+relative:
+  if (n > 255 - parser->file->origin.length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  memcpy(o+n, parser->file->origin.octets, parser->file->origin.length);
+  parser->rdata->length += n + parser->file->origin.length;
+  return ZONE_NAME;
+absolute:
+  parser->rdata->length += n;
+  return ZONE_NAME;
 }
 
 #endif // NAME_H

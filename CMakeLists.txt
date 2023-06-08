@@ -128,22 +128,20 @@ generate_export_header(
   zone BASE_NAME ZONE EXPORT_FILE_NAME include/zone/export.h)
 
 target_include_directories(
-  zone PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-               $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-       PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-               $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+  zone PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
 target_sources(zone PRIVATE
   src/zone.c
   src/types.c
-  src/table.c
   src/log.c
   src/parser.c
-  src/lexer.c
+  src/fallback/parser.c
   src/generic/base16.c
   src/generic/base32.c
-  src/generic/base64.c
-  src/fallback/parser.c)
+  src/generic/base64.c)
 
 add_executable(zone-bench src/bench.c src/fallback/bench.c)
 target_include_directories(

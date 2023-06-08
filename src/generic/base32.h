@@ -15,114 +15,100 @@ static const uint8_t b32rmap_special = 0xf0;
 static const uint8_t b32rmap_end = 0xfd;
 static const uint8_t b32rmap_space = 0xfe;
 
-zone_always_inline()
-zone_nonnull_all()
-static inline void parse_base32(
+zone_nonnull_all
+static zone_really_inline int32_t parse_base32(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  zone_token_t *token)
+  token_t *token)
 {
+  int32_t r;
   uint32_t state = 0;
 
-    size_t i = 0;
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
 
-    for (; i < token->length; i++) {
-      const uint8_t ofs = zone_b32rmap[(uint8_t)token->data[i]];
+  const char *p = token->data;
+  for (;; p++) {
+    const uint8_t ofs = zone_b32rmap[(uint8_t)*p];
 
-      if (ofs >= b32rmap_special) {
-        // ignore whitespace
-        if (ofs == b32rmap_space)
-          continue;
-        // end of base32 characters
-        if (ofs == b32rmap_end)
-          break;
-        goto bad_char;
-      }
+    if (ofs >= b32rmap_special)
+      break;
 
-      switch (state) {
-        case 0:
-          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 3);
-          state = 1;
-          break;
-        case 1:
-          parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 2);
-          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 6);
-          state = 2;
-          break;
-        case 2:
-          parser->rdata->octets[parser->rdata->length  ] |= (uint8_t)(ofs << 1);
-          state = 3;
-          break;
-        case 3:
-          parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 4);
-          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 4);
-          state = 4;
-          break;
-        case 4:
-          parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 1);
-          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 7);
-          state = 5;
-          break;
-        case 5:
-          parser->rdata->octets[parser->rdata->length  ] |= (uint8_t)(ofs << 2);
-          state = 6;
-          break;
-        case 6:
-          parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 3);
-          parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 5);
-          state = 7;
-          break;
-        case 7:
-          parser->rdata->octets[parser->rdata->length++] |= ofs;
-          state = 0;
-          break;
-      }
+    switch (state) {
+      case 0:
+        parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 3);
+        state = 1;
+        break;
+      case 1:
+        parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 2);
+        parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 6);
+        state = 2;
+        break;
+      case 2:
+        parser->rdata->octets[parser->rdata->length  ] |= (uint8_t)(ofs << 1);
+        state = 3;
+        break;
+      case 3:
+        parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 4);
+        parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 4);
+        state = 4;
+        break;
+      case 4:
+        parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 1);
+        parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 7);
+        state = 5;
+        break;
+      case 5:
+        parser->rdata->octets[parser->rdata->length  ] |= (uint8_t)(ofs << 2);
+        state = 6;
+        break;
+      case 6:
+        parser->rdata->octets[parser->rdata->length++] |= (uint8_t)(ofs >> 3);
+        parser->rdata->octets[parser->rdata->length  ]  = (uint8_t)(ofs << 5);
+        state = 7;
+        break;
+      case 7:
+        parser->rdata->octets[parser->rdata->length++] |= ofs;
+        state = 0;
+        break;
     }
+  }
 
-    if (i < token->length) {
-      assert(token->data[i] == '=');
-      for (; i < token->length ; i++) {
-        if (zone_b32rmap[(uint8_t)token->data[i]] == b32rmap_space)
-          continue;
-        if (token->data[i] != '=')
-          goto bad_char;
-
-        switch (state) {
-          case 0: // invalid
-          case 1:
-          case 3:
-          case 6:
-            goto bad_char;
-          case 2: // require six pad characters
-            state = 13;
-            continue;
-          case 4: // require four pad characters
-            state = 11;
-            continue;
-          case 5: // require three pad characters
-            state = 10;
-            break;
-          case 7: // require one pad character
-            state = 8;
-            break;
-          default:
-            if (state == 8)
-              goto bad_char;
-            assert(state > 8);
-            state--;
-            break;
-        }
-      }
+  for (; *p == '-'; p++) {
+    switch (state) {
+      case 0: // invalid
+      case 1:
+      case 3:
+      case 6:
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      case 2: // require six pad characters
+        state = 13;
+        continue;
+      case 4: // require four pad characters
+        state = 11;
+        continue;
+      case 5: // require three pad characters
+        state = 10;
+        break;
+      case 7: // require one pad character
+        state = 8;
+        break;
+      default:
+        if (state == 8)
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        assert(state > 8);
+        state--;
+        break;
     }
+  }
 
+  if (contiguous[ (uint8_t)*p ] == CONTIGUOUS)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
   if (state != 0 && state != 8)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s record",
-                   field->name.data, type->name.data);
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  return;
-bad_char:
-  SEMANTIC_ERROR(parser, "Invalid base32 sequence");
+  return ZONE_STRING;
 }
 
 #endif // BASE32_H
