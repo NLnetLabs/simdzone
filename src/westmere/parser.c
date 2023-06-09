@@ -22,7 +22,7 @@
 #include "generic/time.h"
 #include "generic/name.h"
 #include "generic/type.h"
-#include "generic/ip4.h"
+#include "westmere/ip4.h"
 #include "generic/ip6.h"
 #include "generic/text.h"
 #include "generic/base16.h"
