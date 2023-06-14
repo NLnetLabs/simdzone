@@ -62,9 +62,8 @@ characters that overlap with any structural characters and in practice, it
 really never happens. The same applies to base64 sequences, which was
 specifically designed to encode binary data in printable ASCII characters. To
 quote a field and include whitespace is more-or-less instructing the parser
-to not ignore it. The current implementation is such that any field may be
-quoted, but it MUST actually disallow fields that cannot contain structural
-characters to be quoted.
+to not ignore it. Fields that cannot contain structural characters, i.e.
+anything other than domain names and text strings, MUST not be quoted.
 
 > BIND does not accept quoted fields for A or NS RDATA. TTL values in SOA
 > RDATA, base64 Signature in DNSKEY RDATA, as well as type, class and TTL
