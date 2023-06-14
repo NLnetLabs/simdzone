@@ -221,12 +221,11 @@ static inline int sse_inet_aton(const char* ipv4_string, const size_t ipv4_strin
 // processors in operation today (June 2023).
 //
 // See also sse_inet_aton for a version that takes a string length
-static inline int sse_inet_aton_16(const char* ipv4_string, uint8_t * destination) {
+static inline int sse_inet_aton_16(const char* ipv4_string, uint8_t* destination, size_t* restrict ipv4_string_length) {
   const __m128i input = _mm_loadu_si128((const __m128i *)ipv4_string);
   const __m128i dot = _mm_set1_epi8('.');
   // locate dots
   uint16_t dotmask;
-  int ipv4_string_length;
   {
     const __m128i ascii0_9 = _mm_setr_epi8(
       '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 0, 0, 0, 0, 0, 0);
@@ -239,7 +238,7 @@ static inline int sse_inet_aton_16(const char* ipv4_string, uint8_t * destinatio
     // credit @aqrit
     m ^= (m + 1); // mask of lowest clear bit and below
     dotmask = ~digit_mask & m;
-    ipv4_string_length = __builtin_popcount(m) - 1;
+    *ipv4_string_length = __builtin_popcount(m) - 1;
   }
   // build a hashcode
   const uint8_t hashcode = (uint8_t)((6639 * dotmask) >> 13);
@@ -292,7 +291,7 @@ static inline int sse_inet_aton_16(const char* ipv4_string, uint8_t * destinatio
   const __m128i t6 = _mm_packus_epi16(t5, t5);
   uint32_t address =  (uint32_t)_mm_cvtsi128_si32(t6);
   memcpy(destination, &address, 4);
-  return (ipv4_string_length - (int)pat[6]);
+  return (int)(*ipv4_string_length - (size_t)pat[6]);
 }
 
 zone_always_inline()
@@ -306,8 +305,10 @@ static inline void parse_ip4(
   if (token->length > INET_ADDRSTRLEN)
     SEMANTIC_ERROR(parser, "Invalid %s in %s",
                    field->name.data, type->name.data);
+  size_t computed_length;
   // Note that this assumes that reading up to token->data + 16 is safe (i.e., we do not cross a page).
-  if (sse_inet_aton_16(token->data, &parser->rdata->octets[parser->rdata->length]) != 1)
+  if ((sse_inet_aton_16(token->data, &parser->rdata->octets[parser->rdata->length], &computed_length) != 1)
+      || (computed_length != token->length))
     SEMANTIC_ERROR(parser, "Invalid %s in %s",
                    field->name.data, type->name.data);
   parser->rdata->length += sizeof(struct in_addr);
