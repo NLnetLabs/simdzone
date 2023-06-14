@@ -265,11 +265,9 @@ static inline int sse_inet_aton_16(const char* ipv4_string, uint8_t * destinatio
       return 0;
     }
   }
-  // replace null values with '0'
-  __m128i t1b = _mm_blendv_epi8(t1, ascii0, pattern);
 
   // subtract '0'
-  const __m128i t2 = _mm_sub_epi8(t1b, ascii0);
+  const __m128i t2 = _mm_subs_epu8(t1, ascii0);
   // check that there is no dot
   {
     const __m128i t2me = _mm_cmpeq_epi8(t1, dot);
