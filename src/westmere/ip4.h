@@ -186,7 +186,7 @@ static int sse_inet_aton(const char* ipv4_string, const size_t ipv4_string_lengt
   const __m128i t6 = _mm_packus_epi16(t5, t5);
   uint32_t address =  _mm_cvtsi128_si32(t6);
   memcpy(destination, &address, 4);
-  return 1;
+  return ipv4_string_length - (size_t)pat[6];
 }
 
 zone_always_inline()
