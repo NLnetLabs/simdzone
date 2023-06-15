@@ -116,6 +116,8 @@ static const uint8_t patterns[81][16] = {
 };
 
 
+#if 0
+
 // convert IPv4 from text to binary form.
 //
 // ipv4_string points to a character string containing an IPv4 network address in dotted-decimal format
@@ -205,6 +207,8 @@ static inline int sse_inet_aton(const char* ipv4_string, const size_t ipv4_strin
   return (int)(ipv4_string_length - (size_t)pat[6]);
 }
 
+#endif
+
 // convert IPv4 from text to binary form.
 //
 // ipv4_string points to a character string containing an IPv4 network address in dotted-decimal format
@@ -238,7 +242,7 @@ static inline int sse_inet_aton_16(const char* ipv4_string, uint8_t* destination
     // credit @aqrit
     m ^= (m + 1); // mask of lowest clear bit and below
     dotmask = ~digit_mask & m;
-    *ipv4_string_length = __builtin_popcount(m) - 1;
+    *ipv4_string_length = count_ones(m) - 1;
   }
   // build a hashcode
   const uint8_t hashcode = (uint8_t)((6639 * dotmask) >> 13);
