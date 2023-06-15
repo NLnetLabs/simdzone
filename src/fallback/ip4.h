@@ -25,6 +25,7 @@ static zone_really_inline int32_t parse_ip4(
   const uint8_t *os = o;
   uint64_t n = 0;
   const char *p = token->data;
+  static const uint8_t m[] = { 0, 0, 10, 100 };
 
   *o = 0;
   for (const char *ps = p;; p++) {
@@ -32,7 +33,7 @@ static zone_really_inline int32_t parse_ip4(
     if (d <= 9) {
       n = n * 10 + (uint8_t)d;
     } else {
-      if (!(p - ps) || p - ps > 3 || n > 255 || o - os > 3)
+      if (!(p - ps) || p - ps > 3 || n < m[(p - ps)] || n > 255 || o - os > 3)
         SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
       ps = p + 1;
       *o++ = (uint8_t)n;
