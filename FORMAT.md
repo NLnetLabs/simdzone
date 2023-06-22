@@ -3,7 +3,7 @@
 Zone files are text files that contain resource records (RRs) in text form.
 Zones can be defined by expressing them in the form of a list of RRs.
 
-Zone files were originally specified in [RFC1035 Section 5], but the DNS
+Zone files were originally specified in RFC1035 Section 5, but the DNS
 has seen many additions since and the specification is rather ambiguous.
 Consequently, various name servers implement slightly different dialects. This
 document aims to clarify the format by listing (some of) the relevant
@@ -148,18 +148,65 @@ anything other than domain names and text strings, MUST not be quoted.
   > the number of includes to 10 by default (compile option). For security, it
   > must be possible to set a hard limit.
 
-* Quoting of domain names is allowed.
-  RFC1035 states: The labels in the domain name are expressed as character
-  strings and separated by dots.
-  RFC1035 also states: \<character-string\> is expressed in one or two ways:
-  as contiguous set of characters without interior spaces, or as a string
-  beginning with a " and ending with a ".
+* Should quoting of domain names be supported?
+  RFC1035: The labels in the domain name are expressed as character strings
+  and separated by dots.
+  RFC1035: \<character-string\> is expressed in one or two ways:
+  as \<contiguous\> (characters without interior spaces), or as \<quoted\>.
 
-  > NSD and BIND accept the owner if it is quoted.
+  However, quoted domain names are very uncommon. Implementations handle
+  quoted names both in OWNER and RDATA very differently.
+
+  * BIND
+    * owner: yes, interpreted as quoted
+      ```
+      dig @127.0.0.1 A quoted.example.com.
+      ```
+      ```
+      quoted.example.com.  xxx  IN  A  x.x.x.x
+      ```
+    * rdata: no, syntax error (even with `check-names master ignored;`)
+  * Knot
+    * owner: no, syntax error
+    * rdata: no, syntax error
+  * PowerDNS
+    * owner: no, not interpreted as quoted
+      ```
+      pdnsutil list-zone example.com.
+      ```
+      ```
+      "quoted".example.com  xxx  IN  A  x.x.x.x
+      ```
+    * rdata: no, not interpreted as quoted
+      ```
+      dig @127.0.0.1 NS example.com.
+      ```
+      ```
+      example.com.  xxx  IN  NS  \"quoted.example.com.\".example.com.
+      ```
+
   > The text "The labels in the domain name" can be confusing as one might
   > interpret that as stating that each label can individually can be quoted,
   > that is however not the case. NSD and BIND both print a syntax error if
   > such a construct occurs.
+
+  > [libzscanner](https://github.com/CZ-NIC/knot/tree/master/src/libzscanner),
+  > the (standalone) zone parser used by Knot seems mosts consistent.
+
+* Should any domain names that are not valid host names as specified by
+  RFC1123 section 2, i.e. use characters not in the preferred naming syntax
+  as specified by RFC1035 section 2.3.1, be accepted? RFC2181 section 11 is
+  very specific on this topic, but it merely states that labels may contain
+  characters outside the set on the wire, it does not address what is, or is
+  not, allowed in zone files.
+
+  BIND's zone parser throws a syntax error for any name that is not a valid
+  hostname unless `check-names master ignored;` is specified. Knot accepts
+  any non-structural character as expected.
+
+  * [RFC1123 section 2](https://datatracker.ietf.org/doc/html/rfc1123#section-2)
+  * [RFC1035 section 2.3.1](https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1)
+  * [RFC2181 section 11](https://datatracker.ietf.org/doc/html/rfc2181#section-11)
 
 * RFC1035 specifies two control directives "$INCLUDE" and "$ORIGIN". RFC2308
   specifies the "$TTL" directive. BIND implements the "$GENERATE" directive.
