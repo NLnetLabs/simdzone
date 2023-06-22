@@ -201,8 +201,9 @@ anything other than domain names and text strings, MUST not be quoted.
   not, allowed in zone files.
 
   BIND's zone parser throws a syntax error for any name that is not a valid
-  hostname unless `check-names master ignored;` is specified. Knot accepts
-  any non-structural character as expected.
+  hostname unless `check-names master ignored;` is specified. Knot
+  additionally accepts `-`, `_` and `/` according to
+  [NOTES](https://github.com/CZ-NIC/knot/blob/master/src/libzscanner/NOTES).
 
   * [RFC1123 section 2](https://datatracker.ietf.org/doc/html/rfc1123#section-2)
   * [RFC1035 section 2.3.1](https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1)
