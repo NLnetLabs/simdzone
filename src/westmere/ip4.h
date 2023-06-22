@@ -130,76 +130,54 @@ static const uint8_t patterns[81][16] = {
 // This function assumes that the processor supports SSE 4.1 instructions or better. That's true of most
 // processors in operation today (June 2023).
 static inline int sse_inet_aton(const char* ipv4_string, uint8_t* destination, size_t* restrict ipv4_string_length) {
-  const __m128i input = _mm_loadu_si128((const __m128i *)ipv4_string);
-  const __m128i dot = _mm_set1_epi8('.');
-  // locate dots
-  uint16_t dotmask;
-  {
-    const __m128i ascii0_9 = _mm_setr_epi8(
-      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 0, 0, 0, 0, 0, 0);
-    const __m128i digits = _mm_cmpeq_epi8(input, _mm_shuffle_epi8(ascii0_9, input));
-    
-    const __m128i t0 = _mm_cmpeq_epi8(input, dot);
-    dotmask = (uint16_t)_mm_movemask_epi8(t0);
-    const uint16_t digit_mask = (uint16_t)_mm_movemask_epi8(digits);
-    uint16_t m = digit_mask | dotmask;
-    // credit @aqrit
-    m ^= (m + 1); // mask of lowest clear bit and below
-    dotmask = ~digit_mask & m;
-    *ipv4_string_length = count_ones(m) - 1;
-  }
-  // build a hashcode
-  const uint8_t hashcode = (uint8_t)((6639 * dotmask) >> 13);
-  // grab the index of the shuffle mask
-  const uint8_t id = patterns_id[hashcode];
-  if (id >= 81) {
-    return 0;
-  }
-  const uint8_t *pat = &patterns[id][0];
 
-  const __m128i pattern = _mm_loadu_si128((const __m128i *)pat);
-  // The value of the shuffle mask at a specific index points at the last digit,
-  // we check that it matches the length of the input.
-  const __m128i ascii0 = _mm_set1_epi8('0');
-  const __m128i t0 = input;
+  __m128i v = _mm_loadu_si128((const __m128i *)ipv4_string);
 
-  __m128i t1 = _mm_shuffle_epi8(t0, pattern);
-  // check that leading digits of 2- 3- numbers are not zeros.
-  {
-    const __m128i eq0 = _mm_cmpeq_epi8(t1, ascii0);
-    if (!_mm_testz_si128(eq0, _mm_set_epi8(-1, 0, -1, 0, -1, 0, -1, 0,
-                                           0, 0, 0, 0, 0, 0, 0, 0))) {
+  __m128i is_dot = _mm_cmpeq_epi8(v, _mm_set1_epi8(0x2E));
+  uint32_t dot_mask = (uint32_t)_mm_movemask_epi8(is_dot);
+
+  // set non-digits to 0x80..0x89, set digits to 0x00..0x09
+  const __m128i saturation_distance = _mm_set1_epi8(0x76); // 0x7F - 9
+  v = _mm_xor_si128(v, _mm_set1_epi8(0x30)); // ascii '0'
+  v = _mm_adds_epu8(v, saturation_distance);
+  uint32_t non_digit_mask = (uint32_t)_mm_movemask_epi8(v);
+  v = _mm_subs_epi8(v, saturation_distance);
+
+  uint32_t bad_mask = dot_mask ^ non_digit_mask;
+  uint32_t clip_mask = bad_mask ^ (bad_mask - 1);
+  uint32_t partition_mask = non_digit_mask & clip_mask;
+
+  const uint32_t length = _mm_popcnt_u32(clip_mask) - 1;
+
+  uint32_t hash_key = (partition_mask * 0x00CF7800) >> 24;
+  uint8_t hash_id = patterns_id[hash_key];
+  if (hash_id >= 81) {
       return 0;
-    }
   }
+  const uint8_t* const pattern_ptr = &patterns[hash_id][0];
 
-  // subtract '0'
-  const __m128i t2 = _mm_subs_epu8(t1, ascii0);
-  // check that there is no dot
-  {
-    const __m128i t2me = _mm_cmpeq_epi8(t1, dot);
-    if (!_mm_test_all_zeros(t2me, t2me)) {
-      return 0;
-    }
-  }
-  // We do the computation, the Mula way.
-  const __m128i weights =
-      _mm_setr_epi8(1, 10, 1, 10, 1, 10, 1, 10, 100, 0, 100, 0, 100, 0, 100, 0);
-  const __m128i t3 = _mm_maddubs_epi16(t2, weights);
-  // In t3, we have 8 16-bit values, the first four combine the two first digits, and
-  // the 4 next 16-bit valued are made of the third digits.
-  const __m128i t4 = _mm_alignr_epi8(t3, t3, 8);
-  const __m128i t5 = _mm_add_epi16(t4, t3);
-  // Test that we don't overflow (over 255)
-  if (!_mm_testz_si128(t5, _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, -1, 0, -1,
-                                        0, -1, 0, -1, 0))) {
-    return 0;
-  }
+  __m128i shuf = _mm_loadu_si128((const __m128i *)pattern_ptr);
+  v = _mm_shuffle_epi8(v, shuf);
+
+  const __m128i mul_weights =
+      _mm_set_epi8(0,100, 0,100, 0,100, 0,100, 10,1, 10,1, 10,1, 10,1);
+  __m128i acc = _mm_maddubs_epi16(mul_weights, v);
+  __m128i swapped = _mm_shuffle_epi32(acc, _MM_SHUFFLE(1,0,3,2));
+  acc = _mm_adds_epu16(acc, swapped);
+
+  // check `v` for leading zeros in each partition, ignore lanes if partition has only one digit
+  // if hibyte of `acc` then bad_char or overflow
+  __m128i check_lz = _mm_xor_si128(_mm_cmpeq_epi8(_mm_setzero_si128(), v), shuf);
+  __m128i check_of = _mm_adds_epu16(_mm_set1_epi16(0x7F00), acc);
+  __m128i checks = _mm_or_si128(check_lz, check_of);
+  uint32_t check_mask = (uint32_t)_mm_movemask_epi8(checks);
+  check_mask &= 0x0000AA00; // the only lanes wanted
+
   // pack and we are done!
-  const __m128i t6 = _mm_packus_epi16(t5, t5);
-  uint32_t address =  (uint32_t)_mm_cvtsi128_si32(t6);
+  uint32_t address = (uint32_t)_mm_cvtsi128_si32(_mm_packus_epi16(acc, acc));
+  *ipv4_string_length = length;
   memcpy(destination, &address, 4);
-  return (int)(*ipv4_string_length - (size_t)pat[6]);
+  return length + check_mask - pattern_ptr[6];
 }
 
 zone_nonnull_all
