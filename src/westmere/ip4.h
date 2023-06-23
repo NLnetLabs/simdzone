@@ -147,7 +147,7 @@ static inline int sse_inet_aton(const char* ipv4_string, uint8_t* destination, s
   uint32_t clip_mask = bad_mask ^ (bad_mask - 1);
   uint32_t partition_mask = non_digit_mask & clip_mask;
 
-  const uint32_t length = _mm_popcnt_u32(clip_mask) - 1;
+  const uint32_t length = (uint32_t)count_ones(clip_mask) - 1;
 
   uint32_t hash_key = (partition_mask * 0x00CF7800) >> 24;
   uint8_t hash_id = patterns_id[hash_key];
@@ -177,7 +177,7 @@ static inline int sse_inet_aton(const char* ipv4_string, uint8_t* destination, s
   uint32_t address = (uint32_t)_mm_cvtsi128_si32(_mm_packus_epi16(acc, acc));
   *ipv4_string_length = length;
   memcpy(destination, &address, 4);
-  return length + check_mask - pattern_ptr[6];
+  return (int)(length + check_mask - pattern_ptr[6]);
 }
 
 zone_nonnull_all
