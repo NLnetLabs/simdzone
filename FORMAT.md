@@ -210,9 +210,15 @@ anything other than domain names and text strings, MUST not be quoted.
   * [RFC2181 section 11](https://datatracker.ietf.org/doc/html/rfc2181#section-11)
 
 * RFC1035 specifies two control directives "$INCLUDE" and "$ORIGIN". RFC2308
-  specifies the "$TTL" directive. BIND implements the "$GENERATE" directive.
-  Since "$" (dollar sign) is not reserved, "$GENERATE" (and "$TTL" before
-  RFC2308) is considered a valid hostname in other implementations. It seems
-  "$" is better considered a reserved character (possibly limiting it's
-  special status to the start of the line), to allow for reliable
-  extensibility in the future.
+  specifies the "$TTL" directive. BIND additionally implements the "$DATE" and
+  "$GENERATE" directives. Since "$" (dollar sign) is not reserved, both
+  "$DATE" and "$GENERATE" (and "$TTL" before RFC2308) are considered valid
+  domain names in other implementations (based on what is accepted for domain
+  names, see earlier points). It seems "$" is better considered a reserved
+  character (possibly limiting it's special special status to the start of the
+  line), to allow for reliable extensibility in the future.
+
+  > BIND seems to already throw an error if "$" is encountered, see
+  > `lib/dns/master.c`. Presumably, the "$DATE" directive is written when the
+  > zone is written to disk(?) In the code it is refererred to as
+  > __dump_time__ and later used to calculate __ttl_offset__.
