@@ -110,10 +110,13 @@ static const uint8_t quoted[256] = {
   0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02   // 0xf0 - 0xff
 };
 
-//
-// special buffer used to mark newlines with additional embedded newline count
-//
+// special constant to mark line feeds with additional line count. i.e. CRLF
+// within text. line feeds have no special meaning other than terminating the
+// record and require no further processing
 static const char line_feed[ZONE_BLOCK_SIZE] = { '\n', '\0' };
+
+// special constant used as data on errors
+static const char dummy_data[ZONE_BLOCK_SIZE] = { '\0' };
 
 zone_nonnull_all
 static zone_never_inline void step(zone_parser_t *parser, token_t *token);
@@ -131,6 +134,24 @@ static zone_really_inline int32_t have_contiguous(
   else if (token->code < 0)
     return token->code;
   else if (token->code == QUOTED)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  assert(token->code == END_OF_FILE || token->code == LINE_FEED);
+  SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
+}
+
+zone_nonnull_all
+zone_warn_unused_result
+static zone_really_inline int32_t have_quoted(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const token_t *token)
+{
+  if (zone_likely(token->code == QUOTED))
+    return token->code;
+  else if (token->code < 0)
+    return token->code;
+  else if (token->code == CONTIGUOUS)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
   assert(token->code == END_OF_FILE || token->code == LINE_FEED);
   SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
@@ -211,7 +232,7 @@ static zone_really_inline int32_t refill(zone_parser_t *parser)
 
 #define DEFER_ERROR(parser, token, error) \
   do { \
-    token->data = NULL; \
+    token->data = dummy_data; \
     token->code = error; \
     return; \
   } while (0)
@@ -219,7 +240,7 @@ static zone_really_inline int32_t refill(zone_parser_t *parser)
 #define DEFER_SYNTAX_ERROR(parser, token, ...) \
   do { \
     ZONE_LOG(parser, ZONE_ERROR, __VA_ARGS__); \
-    token->data = NULL; \
+    token->data = dummy_data; \
     token->code = ZONE_SYNTAX_ERROR; \
     return; \
   } while (0)

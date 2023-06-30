@@ -109,7 +109,7 @@ static zone_really_inline void scan(
       start++;
     } else if (code == QUOTED) {
       *parser->file->fields.tail++ = start;
-      start = scan_quoted(parser, start, end);
+      start = scan_quoted(parser, start+1, end);
     } else if (code == LEFT_PAREN) {
       *parser->file->fields.tail++ = start;
       start++;

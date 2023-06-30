@@ -15,6 +15,7 @@
 #include "table.h"
 #include "generic/scanner.h"
 #include "westmere/delimited.h"
+#include "westmere/string.h"
 #include "generic/number.h"
 #include "generic/ttl.h"
 #include "westmere/time.h"
@@ -27,6 +28,8 @@
 #include "generic/base32.h"
 #include "generic/base64.h"
 #include "generic/nsec.h"
+#include "generic/caa.h"
+#include "generic/ilnp64.h"
 #include "visit.h"
 #include "parser.h"
 
