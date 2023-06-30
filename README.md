@@ -31,9 +31,9 @@ $ time ./zone-bench parse ../../zones/com.zone
 Selected target haswell
 Parsed 341535548 records
 
-real    0m19.834s
-user    0m18.612s
-sys     0m1.176s
+real    0m18.721s
+user    0m17.503s
+sys     0m1.181s
 ```
 
 There are bound to be bugs and quite possibly smarter ways of implementing
