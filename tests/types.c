@@ -75,6 +75,9 @@ struct test {
 static const test_t tests[] = {
   { ZONE_A, a_text, RDATA(a) },
   { ZONE_NS, ns_text, RDATA(ns) }
+
+  // FIXME: add support for all supported record types
+
 };
 
 static zone_return_t add_rr(

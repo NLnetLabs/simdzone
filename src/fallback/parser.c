@@ -24,6 +24,8 @@
 #include "generic/base32.h"
 #include "generic/base64.h"
 #include "generic/nsec.h"
+#include "generic/caa.h"
+#include "generic/ilnp64.h"
 #include "visit.h"
 #include "parser.h"
 

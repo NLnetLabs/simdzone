@@ -10,7 +10,7 @@
 classes = [ 'CH', 'CS', 'HS', 'IN' ]
 
 types = [
-  'A', 'A6', 'AAAA', 'AFSDB', 'APL',
+  'A', 'A6', 'AAAA', 'AFSDB', 'APL', 'AVC',
   'CAA', 'CDS', 'CDNSKEY', 'CERT', 'CNAME', 'CSYNC',
   'DNAME', 'DS', 'DNSKEY', 'DHCID', 'DLV',
   'EUI48', 'EUI64',

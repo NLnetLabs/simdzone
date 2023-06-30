@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
-#ifndef STRING_H
-#define STRING_H
+#ifndef DELIMITED_H
+#define DELIMITED_H
 
 zone_nonnull_all
 static zone_really_inline void copy_and_scan_delimited(
@@ -47,4 +47,4 @@ static zone_really_inline void scan_delimited(
   block->delimiter = (uint32_t)_mm256_movemask_epi8(_mm256_or_si256(b, d));
 }
 
-#endif // STRING_H
+#endif // DELIMITED_H

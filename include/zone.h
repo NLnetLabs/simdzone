@@ -177,6 +177,8 @@ extern "C" {
 #define ZONE_URI (256u)
 /** Certification Authority Restriction @rfc{6844} */
 #define ZONE_CAA (257u)
+/** DNS Authoritative Source (DNS-AS) */
+#define ZONE_AVC (258u)
 /** DNSSEC Lookaside Validation @rfc{4431} */
 #define ZONE_DLV (32769u)
 /** @} */
@@ -250,6 +252,7 @@ typedef enum {
   // (B)inary (L)arge (Ob)ject. Inspired by relational database terminology.
   // Must be last.
   ZONE_BLOB,
+  ZONE_ILNP64,
   // hex fields
   // ZONE_EUI48 (ZONE_HEX6?)
   // ZONE_EUI64 (ZONE_HEX8?)
@@ -319,6 +322,8 @@ typedef enum {
  * record.
  */
 #define ZONE_SEQUENCE (1u << 11)
+
+#define ZONE_CAA_TAG (1u << 12)
 /** @} */
 
 typedef struct zone_rdata_info zone_rdata_info_t;
@@ -364,6 +369,8 @@ struct zone_type_info {
 // block will never contain 64 tokens, therefore, to optimize throughput,
 // allocate twice the size so consecutive index operations can be done
 #define ZONE_TAPE_SIZE (100 * (ZONE_BLOCK_SIZE + ZONE_BLOCK_SIZE))
+
+#define ZONE_RDATA_LIMIT (65535)
 
 typedef struct zone_name_block zone_name_block_t;
 struct zone_name_block {

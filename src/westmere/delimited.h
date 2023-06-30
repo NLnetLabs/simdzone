@@ -47,4 +47,4 @@ static zone_really_inline void scan_delimited(
   block->delimiter = (uint16_t)_mm_movemask_epi8(_mm_or_si128(b, d));
 }
 
-#endif // STRING_H
+#endif // DELIMITED_H
