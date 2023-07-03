@@ -24,7 +24,7 @@ static inline int leap_days(int y1, int y2) {
   return (y2 / 4 - y1 / 4) - (y2 / 100 - y1 / 100) + (y2 / 400 - y1 / 400);
 }
 
-bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
+static inline bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
   // We load the block of digits. We subtract 0x30 (the code point value of the
   // character '0'), and all bytes values should be between 0 and 9,
   // inclusively. We know that some character must be smaller that 9, for
