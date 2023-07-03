@@ -1,5 +1,5 @@
 /*
- * time.h -- some useful comment
+ * time.h -- parse_time function
  *
  * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *
@@ -28,7 +28,6 @@ static uint64_t leap_days(uint64_t y1, uint64_t y2)
   return (y2/4 - y1/4) - (y2/100 - y1/100) + (y2/400 - y1/400);
 }
 
-// FIXME: very likely eligible for vectorization, see issue #22
 zone_nonnull_all
 static zone_really_inline int32_t parse_time(
   zone_parser_t *parser,
