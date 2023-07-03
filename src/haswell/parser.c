@@ -17,7 +17,7 @@
 #include "haswell/delimited.h"
 #include "generic/number.h"
 #include "generic/ttl.h"
-#include "generic/time.h"
+#include "westmere/time.h"
 #include "generic/name.h"
 #include "generic/type.h"
 #include "westmere/ip4.h"
