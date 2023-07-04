@@ -38,9 +38,9 @@ static zone_really_inline void copy_contiguous_string_block(
   const __m256i ds = _mm256_and_si256(ds0, ds1);
 
   block->backslash =
-    (uint16_t)_mm256_movemask_epi8(ds);
+    (uint32_t)_mm256_movemask_epi8(ds);
   block->delimiter =
-    (uint16_t)_mm256_movemask_epi8(_mm256_cmpgt_epi8(ds, _mm256_setzero_si256()));
+    (uint32_t)_mm256_movemask_epi8(_mm256_cmpgt_epi8(ds, _mm256_setzero_si256()));
 }
 
 zone_nonnull_all
@@ -53,8 +53,8 @@ static zone_really_inline void copy_quoted_string_block(
   const __m256i i = _mm256_loadu_si256((const __m256i *)(text));
   _mm256_storeu_si256((__m256i *)wire, i);
 
-  block->backslash = (uint16_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8(i, b));
-  block->delimiter = (uint16_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8(i, q));
+  block->backslash = (uint32_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8(i, b));
+  block->delimiter = (uint32_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8(i, q));
 }
 
 #endif // STRING_H
