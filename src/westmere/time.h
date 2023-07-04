@@ -10,7 +10,8 @@
 #ifndef SSE_TIME_H
 #define SSE_TIME_H
 
-static const int mdays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+static const int mdays_minus_one[] = {30, 27, 30, 29, 30, 29, 30, 30, 29, 30, 29, 30};
+
 static const int mdays_cumulative[] = {0,   31,  59,  90,  120, 151, 181,
                                        212, 243, 273, 304, 334, 365};
 
@@ -24,7 +25,7 @@ static inline int leap_days(int y1, int y2) {
   return (y2 / 4 - y1 / 4) - (y2 / 100 - y1 / 100) + (y2 / 400 - y1 / 400);
 }
 
-static inline bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
+static bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
   // We load the block of digits. We subtract 0x30 (the code point value of the
   // character '0'), and all bytes values should be between 0 and 9,
   // inclusively. We know that some character must be smaller that 9, for
@@ -37,6 +38,9 @@ static inline bool sse_parse_time(const char *date_string, uint32_t *time_in_sec
   // getting a 16-bit value. We then repeat the same approach as before,
   // checking that the result is not too large.
   //
+  // We compute the month the good old ways, as an integer in [0,11], we
+  // check for overflows later.
+  uint64_t mo = (uint64_t)((date_string[4]-0x30)*10 + (date_string[5]-0x30) - 1);
   __m128i v = _mm_loadu_si128((const __m128i *)date_string);
   // loaded YYYYMMDDHHmmSS.....
   v = _mm_xor_si128(v, _mm_set1_epi8(0x30));
@@ -62,18 +66,8 @@ static inline bool sse_parse_time(const char *date_string, uint32_t *time_in_sec
 
   __m128i combined_limits =
       _mm_or_si128(abide_by_limits16, abide_by_limits); // must be all zero
-  // We want to disallow 0s for days and months... and we want to make
-  // sure that we don't go back in time prior to 1900.
-  __m128i limit16_low = _mm_setr_epi16(0x0109, 0, 0x0001, 0x0001, 0, 0, 0, 0);
-
-  __m128i abide_by_limits16_low =
-      _mm_subs_epu16(limit16_low, little_endian); // must be all zero
-  combined_limits = _mm_or_si128(combined_limits, abide_by_limits16_low);
 
   if (!_mm_test_all_zeros(combined_limits, combined_limits)) {
-    // FIXME: time stamp fields in RRSIG RRs may be expressed as a fourteen
-    //        digit value in the form YYYYMMDDHHmmSS, or as an unsigned number
-    //        of seconds with ten digits or less.
     return false;
   }
   // 0x000000SS0mmm0HHH`00DD00MM00YY00YY
@@ -91,15 +85,15 @@ static inline bool sse_parse_time(const char *date_string, uint32_t *time_in_sec
   uint64_t lo = (uint64_t)_mm_extract_epi64(v, 0);
   uint64_t yr = (lo * 0x64000100000000) >> 48;
 
-  // We checked above that dy and mo are >= 1
-  uint64_t mo = ((lo >> 32) & 0xff) - 1;
-  uint64_t dy = (uint64_t)_mm_extract_epi8(v, 6);
+  // We compute the day (starting at zero). We implicitly 
+  // check for overflows later.
+  uint64_t dy = (uint64_t)_mm_extract_epi8(v, 6) - 1;
 
   bool is_leap_yr = is_leap_year((int)yr);
-
-  if (dy > (uint64_t)mdays[mo]) { // unlikely branch
+  if(mo > 11) { return false; } // unlikely branch
+  if (dy > (uint64_t)mdays_minus_one[mo]) { // unlikely branch
     if (mo == 1 && is_leap_yr) {
-      if (dy != 29) {
+      if (dy != 29 - 1) {
         return false;
       }
     } else {
@@ -111,7 +105,7 @@ static inline bool sse_parse_time(const char *date_string, uint32_t *time_in_sec
   days += (uint64_t)mdays_cumulative[mo];
   days += is_leap_yr & (mo > 1);
 
-  days += dy - 1;
+  days += dy;
   uint64_t time_in_second64 = seconds + days * 60 * 60 * 24;
   *time_in_second = (uint32_t)time_in_second64;
   return time_in_second64 == (uint32_t)time_in_second64;
