@@ -18,7 +18,7 @@ static const uint16_t days_to_month[13] = {
 
 static uint64_t is_leap_year(uint64_t year)
 {
-  return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+  return (year % 4 == 0) & ((year % 100 != 0) | (year % 400 == 0));
 }
 
 static uint64_t leap_days(uint64_t y1, uint64_t y2)
@@ -59,19 +59,21 @@ static zone_really_inline int32_t parse_time(
   const uint64_t min = (d[10] * 10) + d[11];
   const uint64_t sec = (d[12] * 10) + d[13];
 
+  if (year < 1970 || year > 2106)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  uint64_t leap_year = is_leap_year(year);
   uint64_t days = 365 * (year - 1970) + leap_days(1970, year);
 
   if (!mon || mon > 12)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-  if (!mday || mday > days_in_month[mon])
+  if (!mday || mday > days_in_month[mon] + (leap_year & (mon == 2)))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
   if (hour > 23 || min > 59 || sec > 59)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  days += days_to_month[mday];
-  if (mon > 1 && is_leap_year(year))
-    days++;
-
+  days += days_to_month[mon];
+  days += (mon > 2) & leap_year;
   days += mday - 1;
 
   const uint64_t hours = days * 24 + hour;
