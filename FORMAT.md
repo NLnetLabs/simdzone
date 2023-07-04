@@ -222,3 +222,6 @@ anything other than domain names and text strings, MUST not be quoted.
   > `lib/dns/master.c`. Presumably, the "$DATE" directive is written when the
   > zone is written to disk(?) In the code it is refererred to as
   > __dump_time__ and later used to calculate __ttl_offset__.
+
+* BIND10 had a nice writeup on zone files, kindly provided by Shane Kerr.
+  [Zone File Loading Requirements on Wayback Machine](https://web.archive.org/web/20140928215002/http://bind10.isc.org:80/wiki/ZoneLoadingRequirements)
