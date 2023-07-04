@@ -57,7 +57,7 @@ void time_stamp_syntax(void **state)
     // febuary 29 non-leap year
     { ZONE_SYNTAX_ERROR, "20230229010101", 0 },
     // febuary 29 leap year
-    { ZONE_SYNTAX_ERROR, "20240229010101", 0 },
+    { ZONE_SUCCESS, "20240229010101", 1709168461 },
     // hour 24
     { ZONE_SYNTAX_ERROR, "20230101240101", 0 },
     // minute 60
