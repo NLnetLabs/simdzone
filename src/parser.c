@@ -167,7 +167,7 @@ static int32_t add(size_t *length, ssize_t count)
 {
   if (count < 0)
     return (int32_t)count;
-  *length = (size_t)count;
+  *length += (size_t)count;
   return 0;
 }
 
