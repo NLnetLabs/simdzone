@@ -71,6 +71,9 @@ static inline bool sse_parse_time(const char *date_string, uint32_t *time_in_sec
   combined_limits = _mm_or_si128(combined_limits, abide_by_limits16_low);
 
   if (!_mm_test_all_zeros(combined_limits, combined_limits)) {
+    // FIXME: time stamp fields in RRSIG RRs may be expressed as a fourteen
+    //        digit value in the form YYYYMMDDHHmmSS, or as an unsigned number
+    //        of seconds with ten digits or less.
     return false;
   }
   // 0x000000SS0mmm0HHH`00DD00MM00YY00YY
@@ -128,9 +131,12 @@ static zone_really_inline int32_t parse_time(
 
   const char *p = token->data;
   uint32_t sse_result;
-  if(!sse_parse_time(p, &sse_result)) {
+  if (!sse_parse_time(p, &sse_result))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-  }
+  // FIXME: once support for specifying as an unsigned number of seconds is
+  //        implemented, update this check too
+  if (contiguous[(uint8_t)token->data[14]] == CONTIGUOUS)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
   uint32_t time = htonl(sse_result);
   memcpy(&parser->rdata->octets[parser->rdata->length], &time, sizeof(time));
