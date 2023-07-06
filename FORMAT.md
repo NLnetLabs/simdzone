@@ -215,7 +215,7 @@ anything other than domain names and text strings, MUST not be quoted.
   "$DATE" and "$GENERATE" (and "$TTL" before RFC2308) are considered valid
   domain names in other implementations (based on what is accepted for domain
   names, see earlier points). It seems "$" is better considered a reserved
-  character (possibly limiting it's special special status to the start of the
+  character (possibly limiting its special special status to the start of the
   line), to allow for reliable extensibility in the future.
 
   > BIND seems to already throw an error if "$" is encountered, see
