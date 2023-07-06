@@ -181,7 +181,7 @@ void include_from_string(void **state)
 }
 
 //
-// x. test $INCLUDE of non existing file is handled gracefully
+// x. test $INCLUDE of nonexistent file is handled gracefully
 // x. test $INCLUDE is denied for files if disabled all together
 //
 
