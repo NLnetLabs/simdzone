@@ -15,14 +15,18 @@ static const int mdays_minus_one[] = {30, 27, 30, 29, 30, 29, 30, 30, 29, 30, 29
 static const int mdays_cumulative[] = {0,   31,  59,  90,  120, 151, 181,
                                        212, 243, 273, 304, 334, 365};
 
-static inline uint64_t is_leap_year(int year) {
-  return (year % 4 == 0) & ((year % 100 != 0) | (year % 400 == 0));
+/*
+  The 32-bit timestamp spans from year 1970 to 2106.
+  Therefore, the only special case for leap years is 2100.
+  We use that to produce fast functions.
+*/
+static inline uint32_t is_leap_year(uint32_t year) {  
+  return (year % 4 == 0) & (year != 2100);
 }
 
-static inline int leap_days(int y1, int y2) {
-  --y1;
-  --y2;
-  return (y2 / 4 - y1 / 4) - (y2 / 100 - y1 / 100) + (y2 / 400 - y1 / 400);
+static inline uint32_t leap_days(uint32_t year) { 
+  --year;
+  return (year/4 - 1970/4) - (year >= 2100);
 }
 
 static bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
@@ -89,7 +93,7 @@ static bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
   // check for overflows later.
   uint64_t dy = (uint64_t)_mm_extract_epi8(v, 6) - 1;
 
-  bool is_leap_yr = is_leap_year((int)yr);
+  bool is_leap_yr = (bool)is_leap_year((uint32_t)yr);
   if(mo > 11) { return false; } // unlikely branch
   if (dy > (uint64_t)mdays_minus_one[mo]) { // unlikely branch
     if (mo == 1 && is_leap_yr) {
@@ -100,7 +104,7 @@ static bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
       return false;
     }
   }
-  uint64_t days = 365 * (yr - 1970) + (uint64_t)leap_days(1970, (int)yr);
+  uint64_t days = 365 * (yr - 1970) + (uint64_t)leap_days((uint32_t)yr);
 
   days += (uint64_t)mdays_cumulative[mo];
   days += is_leap_yr & (mo > 1);
