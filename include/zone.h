@@ -206,7 +206,7 @@ struct zone_table {
 //
 // bsearch is quite slow compared to a hash table, but a hash table is either
 // quite big or there is a significant chance or collisions. a minimal perfect
-// hash table can be used instead, but there is a good chance of misspredicted
+// hash table can be used instead, but there is a good chance of mispredicted
 // branches.
 //
 // the fast table provides a hybrid solution. the current incarnation uses the
