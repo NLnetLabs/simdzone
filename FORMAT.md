@@ -20,7 +20,7 @@ made in simdzone.
 
 > NOTE: BIND behavior is more-or-less considered the de facto standard.
 
-Historically, master files where editted by hand, which is reflected in the
+Historically, master files where edited by hand, which is reflected in the
 syntax. Consider the format a tabular serialization format with provisions
 for easier editing. i.e. the owner, class and ttl fields may be omitted
 (provided the line starts with \<blank\> for the owner) and $INCLUDE directives
