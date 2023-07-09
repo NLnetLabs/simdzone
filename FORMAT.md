@@ -41,7 +41,7 @@ characters without interior spaces, or as a quoted string.
 The format allows for including structural characters in fields by means of
 escaping the actual character or enclosing the field in quotes. The example
 provided by the specification here is using ASCII dots in domain name labels.
-The dot is normally a label separater, replaced by the length of the label
+The dot is normally a label separator, replaced by the length of the label
 on the wire. If a domain name includes an actual ASCII dot, the character
 must be escaped in the textual representation (`\X` or `\DDD`).
 
