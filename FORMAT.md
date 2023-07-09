@@ -220,7 +220,7 @@ anything other than domain names and text strings, MUST not be quoted.
 
   > BIND seems to already throw an error if "$" is encountered, see
   > `lib/dns/master.c`. Presumably, the "$DATE" directive is written when the
-  > zone is written to disk(?) In the code it is refererred to as
+  > zone is written to disk(?) In the code it is referred to as
   > __dump_time__ and later used to calculate __ttl_offset__.
 
 * BIND10 had a nice writeup on zone files, kindly provided by Shane Kerr.
