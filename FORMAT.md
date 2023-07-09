@@ -45,7 +45,7 @@ The dot is normally a label separator, replaced by the length of the label
 on the wire. If a domain name includes an actual ASCII dot, the character
 must be escaped in the textual representation (`\X` or `\DDD`).
 
-Note that ASCII dot characters must be escaped wheter the name is contained
+Note that ASCII dot characters must be escaped whether the name is contained
 in a quoted section or not. The same is not true for newlines and parentheses.
 
 Going by the specification, integer values like the TTL may be written as
