@@ -59,7 +59,7 @@ A fallback scanner is implemented in `src/fallback/scanner.h`.
 A SIMD-optimized type parser is implemented in `src/generic/type.h`, a fallback
 type parser is implemented in `src/fallback/type.h`. Future versions are
 expected to add more optimized parsers for specific data types, even parsers
-that are tied to a specific instruction set. The layout accomodates these
+that are tied to a specific instruction set. The layout accommodates these
 scenarios. e.g. an AVX2 optimized parser may reside in `src/haswell/<type>.h`,
 an SSE4.2 optimized parser may reside in `src/westmere/<type>.h`, etc.
 

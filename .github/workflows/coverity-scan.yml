@@ -1,5 +1,5 @@
 #
-# coverity-scan.yml -- Github Actions workflow for Coverity Scan analysis
+# coverity-scan.yml -- GitHub Actions workflow for Coverity Scan analysis
 #
 # Copyright (c) 2023, NLnet Labs. All rights reserved.
 #

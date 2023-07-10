@@ -20,7 +20,7 @@ made in simdzone.
 
 > NOTE: BIND behavior is more-or-less considered the de facto standard.
 
-Historically, master files where editted by hand, which is reflected in the
+Historically, master files where edited by hand, which is reflected in the
 syntax. Consider the format a tabular serialization format with provisions
 for easier editing. i.e. the owner, class and ttl fields may be omitted
 (provided the line starts with \<blank\> for the owner) and $INCLUDE directives
@@ -41,11 +41,11 @@ characters without interior spaces, or as a quoted string.
 The format allows for including structural characters in fields by means of
 escaping the actual character or enclosing the field in quotes. The example
 provided by the specification here is using ASCII dots in domain name labels.
-The dot is normally a label separater, replaced by the length of the label
+The dot is normally a label separator, replaced by the length of the label
 on the wire. If a domain name includes an actual ASCII dot, the character
 must be escaped in the textual representation (`\X` or `\DDD`).
 
-Note that ASCII dot characters must be escaped wheter the name is contained
+Note that ASCII dot characters must be escaped whether the name is contained
 in a quoted section or not. The same is not true for newlines and parentheses.
 
 Going by the specification, integer values like the TTL may be written as
@@ -215,12 +215,12 @@ anything other than domain names and text strings, MUST not be quoted.
   "$DATE" and "$GENERATE" (and "$TTL" before RFC2308) are considered valid
   domain names in other implementations (based on what is accepted for domain
   names, see earlier points). It seems "$" is better considered a reserved
-  character (possibly limiting it's special special status to the start of the
+  character (possibly limiting its special status to the start of the
   line), to allow for reliable extensibility in the future.
 
   > BIND seems to already throw an error if "$" is encountered, see
   > `lib/dns/master.c`. Presumably, the "$DATE" directive is written when the
-  > zone is written to disk(?) In the code it is refererred to as
+  > zone is written to disk(?) In the code it is referred to as
   > __dump_time__ and later used to calculate __ttl_offset__.
 
 * BIND10 had a nice writeup on zone files, kindly provided by Shane Kerr.

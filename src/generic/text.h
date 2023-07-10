@@ -1,5 +1,5 @@
 /*
- * text.h -- some useful commment
+ * text.h -- some useful comment
  *
  * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *

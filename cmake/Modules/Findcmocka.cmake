@@ -1,7 +1,7 @@
 #
 # Findcmocka.cmake -- CMake module to locate cmocka library and generate a test runner from annotations
 #
-# Copyrigh (c) 2020-2023, Jeroen Koekkoek
+# Copyright (c) 2020-2023, Jeroen Koekkoek
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #

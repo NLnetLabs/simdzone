@@ -208,7 +208,7 @@ struct zone_table {
 //
 // bsearch is quite slow compared to a hash table, but a hash table is either
 // quite big or there is a significant chance or collisions. a minimal perfect
-// hash table can be used instead, but there is a good chance of misspredicted
+// hash table can be used instead, but there is a good chance of mispredicted
 // branches.
 //
 // the fast table provides a hybrid solution. the current incarnation uses the
@@ -221,7 +221,7 @@ struct zone_table {
 //     is very likely alphanumeric and likely does not reoccur too often for
 //     records starting with the same alphabetic character. this will provide
 //     a unique key for e.g. MB, MD, MF MG, MR, MX and e.g. NSEC, NSEC3.
-//  2. multiply the character by a given number to get a reasonbly good
+//  2. multiply the character by a given number to get a reasonably good
 //     distribution.
 //  3. increment the character by the length of the identifier to ensure
 //     unique keys for identifiers that begin and end with the same
