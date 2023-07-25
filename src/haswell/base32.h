@@ -19,7 +19,7 @@
 ///         https://arxiv.org/abs/1704.00605
 //////////////////////////
 
-size_t base32hex_avx(uint8_t *dst, const uint8_t *src) {
+static size_t base32hex_avx(uint8_t *dst, const uint8_t *src) {
   static int8_t zero_masks256[64] = {
       0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
       0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
