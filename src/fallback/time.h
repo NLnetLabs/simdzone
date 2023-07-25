@@ -45,11 +45,11 @@ static zone_really_inline int32_t parse_time(
   for (int i = 0; i < 14; i++) {
     d[i] = (uint8_t)p[i] - '0';
     if (d[i] > 9)
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   }
 
   if (contiguous[ (uint8_t)p[14] ] == CONTIGUOUS)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   // code adapted from Python 2.4.1 sources (Lib/calendar.py)
   const uint64_t year = (d[0] * 1000) + (d[1] * 100) + (d[2] * 10) + d[3];
@@ -60,17 +60,17 @@ static zone_really_inline int32_t parse_time(
   const uint64_t sec = (d[12] * 10) + d[13];
 
   if (year < 1970 || year > 2106)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   uint64_t leap_year = is_leap_year(year);
   uint64_t days = 365 * (year - 1970) + leap_days(1970, year);
 
   if (!mon || mon > 12)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   if (!mday || mday > days_in_month[mon] + (leap_year & (mon == 2)))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   if (hour > 23 || min > 59 || sec > 59)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   days += days_to_month[mon];
   days += (mon > 2) & leap_year;

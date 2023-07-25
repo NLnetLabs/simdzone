@@ -35,7 +35,7 @@ static zone_really_inline ssize_t check_bytes(
 {
   (void)data;
   if (length < size)
-    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), TNAME(type));
   return (ssize_t)size;
 }
 
@@ -62,13 +62,13 @@ static zone_really_inline ssize_t check_ttl(
   uint32_t number;
 
   if (length < sizeof(number))
-    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), TNAME(type));
 
   memcpy(&number, data, sizeof(number));
   number = ntohl(number);
 
   if (number > INT32_MAX)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   return 4;
 }
@@ -84,12 +84,12 @@ static zone_really_inline ssize_t check_type(
   uint16_t number;
 
   if (length < sizeof(number))
-    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), TNAME(type));
 
   memcpy(&number, data, sizeof(number));
 
   if (!number)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   return 2;
 }
@@ -111,7 +111,7 @@ static zone_really_inline ssize_t check_name(
   }
 
   if (!count || count > length)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   return (ssize_t)count;
 }
@@ -127,7 +127,7 @@ static zone_really_inline ssize_t check_string(
   size_t count;
 
   if (!length || (count = 1 + (size_t)data[0]) > length)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   return (ssize_t)count;
 }
@@ -148,16 +148,16 @@ static zone_really_inline ssize_t check_nsec(
     const size_t blocks = 1 + (size_t)data[1];
     if (window < last_window || !window != !last_window)
       SYNTAX_ERROR(parser, "Invalid %s in %s, windows are out-of-order",
-                   NAME(field), NAME(type));
+                   NAME(field), TNAME(type));
     if (blocks > 32)
       SYNTAX_ERROR(parser, "Invalid %s in %s, blocks are out-of-bounds",
-                   NAME(field), NAME(type));
+                   NAME(field), TNAME(type));
     count += 2 + blocks;
     last_window = window;
   }
 
   if (count != length)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   return (ssize_t)count;
 }
@@ -189,7 +189,7 @@ int32_t zone_check_a_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -207,7 +207,7 @@ int32_t zone_check_ns_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -231,7 +231,7 @@ int32_t zone_check_soa_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -250,7 +250,7 @@ int32_t zone_check_mb_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -269,7 +269,7 @@ int32_t zone_check_hinfo_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -288,7 +288,7 @@ int32_t zone_check_minfo_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -307,7 +307,7 @@ int32_t zone_check_mx_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -329,7 +329,7 @@ int32_t zone_check_txt_rdata(
       return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -348,7 +348,7 @@ int32_t zone_check_rp_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -366,7 +366,7 @@ int32_t zone_check_x25_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -387,7 +387,7 @@ int32_t zone_check_isdn_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -406,7 +406,7 @@ int32_t zone_check_rt_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -448,7 +448,7 @@ int32_t zone_check_aaaa_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s record", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s record", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -469,7 +469,7 @@ int32_t zone_check_srv_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -501,7 +501,7 @@ int32_t zone_check_ds_rdata(
   //        e.g. SHA-1 digest is 20 bytes, see RFC3658 section 2.4
 
   if (c >= n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -522,13 +522,13 @@ int32_t zone_check_sshfp_rdata(
   // https://www.iana.org/assignments/dns-sshfp-rr-parameters
 
   if (c >= n)
-    SYNTAX_ERROR(parser, "Missing %s in %s", NAME((&f[0])), NAME(type));
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME((&f[0])), TNAME(type));
   else if (o[1] == 1 && (n - c) != 20)
     SEMANTIC_ERROR(parser, "Wrong fingerprint size for type %s in %s",
-                           "SHA1", NAME(type));
+                           "SHA1", TNAME(type));
   else if (o[1] == 2 && (n - c) != 32)
     SEMANTIC_ERROR(parser, "Wrong fingerprint size for type %s in %s",
-                           "SHA256", NAME(type));
+                           "SHA256", TNAME(type));
 
   return accept_rr(parser);
 }
@@ -554,7 +554,7 @@ int32_t zone_check_rrsig_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -573,7 +573,7 @@ int32_t zone_check_nsec_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -593,7 +593,7 @@ int32_t zone_check_dnskey_rdata(
     return r;
 
   if (c >= n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -605,7 +605,7 @@ int32_t zone_check_dhcid_rdata(
   // 2-octet identifier type, 1-octet digest type, followed by one or more
   // octets representing the actual identifier
   if (parser->rdata->length < 4)
-    SEMANTIC_ERROR(parser, "Invalid %s", NAME(type));
+    SEMANTIC_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -628,7 +628,7 @@ int32_t zone_check_nsec3_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -649,7 +649,7 @@ int32_t zone_check_nsec3param_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -668,7 +668,7 @@ int32_t zone_check_l32_rdata(
     return r;
 
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -686,7 +686,7 @@ int32_t zone_check_l64_rdata(
       (r = add(&c, check_ilnp64(parser, type, &f[1], o+c, n-c))))
     return r;
   if (c != n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -704,7 +704,7 @@ int32_t zone_check_uri_rdata(
       (r = add(&c, check_int16(parser, type, &f[1], o+c, n-c))))
     return r;
   if (c >= n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 
@@ -722,7 +722,7 @@ int32_t zone_check_caa_rdata(
       (r = add(&c, check_int8(parser, type, &f[1], o+c, n-c))))
     return r;
   if (c >= n)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }
 

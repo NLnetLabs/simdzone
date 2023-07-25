@@ -34,7 +34,7 @@ static zone_really_inline int32_t parse_ip4(
       n = n * 10 + (uint8_t)d;
     } else {
       if (!(p - ps) || p - ps > 3 || n < m[(p - ps)] || n > 255 || o - os > 3)
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
       ps = p + 1;
       *o++ = (uint8_t)n;
       if (*p != '.')
@@ -44,7 +44,7 @@ static zone_really_inline int32_t parse_ip4(
   }
 
   if (is_contiguous((uint8_t)*p) || o - os != 4)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   parser->rdata->length += 4;
   return ZONE_IP4;

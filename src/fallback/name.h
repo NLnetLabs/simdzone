@@ -39,20 +39,20 @@ static zone_really_inline int32_t scan_name(
         d[1] = (uint8_t)s[2] - '0';
         d[2] = (uint8_t)s[3] - '0';
         if (d[1] > m || d[2] > m)
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
         b[0] = d[0] * 100 + d[1] * 10 + d[0];
         b += 1; s += 4;
       }
     } else if (c == '.') {
       if ((b - 1) - l > 63 || (b - 1) - l == 0)
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
       l[0] = (uint8_t)((b - 1) - l);
       l = b;
       l[0] = 0;
       b += 1; s += 1;
     } else if (delimiters[c] != token->code) {
       if ((b - 1) - l > 63)
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
       l[0] = (uint8_t)((b - 1) - l);
       break;
     } else {
@@ -62,7 +62,7 @@ static zone_really_inline int32_t scan_name(
   }
 
   if (delimiters[(uint8_t)*s] == token->code)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   *length = (size_t)(b - octets);
   return l[0] == 0 ? 0 : ZONE_NAME;
@@ -124,7 +124,7 @@ static zone_really_inline int32_t parse_name(
 
 relative:
   if (n > 255 - parser->file->origin.length)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   memcpy(o+n, parser->file->origin.octets, parser->file->origin.length);
   parser->rdata->length += n + parser->file->origin.length;
   return ZONE_NAME;

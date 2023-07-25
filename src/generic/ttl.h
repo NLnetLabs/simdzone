@@ -54,13 +54,13 @@ static zone_really_inline int32_t scan_ttl(
   if (zone_likely(contiguous[ (uint8_t)*p ] != CONTIGUOUS)) {
     // FIXME: comment RFC2308 msb
     if (t > m || !t || p - token->data > 10)
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
     if (t & (1llu << 31))
-      SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
     *seconds = (uint32_t)t;
     return ZONE_TTL;
   } else if (p == token->data || !parser->options.pretty_ttls) {
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   }
 
   uint64_t n = t, u = 0, f = 0;
@@ -77,11 +77,11 @@ static zone_really_inline int32_t scan_ttl(
       // units must not be repeated e.g. 1m1m
       } else if (u == f) {
         SYNTAX_ERROR(parser, "Invalid %s in %s, reuse of unit %c",
-                     NAME(field), NAME(type), *p);
+                     NAME(field), TNAME(type), *p);
       // greater units must precede smaller units. e.g. 1m1s, not 1s1m
       } else if (u < f) {
         SYNTAX_ERROR(parser, "Invalid %s in %s, unit %c follows smaller unit",
-                     NAME(field), NAME(type), *p);
+                     NAME(field), TNAME(type), *p);
       } else {
         f = u;
         n = n * u;
@@ -90,35 +90,35 @@ static zone_really_inline int32_t scan_ttl(
 
       if (n > m)
         SYNTAX_ERROR(parser, "Invalid %s in %s",
-                     NAME(field), NAME(type));
+                     NAME(field), TNAME(type));
     } else if (s == UNIT) {
       // units must be followed by a number. e.g. 1h30m, not 1hh
       if (d > 9)
         SYNTAX_ERROR(parser, "Invalid %s in %s, non-digit follows unit",
-                     NAME(field), NAME(type));
+                     NAME(field), TNAME(type));
       // units must not be followed by a number if smallest unit,
       // i.e. seconds, was previously specified
       if (f == 1)
         SYNTAX_ERROR(parser, "Invalid %s in %s, digit follows unit s",
-                     NAME(field), NAME(type));
+                     NAME(field), TNAME(type));
       t = t + n;
       n = d;
       s = NUMBER;
 
       if (t > m)
         SYNTAX_ERROR(parser, "Invalid %s in %s",
-                     NAME(field), NAME(type));
+                     NAME(field), TNAME(type));
     }
   }
 
   if (zone_unlikely(contiguous[ (uint8_t)*p ] != CONTIGUOUS))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   t = t + n;
   if (t > m || !t)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   if (t & (1llu << 31))
-    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   *seconds = (uint32_t)t;
   return ZONE_TTL;

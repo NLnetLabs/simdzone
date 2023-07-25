@@ -31,6 +31,7 @@ static zone_really_inline void copy_contiguous_string_block(
   _mm_storeu_si128((__m128i *)(wire), i0);
   _mm_storeu_si128((__m128i *)(wire+16), i1);
 
+  // FIXME: this is and error!
   const __m128i ds00 = _mm_shuffle_epi8(d0, _mm_srli_epi16(i0, 4));
   const __m128i ds01 = _mm_shuffle_epi8(d1, i0);
   const __m128i ds0 = _mm_and_si128(ds00, ds01);

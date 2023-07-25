@@ -11,7 +11,7 @@
 
 static zone_really_inline int32_t accept_rr(zone_parser_t *parser)
 {
-  zone_return_t result;
+  int32_t result;
 
   assert(parser->owner->length <= UINT8_MAX);
   assert(parser->rdata->length <= UINT16_MAX);

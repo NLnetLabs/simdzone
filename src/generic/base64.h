@@ -58,7 +58,7 @@ static zone_really_inline int32_t parse_base64(
           state = 0;
           break;
         default:
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
       }
     }
 
@@ -66,7 +66,7 @@ static zone_really_inline int32_t parse_base64(
       switch (state) {
         case 0: // invalid, pad character in first position
         case 1: // invalid, pad character in second position
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
         case 2: // valid, one byte of info
           state = 4;
           if (*p++ != '=')
@@ -83,14 +83,14 @@ static zone_really_inline int32_t parse_base64(
     }
 
     if (is_contiguous((uint8_t)*p))
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
     lex(parser, token);
   } while (token->code == CONTIGUOUS);
 
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
   if (state != 0 && state != 5)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   return ZONE_BLOB;
 }

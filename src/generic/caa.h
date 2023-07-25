@@ -62,7 +62,7 @@ static zone_really_inline int32_t parse_caa_tag(
     } else if (contiguous[c] != CONTIGUOUS) {
       break;
     } else {
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
     }
   }
 
@@ -70,7 +70,7 @@ static zone_really_inline int32_t parse_caa_tag(
   //        tags registered by IANA.
 
   if (w >= we)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   parser->rdata->octets[parser->rdata->length] = (uint8_t)(w - ws);
   parser->rdata->length += (size_t)(w - ws) + 1;
   return ZONE_STRING;
