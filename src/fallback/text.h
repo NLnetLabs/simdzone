@@ -35,7 +35,7 @@ static zone_really_inline int32_t parse_string_internal(
         x[2] = (uint8_t)t[3] - '0';
         const uint32_t o = x[0] * 100 + x[1] * 10 + x[2];
         if (o > 255 || x[1] > 9 || x[2] > 9)
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
         w[0] = (uint8_t)o;
         w += 1; t += 4;
       }
@@ -48,7 +48,7 @@ static zone_really_inline int32_t parse_string_internal(
   }
 
   if (w == we)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   assert(d[(uint8_t)*t] != token->code);
   parser->rdata->octets[parser->rdata->length] = (uint8_t)((w - ws) - 1);
   parser->rdata->length += (size_t)(w - ws);
@@ -92,7 +92,7 @@ static zone_really_inline int32_t parse_text_internal(
         x[2] = (uint8_t)t[3] - '0';
         const uint32_t o = x[0] * 100 + x[1] * 10 + x[0];
         if (o > 255 || x[1] > 9 || x[2] > 9)
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
         w[0] = (uint8_t)o;
         w += 1; t += 4;
       }
@@ -105,7 +105,7 @@ static zone_really_inline int32_t parse_text_internal(
   }
 
   if (w == we)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   assert(d[(uint8_t)*t] != token->code);
   parser->rdata->length += (size_t)(w - ws);
   return ZONE_BLOB;

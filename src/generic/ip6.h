@@ -183,7 +183,7 @@ static zone_really_inline int32_t parse_ip6(
     return ZONE_IP6;
   }
 
-  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 }
 
 #endif // IP6_H

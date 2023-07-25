@@ -125,7 +125,7 @@ err:
 
 diagnostic_pop()
 
-static zone_return_t add_rr(
+static int32_t add_rr(
   zone_parser_t *parser,
   const zone_name_t *owner,
   uint16_t type,
@@ -159,7 +159,7 @@ void include_from_string(void **state)
   zone_rdata_block_t rdata;
   zone_cache_t cache = { 1, &name, &rdata };
   zone_options_t options = { 0 };
-  zone_return_t result;
+  int32_t result;
 
   options.accept.add = &add_rr;
   options.origin = "example.com.";

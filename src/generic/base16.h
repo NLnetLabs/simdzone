@@ -45,12 +45,12 @@ static zone_really_inline int32_t parse_base16(
     }
 
     if (is_contiguous((uint8_t)*p))
-      SYNTAX_ERROR(parser, "Invalid %s in %s record", NAME(field), NAME(type));
+      SYNTAX_ERROR(parser, "Invalid %s in %s record", NAME(field), TNAME(type));
     lex(parser, token);
   } while (token->code == CONTIGUOUS);
 
   if (state != 0)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
@@ -94,9 +94,9 @@ static zone_really_inline int32_t parse_salt(
   }
 
   if (p == token->data || contiguous[ (uint8_t)*p ] == CONTIGUOUS)
-    SYNTAX_ERROR(parser, "Invalid %s in %s record", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s record", NAME(field), TNAME(type));
   if (state != 0)
-    SYNTAX_ERROR(parser, "Invalid %s in %s record", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s record", NAME(field), TNAME(type));
 
   parser->rdata->octets[rdlength] = (uint8_t)(parser->rdata->length - rdlength);
   return ZONE_STRING;

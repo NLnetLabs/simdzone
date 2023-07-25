@@ -39,11 +39,11 @@ static zone_really_inline int32_t parse_symbol(
   if (is_contiguous((uint8_t)*p)) {
     const zone_symbol_t *s;
     if (!(s = lookup_symbol(&field->symbols, token)))
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
     n = (uint8_t)s->value;
   } else {
     if (n > UINT8_MAX || p - token->data > 3)
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   }
 
   parser->rdata->octets[parser->rdata->length] = (uint8_t)n;
@@ -73,7 +73,7 @@ static zone_really_inline int32_t parse_int8(
   }
 
   if (n > UINT8_MAX || p - token->data > 3 || is_contiguous((uint8_t)*p))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   parser->rdata->octets[parser->rdata->length] = (uint8_t)n;
   parser->rdata->length += sizeof(uint8_t);
@@ -102,7 +102,7 @@ static zone_really_inline int32_t parse_int16(
   }
 
   if (n > UINT16_MAX || p - token->data > 5 || is_contiguous((uint8_t)*p))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   uint16_t n16 = htons((uint16_t)n);
   memcpy(&parser->rdata->octets[parser->rdata->length], &n16, sizeof(n16));
@@ -111,7 +111,7 @@ static zone_really_inline int32_t parse_int16(
 }
 
 zone_nonnull_all
-static zone_really_inline zone_return_t parse_int32(
+static zone_really_inline int32_t parse_int32(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
@@ -132,7 +132,7 @@ static zone_really_inline zone_return_t parse_int32(
   }
 
   if (n > UINT32_MAX || p - token->data > 10 || is_contiguous((uint8_t)*p))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   const uint32_t n32 = htonl((uint32_t)n);
   memcpy(&parser->rdata->octets[parser->rdata->length], &n32, sizeof(n32));

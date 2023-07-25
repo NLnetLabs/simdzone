@@ -106,7 +106,7 @@ extern int32_t zone_haswell_parse(zone_parser_t *, void *);
 extern int32_t zone_westmere_parse(zone_parser_t *, void *);
 #endif
 
-extern zone_return_t zone_fallback_parse(zone_parser_t *, void *);
+extern int32_t zone_fallback_parse(zone_parser_t *, void *);
 
 typedef struct target target_t;
 struct target {

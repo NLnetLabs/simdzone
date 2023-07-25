@@ -130,11 +130,11 @@ static zone_really_inline int32_t parse_time(
   const char *p = token->data;
   uint32_t sse_result;
   if (!sse_parse_time(p, &sse_result))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   // FIXME: once support for specifying as an unsigned number of seconds is
   //        implemented, update this check too
   if (contiguous[(uint8_t)token->data[14]] == CONTIGUOUS)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   uint32_t time = htonl(sse_result);
   memcpy(&parser->rdata->octets[parser->rdata->length], &time, sizeof(time));

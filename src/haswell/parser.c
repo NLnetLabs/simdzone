@@ -20,7 +20,6 @@
 #include "generic/ttl.h"
 #include "westmere/time.h"
 #include "generic/name.h"
-#include "generic/type.h"
 #include "westmere/ip4.h"
 #include "generic/ip6.h"
 #include "generic/text.h"
@@ -31,12 +30,14 @@
 #include "generic/caa.h"
 #include "generic/ilnp64.h"
 #include "visit.h"
+#include "types.h"
+#include "westmere/type.h"
 #include "parser.h"
 
 diagnostic_push()
 clang_diagnostic_ignored(missing-prototypes)
 
-zone_return_t zone_haswell_parse(zone_parser_t *parser)
+int32_t zone_haswell_parse(zone_parser_t *parser)
 {
   return parse(parser);
 }

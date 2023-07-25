@@ -134,9 +134,9 @@ static zone_really_inline int32_t have_contiguous(
   else if (token->code < 0)
     return token->code;
   else if (token->code == QUOTED)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   assert(token->code == END_OF_FILE || token->code == LINE_FEED);
-  SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
+  SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), TNAME(type));
 }
 
 zone_nonnull_all
@@ -152,9 +152,9 @@ static zone_really_inline int32_t have_quoted(
   else if (token->code < 0)
     return token->code;
   else if (token->code == CONTIGUOUS)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   assert(token->code == END_OF_FILE || token->code == LINE_FEED);
-  SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
+  SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), TNAME(type));
 }
 
 zone_nonnull_all
@@ -170,7 +170,7 @@ static zone_really_inline int32_t have_string(
   else if (token->code < 0)
     return token->code;
   assert(token->code == END_OF_FILE || token->code == LINE_FEED);
-  SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
+  SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), TNAME(type));
 }
 
 zone_nonnull_all
@@ -185,7 +185,7 @@ static zone_really_inline int32_t have_delimiter(
   else if (token->code < 0)
     return token->code;
   assert(token->code == CONTIGUOUS || token->code == QUOTED);
-  SYNTAX_ERROR(parser, "Trailing data in %s", NAME(type));
+  SYNTAX_ERROR(parser, "Trailing data in %s", TNAME(type));
 }
 
 static zone_really_inline bool is_quoted(uint8_t octet)

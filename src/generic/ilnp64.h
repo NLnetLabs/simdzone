@@ -49,7 +49,7 @@ static zone_really_inline int32_t parse_ilnp64(
   }
 
   if (n != 3 || p == g || p - g > 4 || contiguous[(uint8_t)*p] == CONTIGUOUS)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   a[0] = htons(a[0]);
   a[1] = htons(a[1]);
   a[2] = htons(a[2]);

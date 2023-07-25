@@ -183,9 +183,6 @@ extern "C" {
 #define ZONE_DLV (32769u)
 /** @} */
 
-typedef int32_t zone_code_t;
-typedef int32_t zone_return_t;
-
 typedef struct zone_string zone_string_t;
 struct zone_string {
   size_t length;
@@ -194,7 +191,10 @@ struct zone_string {
 
 typedef struct zone_symbol zone_symbol_t;
 struct zone_symbol {
-  zone_string_t key;
+  struct {
+    char data[24]; // zero padded for convenient vectorized comparison
+    size_t length;
+  } key;
   uint32_t value;
 };
 
@@ -202,34 +202,6 @@ typedef struct zone_table zone_table_t;
 struct zone_table {
   size_t length;
   const zone_symbol_t *symbols; // sorted for use with bsearch
-};
-
-// @private
-//
-// bsearch is quite slow compared to a hash table, but a hash table is either
-// quite big or there is a significant chance or collisions. a minimal perfect
-// hash table can be used instead, but there is a good chance of mispredicted
-// branches.
-//
-// the fast table provides a hybrid solution. the current incarnation uses the
-// first (upper case) character to make a first selection. the last character
-// is permuted and used as key for the smaller table. in practice, it should
-// effectively function as a one-level radix trie without branching.
-//
-// the permutation used is the following.
-//  1. use the last character as one always exists, token length is available,
-//     is very likely alphanumeric and likely does not reoccur too often for
-//     records starting with the same alphabetic character. this will provide
-//     a unique key for e.g. MB, MD, MF MG, MR, MX and e.g. NSEC, NSEC3.
-//  2. multiply the character by a given number to get a reasonably good
-//     distribution.
-//  3. increment the character by the length of the identifier to ensure
-//     unique keys for identifiers that begin and end with the same
-//     characters. e.g. A and AAAA.
-typedef struct zone_fast_table zone_fast_table_t;
-struct zone_fast_table {
-  uint8_t keys[16];
-  const zone_symbol_t *symbols[16];
 };
 
 /**
@@ -326,6 +298,7 @@ typedef enum {
 #define ZONE_CAA_TAG (1u << 12)
 /** @} */
 
+// FIXME: drop rdata_info, just use field_info
 typedef struct zone_rdata_info zone_rdata_info_t;
 struct zone_rdata_info {
   zone_string_t name;
@@ -351,8 +324,7 @@ typedef struct zone_rdata_info zone_field_info_t;
 
 typedef struct zone_type_info zone_type_info_t;
 struct zone_type_info {
-  zone_string_t name;
-  uint16_t code;
+  zone_symbol_t name;
   uint32_t options;
   struct {
     size_t length;
@@ -508,7 +480,7 @@ struct zone_name {
 // invoked for each record (host order). header (owner, type, class and ttl)
 // fields are passed individually for convenience. rdata fields can be visited
 // individually by means of the iterator
-typedef zone_return_t(*zone_add_t)(
+typedef int32_t(*zone_add_t)(
   zone_parser_t *,
   const zone_name_t *, // owner (length + octets)
   uint16_t, // type
@@ -615,7 +587,7 @@ struct zone_parser {
 /**
  * @brief Parse zone file
  */
-ZONE_EXPORT zone_return_t
+ZONE_EXPORT int32_t
 zone_parse(
   zone_parser_t *parser,
   const zone_options_t *options,
@@ -627,7 +599,7 @@ zone_nonnull((1,2,3,4));
 /**
  * @brief Parse zone from string
  */
-ZONE_EXPORT zone_return_t
+ZONE_EXPORT int32_t
 zone_parse_string(
   zone_parser_t *parser,
   const zone_options_t *options,

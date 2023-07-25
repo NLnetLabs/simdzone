@@ -14,9 +14,8 @@
 #include "fallback/scanner.h"
 #include "generic/number.h"
 #include "generic/ttl.h"
-#include "generic/time.h"
+#include "fallback/time.h"
 #include "fallback/name.h"
-#include "fallback/type.h"
 #include "fallback/ip4.h"
 #include "generic/ip6.h"
 #include "fallback/text.h"
@@ -27,6 +26,8 @@
 #include "generic/caa.h"
 #include "generic/ilnp64.h"
 #include "visit.h"
+#include "types.h"
+#include "fallback/type.h"
 #include "parser.h"
 
 diagnostic_push()

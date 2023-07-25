@@ -81,7 +81,7 @@ static zone_really_inline int32_t parse_base32(
       case 1:
       case 3:
       case 6:
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
       case 2: // require six pad characters
         state = 13;
         continue;
@@ -96,7 +96,7 @@ static zone_really_inline int32_t parse_base32(
         break;
       default:
         if (state == 8)
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
         assert(state > 8);
         state--;
         break;
@@ -104,9 +104,9 @@ static zone_really_inline int32_t parse_base32(
   }
 
   if (contiguous[ (uint8_t)*p ] == CONTIGUOUS)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   if (state != 0 && state != 8)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   return ZONE_STRING;
 }

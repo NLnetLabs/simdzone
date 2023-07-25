@@ -72,11 +72,11 @@ static zone_really_inline int32_t scan_name(
         if (digits[0] < 2) {
           if (digits[1] > 9 || digits[2] > 9)
             SEMANTIC_ERROR(parser, "Bad escape sequence in %s of %s record",
-                           field->name.data, type->name.data);
+                           NAME(field), TNAME(type));
         } else {
           if (digits[1] > 5 || digits[2] > 5)
             SEMANTIC_ERROR(parser, "Bad escape sequence in %s of %s record",
-                           field->name.data, type->name.data);
+                           NAME(field), TNAME(type));
         }
 
         wire[size] = digits[0] * 100 + digits[1] * 10 + digits[0];
@@ -89,7 +89,7 @@ static zone_really_inline int32_t scan_name(
 
     if (wire - octets > 255)
       SEMANTIC_ERROR(parser, "Bad domain name in %s of %s",
-                     field->name.data, type->name.data);
+                     field->name.data, TNAME(type));
 
     if (block.label) {
       uint64_t count = 0, last = 0;
@@ -100,7 +100,7 @@ static zone_really_inline int32_t scan_name(
         *label += count;
         if (!*label || *label > 63)
           SEMANTIC_ERROR(parser, "Bad domain name in %s of %s record",
-                         field->name.data, type->name.data);
+                         NAME(field), TNAME(type));
         label += *label + 1;
         *label = 0;
         last += count + 1;
@@ -111,13 +111,13 @@ static zone_really_inline int32_t scan_name(
       *label += (uint8_t)size;
       if (*label > 63)
         SEMANTIC_ERROR(parser, "Bad domain name in %s of %s record",
-                       field->name.data, type->name.data);
+                       NAME(field), TNAME(type));
     }
   }
 
   if (!(wire - octets)) {
     SEMANTIC_ERROR(parser, "Invalid domain name in %s of %s",
-                   field->name.data, type->name.data);
+                   NAME(field), TNAME(type));
   }
 
   *length = (size_t)(wire - octets);
@@ -184,7 +184,7 @@ static zone_really_inline int32_t parse_name(
 
 relative:
   if (n > 255 - parser->file->origin.length)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   memcpy(o+n, parser->file->origin.octets, parser->file->origin.length);
   parser->rdata->length += n + parser->file->origin.length;
   return ZONE_NAME;

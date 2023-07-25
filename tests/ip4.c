@@ -13,7 +13,7 @@
 
 #include "zone.h"
 
-static zone_return_t add_rr(
+static int32_t add_rr(
   zone_parser_t *parser,
   const zone_name_t *owner,
   uint16_t type,

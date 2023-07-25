@@ -16,6 +16,7 @@
 #include "zone.h"
 
 #define NAME(info) ((info)->name.data)
+#define TNAME(info) ((info)->name.key.data)
 
 #define RAISE(parser, code, ...) \
   do { \

@@ -47,7 +47,7 @@ static zone_really_inline int32_t parse_contiguous_string_internal(
       const size_t n = trailing_zeroes(b.backslash);
       const size_t o = unescape(t, w);
       if (!o)
-        SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
       w += n + 1; t += n + o;
     } else {
       const size_t n = trailing_zeroes(b.delimiter | (1llu << 32));
@@ -58,7 +58,7 @@ static zone_really_inline int32_t parse_contiguous_string_internal(
   }
 
   if (w >= we)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   parser->rdata->octets[parser->rdata->length] = (uint8_t)((w - ws) - 1);
   parser->rdata->length += (size_t)(w - ws);
   return ZONE_STRING;
@@ -83,7 +83,7 @@ static zone_really_inline int32_t parse_quoted_string_internal(
       const size_t n = trailing_zeroes(b.backslash);
       const size_t o = unescape(t, w);
       if (!o)
-        SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
       w += n + 1; t += n + o;
     } else {
       const size_t n = trailing_zeroes(b.delimiter | (1llu << 32));
@@ -94,7 +94,7 @@ static zone_really_inline int32_t parse_quoted_string_internal(
   }
 
   if (w >= we)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   parser->rdata->octets[parser->rdata->length] = (uint8_t)((w - ws) - 1);
   parser->rdata->length += (size_t)(w - ws);
   return ZONE_STRING;
@@ -134,7 +134,7 @@ static zone_really_inline int32_t parse_contiguous_text_internal(
       const size_t n = trailing_zeroes(b.backslash);
       const size_t o = unescape(t+n, w+n);
       if (!o)
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
       w += n + 1; t += n + o;
     } else {
       const size_t n = trailing_zeroes(b.delimiter | (1llu << 32));
@@ -145,7 +145,7 @@ static zone_really_inline int32_t parse_contiguous_text_internal(
   }
 
   if (w >= we)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   parser->rdata->length += (size_t)(w - ws);
   return ZONE_BLOB;
@@ -170,7 +170,7 @@ static zone_really_inline int32_t parse_quoted_text_internal(
       const size_t n = trailing_zeroes(b.backslash);
       const size_t o = unescape(t+n, w+n);
       if (!o)
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
       w += n + 1; t += n + o;
     } else {
       const size_t n = trailing_zeroes(b.delimiter | (1llu << 32));
@@ -181,7 +181,7 @@ static zone_really_inline int32_t parse_quoted_text_internal(
   }
 
   if (w >= we)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
   parser->rdata->length += (size_t)(w - ws);
   return ZONE_BLOB;

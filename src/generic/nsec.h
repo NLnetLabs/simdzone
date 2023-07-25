@@ -9,6 +9,15 @@
 #ifndef NSEC_H
 #define NSEC_H
 
+zone_nonnull_all
+static zone_really_inline int32_t scan_type(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const token_t *token,
+  uint16_t *code,
+  const zone_symbol_t **symbol);
+
 typedef uint8_t zone_nsec_t[256 + 2];
 
 zone_nonnull_all
@@ -20,6 +29,7 @@ static zone_really_inline int32_t parse_nsec(
 {
   uint16_t code;
   uint16_t highest_bit = 0;
+  const zone_symbol_t *symbol;
 
   uint8_t *data = &parser->rdata->octets[parser->rdata->length];
   zone_nsec_t *bitmap = (void *)&parser->rdata->octets[parser->rdata->length];
@@ -30,7 +40,7 @@ static zone_really_inline int32_t parse_nsec(
   // a name. walk the bits according to the nsec++ draft from jakob.
 
   do {
-    scan_type(parser, type, field, token, &code);
+    scan_type(parser, type, field, token, &code, &symbol);
 
     const uint8_t bit = (uint8_t)((uint16_t)code % 256);
     const uint8_t window = (uint8_t)((uint16_t)code / 256);
