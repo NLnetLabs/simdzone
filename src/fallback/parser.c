@@ -20,7 +20,7 @@
 #include "generic/ip6.h"
 #include "fallback/text.h"
 #include "generic/base16.h"
-#include "generic/base32.h"
+#include "fallback/base32.h"
 #include "generic/base64.h"
 #include "generic/nsec.h"
 #include "generic/caa.h"
