@@ -20,7 +20,7 @@ static zone_really_inline int32_t parse_base32(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  token_t *token)
+  const token_t *token)
 {
   int32_t r;
   uint32_t state = 0;

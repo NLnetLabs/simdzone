@@ -70,14 +70,16 @@ static zone_really_inline int32_t parse_base32(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  token_t *token)
+  const token_t *token)
 {
   int32_t r;
 
   if ((r = have_contiguous(parser, type, field, token)) < 0)
     return r;
-  size_t decoded = base32hex_sse(parser->rdata->octets, (const uint8_t*)token->data);
-  if(decoded)
+  size_t decoded = base32hex_sse(parser->rdata->octets+parser->rdata->length, (const uint8_t*)token->data);
+  if (is_contiguous((uint8_t)token->data[decoded]))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  if (decoded)
     parser->rdata->length = (decoded * 5) / 8;
   return ZONE_STRING;
 }
