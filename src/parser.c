@@ -691,6 +691,24 @@ int32_t zone_check_l64_rdata(
 }
 
 zone_nonnull_all
+int32_t zone_check_eui48_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  if (parser->rdata->length != 6)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
+int32_t zone_check_eui64_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  if (parser->rdata->length != 8)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
 int32_t zone_check_uri_rdata(
   zone_parser_t *parser, const zone_type_info_t *type)
 {
