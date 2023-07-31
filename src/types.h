@@ -625,6 +625,44 @@ static int32_t parse_l64_rdata(
 }
 
 zone_nonnull_all
+extern int32_t zone_check_eui48_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static int32_t parse_eui48_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_eui48(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
+extern int32_t zone_check_eui64_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static int32_t parse_eui64_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_eui64(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
 extern int32_t zone_check_uri_rdata(
   zone_parser_t *parser, const zone_type_info_t *type);
 
@@ -1043,6 +1081,14 @@ static const zone_field_info_t lp_rdata_fields[] = {
   FIELD("pointer", ZONE_NAME, 0)
 };
 
+static const zone_field_info_t eui48_rdata_fields[] = {
+  FIELD("address", ZONE_EUI48, 0)
+};
+
+static const zone_field_info_t eui64_rdata_fields[] = {
+  FIELD("address", ZONE_EUI64, 0)
+};
+
 static const zone_field_info_t uri_rdata_fields[] = {
   FIELD("priority", ZONE_INT16, 0),
   FIELD("weight", ZONE_INT16, 0),
@@ -1238,9 +1284,11 @@ static const type_descriptor_t types[] = {
               zone_check_l64_rdata, parse_l64_rdata),
   TYPE("LP", ZONE_LP, ZONE_ANY, FIELDS(lp_rdata_fields),
              zone_check_mx_rdata, parse_mx_rdata),
+  TYPE("EUI48", ZONE_EUI48, ZONE_ANY, FIELDS(eui48_rdata_fields),
+                zone_check_eui48_rdata, parse_eui48_rdata),
+  TYPE("EUI64", ZONE_EUI64, ZONE_ANY, FIELDS(eui64_rdata_fields),
+                zone_check_eui64_rdata, parse_eui64_rdata),
 
-  UNKNOWN_TYPE(108),
-  UNKNOWN_TYPE(109),
   UNKNOWN_TYPE(110),
   UNKNOWN_TYPE(111),
   UNKNOWN_TYPE(112),

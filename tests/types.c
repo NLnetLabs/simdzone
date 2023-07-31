@@ -387,6 +387,20 @@ static const char lp_generic_text[] =
 static const rdata_t lp_rdata =
   RDATA(0x00, 0x0a, 11, 'l', '6', '4', '-', 's', 'u', 'b', 'n', 'e', 't', '1', EXAMPLE_COM);
 
+static const char eui48_text[] =
+  PAD(" EUI48 00-00-5e-00-53-2a");
+static const char eui48_generic_text[] =
+  PAD(" EUI48 \\# 6 00005e00532a");
+static const rdata_t eui48_rdata =
+  RDATA(0x00, 0x00, 0x5e, 0x00, 0x53, 0x2a);
+
+static const char eui64_text[] =
+  PAD(" EUI64 00-00-5e-ef-10-00-00-2a");
+static const char eui64_generic_text[] =
+  PAD(" EUI64 \\# 8 00005eef1000002a");
+static const rdata_t eui64_rdata =
+  RDATA(0x00, 0x00, 0x5e, 0xef, 0x10, 0x00, 0x00, 0x2a);
+
 static const char uri_text[] =
   PAD(" URI 10 1 \"ftp://ftp1.example.com/public\"");
 static const char uri_generic_text[] =
@@ -496,6 +510,10 @@ static const test_t tests[] = {
   { ZONE_L64, l64_generic_text, &l64_rdata },
   { ZONE_LP, lp_text, &lp_rdata },
   { ZONE_LP, lp_generic_text, &lp_rdata },
+  { ZONE_EUI48, eui48_text, &eui48_rdata },
+  { ZONE_EUI48, eui48_generic_text, &eui48_rdata },
+  { ZONE_EUI64, eui64_text, &eui64_rdata },
+  { ZONE_EUI64, eui64_generic_text, &eui64_rdata },
   { ZONE_URI, uri_text, &uri_rdata },
   { ZONE_URI, uri_generic_text, &uri_rdata },
   { ZONE_CAA, caa_text, &caa_rdata },

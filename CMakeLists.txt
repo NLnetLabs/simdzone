@@ -138,7 +138,6 @@ target_sources(zone PRIVATE
   src/log.c
   src/parser.c
   src/fallback/parser.c
-  src/generic/base16.c
   src/generic/base64.c)
 
 add_executable(zone-bench src/bench.c src/fallback/bench.c)
