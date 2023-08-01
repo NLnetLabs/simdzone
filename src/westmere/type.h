@@ -190,8 +190,8 @@ static zone_really_inline int32_t scan_generic_class(
   return ZONE_CLASS;
 }
 
-#define TYPE (0x5459504500000000llu)
-#define CLASS (0x434c415353000000llu)
+#define TYPE (0x45505954llu)
+#define CLASS (0x5353414c43llu)
 
 zone_nonnull_all
 static zone_really_inline int32_t scan_type_or_class(
@@ -211,9 +211,9 @@ static zone_really_inline int32_t scan_type_or_class(
 
   uint64_t k;
   memcpy(&k, token->data, 8);
-  if ((k & 0xdfdfdfdf00000000llu) == TYPE)
+  if ((k & 0xdfdfdfdfllu) == TYPE)
     return scan_generic_type(parser, type, field, token, code, symbol);
-  else if ((k & 0xdfdfdfdfdf000000llu) == CLASS)
+  else if ((k & 0xdfdfdfdfdfllu) == CLASS)
     return scan_generic_class(parser, type, field, token, code, symbol);
 
   SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
@@ -237,7 +237,7 @@ static zone_really_inline int32_t scan_type(
 
   uint64_t k;
   memcpy(&k, token->data, 8);
-  if ((k & 0xdfdfdfdf00000000) == TYPE)
+  if ((k & 0xdfdfdfdfllu) == TYPE)
     return scan_generic_type(parser, type, field, token, code, symbol);
 
   SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
