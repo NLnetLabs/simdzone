@@ -674,17 +674,6 @@ int32_t zone_check_tlsa_rdata(
 }
 
 zone_nonnull_all
-int32_t zone_check_openpgpkey_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type)
-{
-  // FIXME: as the RDATA contains a digest, it is likely we can make this
-  //        check stricter, at least, for known digests
-  if (parser->rdata->length < 4)
-    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
-  return accept_rr(parser);
-}
-
-zone_nonnull_all
 int32_t zone_check_l32_rdata(
   zone_parser_t *parser, const zone_type_info_t *type)
 {
@@ -735,6 +724,27 @@ int32_t zone_check_eui64_rdata(
   zone_parser_t *parser, const zone_type_info_t *type)
 {
   if (parser->rdata->length != 8)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
+int32_t zone_check_openpgpkey_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // FIXME: as the RDATA contains a digest, it is likely we can make this
+  //        check stricter, at least, for known digests
+  if (parser->rdata->length < 4)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
+int32_t zone_check_zonemd_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // FIXME: RDATA contains digests, do extra checks?
+  if (parser->rdata->length < 6)
     SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
   return accept_rr(parser);
 }

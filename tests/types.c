@@ -482,6 +482,30 @@ static const rdata_t openpgpkey_rdata =
         0xfe, 0x59, 0xed, 0x5a, 0x4c, 0x18, 0x5a, 0x19,
         0xaf, 0x3a, 0x01);
 
+static const char zonemd_text[] =
+  PAD("example.com. 86400 IN ZONEMD 2018031500 1 1 (\n"
+      "    FEBE3D4CE2EC2FFA4BA99D46CD69D6D29711E55217057BEE\n"
+      "    7EB1A7B641A47BA7FED2DD5B97AE499FAFA4F22C6BD647DE )");
+static const char zonemd_generic_text[] =
+  PAD("example.com. 86400 CLASS1 TYPE63 \\# 54 "
+      /* serial */
+      "7848b78c"
+      /* scheme */
+      "01"
+      /* algorithm */
+      "01"
+      /* digest */
+      "febe3d4ce2ec2ffa4ba99d46cd69d6d29711e55217057bee"
+      "7eb1a7b641a47ba7fed2dd5b97ae499fafa4f22c6bd647de");
+static const rdata_t zonemd_rdata =
+  RDATA(0x78, 0x48, 0xb7, 0x8c, 0x01, 0x01, 0xfe, 0xbe,
+        0x3d, 0x4c, 0xe2, 0xec, 0x2f, 0xfa, 0x4b, 0xa9,
+        0x9d, 0x46, 0xcd, 0x69, 0xd6, 0xd2, 0x97, 0x11,
+        0xe5, 0x52, 0x17, 0x05, 0x7b, 0xee, 0x7e, 0xb1,
+        0xa7, 0xb6, 0x41, 0xa4, 0x7b, 0xa7, 0xfe, 0xd2,
+        0xdd, 0x5b, 0x97, 0xae, 0x49, 0x9f, 0xaf, 0xa4,
+        0xf2, 0x2c, 0x6b, 0xd6, 0x47, 0xde);
+
 static const char spf_text[] =
   PAD(" SPF \"v=spf1 +all\"");
 static const char spf_generic_text[] =
@@ -631,6 +655,8 @@ static const test_t tests[] = {
   { ZONE_CDNSKEY, cdnskey_generic_text, &cdnskey_rdata },
   { ZONE_OPENPGPKEY, openpgpkey_text, &openpgpkey_rdata },
   { ZONE_OPENPGPKEY, openpgpkey_generic_text, &openpgpkey_rdata },
+  { ZONE_ZONEMD, zonemd_text, &zonemd_rdata },
+  { ZONE_ZONEMD, zonemd_generic_text, &zonemd_rdata },
   { ZONE_SPF, spf_text, &spf_rdata },
   { ZONE_SPF, spf_generic_text, &spf_rdata },
   { ZONE_L32, l32_text, &l32_rdata },

@@ -625,6 +625,31 @@ static int32_t parse_openpgpkey_rdata(
 }
 
 zone_nonnull_all
+extern int32_t zone_check_zonemd_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static int32_t parse_zonemd_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_int32(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int8(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int8(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_base16(parser, type, &type->rdata.fields[3], token)) < 0)
+    return r;
+
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
 extern int32_t zone_check_l32_rdata(
   zone_parser_t *parser, const zone_type_info_t *type);
 
@@ -1121,6 +1146,13 @@ static const zone_field_info_t openpgpkey_rdata_fields[] = {
   FIELD("key", ZONE_BLOB, ZONE_BASE64)
 };
 
+static const zone_field_info_t zonemd_rdata_fields[] = {
+  FIELD("serial", ZONE_INT32, 0),
+  FIELD("scheme", ZONE_INT8, 0),
+  FIELD("algorithm", ZONE_INT8, 0),
+  FIELD("digest", ZONE_BLOB, ZONE_BASE16),
+};
+
 static const zone_field_info_t spf_rdata_fields[] = {
   FIELD("text", ZONE_STRING, ZONE_SEQUENCE)
 };
@@ -1297,7 +1329,10 @@ static const type_descriptor_t types[] = {
                      zone_check_openpgpkey_rdata, parse_openpgpkey_rdata),
 
   UNKNOWN_TYPE(62),
-  UNKNOWN_TYPE(63),
+
+  TYPE("ZONEMD", ZONE_ZONEMD, ZONE_ANY, FIELDS(zonemd_rdata_fields),
+                 zone_check_zonemd_rdata, parse_zonemd_rdata),
+
   UNKNOWN_TYPE(64),
   UNKNOWN_TYPE(65),
   UNKNOWN_TYPE(66),
