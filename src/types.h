@@ -581,6 +581,34 @@ static int32_t parse_nsec3param_rdata(
 }
 
 zone_nonnull_all
+extern int32_t zone_check_tlsa_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static int32_t parse_tlsa_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_int8(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int8(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int8(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_base16(parser, type, &type->rdata.fields[3], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
 extern int32_t zone_check_l32_rdata(
   zone_parser_t *parser, const zone_type_info_t *type);
 
@@ -1045,6 +1073,20 @@ static const zone_field_info_t nsec3param_rdata_fields[] = {
   FIELD("salt", ZONE_STRING, ZONE_BASE16)
 };
 
+static const zone_field_info_t tlsa_rdata_fields[] = {
+  FIELD("usage", ZONE_INT8, 0),
+  FIELD("selector", ZONE_INT8, 0),
+  FIELD("matching type", ZONE_INT8, 0),
+  FIELD("certificate association data", ZONE_BLOB, ZONE_BASE16)
+};
+
+static const zone_field_info_t smimea_rdata_fields[] = {
+  FIELD("usage", ZONE_INT8, 0),
+  FIELD("selector", ZONE_INT8, 0),
+  FIELD("matching type", ZONE_INT8, 0),
+  FIELD("certificate association data", ZONE_BLOB, ZONE_BASE16)
+};
+
 static const zone_field_info_t cds_rdata_fields[] = {
   FIELD("keytag", ZONE_INT16, 0),
   FIELD("algorithm", ZONE_INT8, 0, SYMBOLS(ds_algorithm_symbols)),
@@ -1216,9 +1258,11 @@ static const type_descriptor_t types[] = {
                 zone_check_nsec3_rdata, parse_nsec3_rdata),
   TYPE("NSEC3PARAM", ZONE_NSEC3PARAM, ZONE_ANY, FIELDS(nsec3param_rdata_fields),
                      zone_check_nsec3param_rdata, parse_nsec3param_rdata),
+  TYPE("TLSA", ZONE_TLSA, ZONE_ANY, FIELDS(tlsa_rdata_fields),
+               zone_check_tlsa_rdata, parse_tlsa_rdata),
+  TYPE("SMIMEA", ZONE_SMIMEA, ZONE_ANY, FIELDS(smimea_rdata_fields),
+                 zone_check_tlsa_rdata, parse_tlsa_rdata),
 
-  UNKNOWN_TYPE(52), // TLSA
-  UNKNOWN_TYPE(53), // SMIMEA
   UNKNOWN_TYPE(54),
   UNKNOWN_TYPE(55), // HIP
   UNKNOWN_TYPE(56),
