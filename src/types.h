@@ -609,6 +609,22 @@ static int32_t parse_tlsa_rdata(
 }
 
 zone_nonnull_all
+extern int32_t zone_check_openpgpkey_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static int32_t parse_openpgpkey_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_base64(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
 extern int32_t zone_check_l32_rdata(
   zone_parser_t *parser, const zone_type_info_t *type);
 
@@ -1101,6 +1117,10 @@ static const zone_field_info_t cdnskey_rdata_fields[] = {
   FIELD("publickey", ZONE_BLOB, ZONE_BASE64)
 };
 
+static const zone_field_info_t openpgpkey_rdata_fields[] = {
+  FIELD("key", ZONE_BLOB, ZONE_BASE64)
+};
+
 static const zone_field_info_t spf_rdata_fields[] = {
   FIELD("text", ZONE_STRING, ZONE_SEQUENCE)
 };
@@ -1273,8 +1293,9 @@ static const type_descriptor_t types[] = {
               zone_check_ds_rdata, parse_ds_rdata),
   TYPE("CDNSKEY", ZONE_CDNSKEY, ZONE_ANY, FIELDS(cdnskey_rdata_fields),
                   zone_check_dnskey_rdata, parse_dnskey_rdata),
+  TYPE("OPENPGPKEY", ZONE_OPENPGPKEY, ZONE_ANY, FIELDS(openpgpkey_rdata_fields),
+                     zone_check_openpgpkey_rdata, parse_openpgpkey_rdata),
 
-  UNKNOWN_TYPE(61),
   UNKNOWN_TYPE(62),
   UNKNOWN_TYPE(63),
   UNKNOWN_TYPE(64),
