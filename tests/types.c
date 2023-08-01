@@ -293,6 +293,42 @@ static const rdata_t dhcid_rdata =
         0x94, 0xe8, 0xf1, 0x7c, 0xdb, 0x95, 0x00, 0x0d,
         0xa4, 0x8c, 0x40);
 
+static const char tlsa_text[] =
+  PAD(" TLSA 0 0 1 d2abde240d7cd3ee6b4b28c54df034b97983a1d16e8a410e4561cb106618e971");
+static const char tlsa_generic_text[] =
+  PAD(" TLSA \\# 35 00 00 01 ( d2abde240d7cd3ee6b4b28c54df034b9"
+      "                        7983a1d16e8a410e4561cb106618e971 )");
+static const rdata_t tlsa_rdata =
+  RDATA(/* usage */
+        0x00,
+        /* selector */
+        0x00,
+        /* matching type */
+        0x01,
+        /* certificate association data */
+        0xd2, 0xab, 0xde, 0x24, 0x0d, 0x7c, 0xd3, 0xee,
+        0x6b, 0x4b, 0x28, 0xc5, 0x4d, 0xf0, 0x34, 0xb9,
+        0x79, 0x83, 0xa1, 0xd1, 0x6e, 0x8a, 0x41, 0x0e,
+        0x45, 0x61, 0xcb, 0x10, 0x66, 0x18, 0xe9, 0x71);
+
+static const char smimea_text[] =
+  PAD(" SMIMEA 0 0 1 d2abde240d7cd3ee6b4b28c54df034b97983a1d16e8a410e4561cb106618e971");
+static const char smimea_generic_text[] =
+  PAD(" SMIMEA \\# 35 00 00 01 ( d2abde240d7cd3ee6b4b28c54df034b9"
+      "                          7983a1d16e8a410e4561cb106618e971 )");
+static const rdata_t smimea_rdata =
+  RDATA(/* usage */
+        0x00,
+        /* selector */
+        0x00,
+        /* matching type */
+        0x01,
+        /* certificate association data */
+        0xd2, 0xab, 0xde, 0x24, 0x0d, 0x7c, 0xd3, 0xee,
+        0x6b, 0x4b, 0x28, 0xc5, 0x4d, 0xf0, 0x34, 0xb9,
+        0x79, 0x83, 0xa1, 0xd1, 0x6e, 0x8a, 0x41, 0x0e,
+        0x45, 0x61, 0xcb, 0x10, 0x66, 0x18, 0xe9, 0x71);
+
 static const char cds_text[] =
   PAD(" CDS 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
 static const char cds_generic_text[] =
@@ -498,6 +534,10 @@ static const test_t tests[] = {
   { ZONE_SSHFP, sshfp_generic_text, &sshfp_rdata },
   { ZONE_DHCID, dhcid_text, &dhcid_rdata },
   { ZONE_DHCID, dhcid_generic_text, &dhcid_rdata },
+  { ZONE_TLSA, tlsa_text, &tlsa_rdata },
+  { ZONE_TLSA, tlsa_generic_text, &tlsa_rdata },
+  { ZONE_SMIMEA, smimea_text, &smimea_rdata },
+  { ZONE_SMIMEA, smimea_generic_text, &smimea_rdata },
   { ZONE_CDS, cds_text, &cds_rdata },
   { ZONE_CDS, cds_generic_text, &cds_rdata },
   { ZONE_CDNSKEY, cdnskey_text, &cdnskey_rdata },
