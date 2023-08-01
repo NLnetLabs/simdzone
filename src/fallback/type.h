@@ -379,7 +379,7 @@ static zone_really_inline int32_t scan_type(
   if ((r = find_type_or_class(parser, type, field, token, code, symbol)) == ZONE_TYPE)
     return r;
 
-  if (strncasecmp(token->data, "TYPE", 4) != 0)
+  if (strncasecmp(token->data, "TYPE", 4) == 0)
     return scan_generic_type(parser, type, field, token, code, symbol);
 
   SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
