@@ -483,6 +483,18 @@ int32_t zone_check_naptr_rdata(
 }
 
 zone_nonnull_all
+int32_t zone_check_cert_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // FIXME: implement actual checks
+  (void)type;
+
+  if (parser->rdata->length < 6)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
 int32_t zone_check_ds_rdata(
   zone_parser_t *parser, const zone_type_info_t *type)
 {

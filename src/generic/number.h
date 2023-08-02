@@ -16,11 +16,11 @@
 #endif
 
 zone_nonnull_all
-static zone_really_inline int32_t parse_symbol(
+static zone_really_inline int32_t parse_symbol8(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  token_t *token)
+  const token_t *token)
 {
   int32_t r;
 
@@ -52,11 +52,48 @@ static zone_really_inline int32_t parse_symbol(
 }
 
 zone_nonnull_all
+static zone_really_inline int32_t parse_symbol16(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const token_t *token)
+{
+  int32_t r;
+
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
+
+  uint64_t n = 0;
+  const char *p = token->data;
+  for (;; p++) {
+    const uint64_t d = (uint8_t)*p - '0';
+    if (d > 9)
+      break;
+    n = n * 10 + d;
+  }
+
+  if (is_contiguous((uint8_t)*p)) {
+    const zone_symbol_t *s;
+    if (!(s = lookup_symbol(&field->symbols, token)))
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    n = (uint16_t)s->value;
+  } else {
+    if (n > UINT16_MAX || p - token->data > 5)
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  }
+
+  uint16_t n16 = htons((uint16_t)n);
+  memcpy(&parser->rdata->octets[parser->rdata->length], &n16, sizeof(n16));
+  parser->rdata->length += sizeof(n16);
+  return ZONE_INT16;
+}
+
+zone_nonnull_all
 static zone_really_inline int32_t parse_int8(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  token_t *token)
+  const token_t *token)
 {
   int32_t r;
 
@@ -85,7 +122,7 @@ static zone_really_inline int32_t parse_int16(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  token_t *token)
+  const token_t *token)
 {
   int32_t r;
 
@@ -115,7 +152,7 @@ static zone_really_inline int32_t parse_int32(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
-  token_t *token)
+  const token_t *token)
 {
   int32_t r;
 
