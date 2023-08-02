@@ -22,10 +22,23 @@ static int compare(const void *p1, const void *p2)
   return contiguous[ (uint8_t)t->data[s->length] ] == CONTIGUOUS;
 }
 
+static int compare_symbol(const void *p1, const void *p2)
+{
+  int r;
+  const token_t *t = p1;
+  const zone_symbol_t *s = p2;
+  assert(s->key.length <= ZONE_BLOCK_SIZE);
+  if ((r = strncasecmp(t->data, s->key.data, s->key.length)) != 0)
+    return r;
+  // make sure symbol is followed by non-contiguous to avoid matching wrong
+  // symbol based on prefix. e.g. NSEC3 vs. NSEC3PARAM
+  return contiguous[ (uint8_t)t->data[s->key.length] ] == CONTIGUOUS;
+}
+
 static const zone_symbol_t *lookup_symbol(
   const zone_table_t *table, const token_t *token)
 {
-  return bsearch(token, table->symbols, table->length, sizeof(zone_symbol_t), compare);
+  return bsearch(token, table->symbols, table->length, sizeof(zone_symbol_t), compare_symbol);
 }
 
 #endif // TABLE_H

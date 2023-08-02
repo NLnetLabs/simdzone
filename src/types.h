@@ -375,6 +375,31 @@ static int32_t parse_naptr_rdata(
 }
 
 zone_nonnull_all
+extern int32_t zone_check_cert_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static int32_t parse_cert_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_symbol16(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_symbol8(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_base64(parser, type, &type->rdata.fields[3], token)) < 0)
+    return r;
+
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
 extern int32_t zone_check_ds_rdata(
   zone_parser_t *parser, const zone_type_info_t *type);
 
@@ -387,10 +412,10 @@ static int32_t parse_ds_rdata(
   if ((r = parse_int16(parser, type, &type->rdata.fields[0], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_symbol(parser, type, &type->rdata.fields[1], token)) < 0)
+  if ((r = parse_symbol8(parser, type, &type->rdata.fields[1], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_symbol(parser, type, &type->rdata.fields[2], token)) < 0)
+  if ((r = parse_symbol8(parser, type, &type->rdata.fields[2], token)) < 0)
     return r;
   lex(parser, token);
   if ((r = parse_base16(parser, type, &type->rdata.fields[3], token)) < 0)
@@ -434,7 +459,7 @@ static int32_t parse_rrsig_rdata(
   if ((r = parse_type(parser, type, &type->rdata.fields[0], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_symbol(parser, type, &type->rdata.fields[1], token)) < 0)
+  if ((r = parse_symbol8(parser, type, &type->rdata.fields[1], token)) < 0)
     return r;
   lex(parser, token);
   if ((r = parse_int8(parser, type, &type->rdata.fields[2], token)) < 0)
@@ -496,7 +521,7 @@ static int32_t parse_dnskey_rdata(
   if ((r = parse_int8(parser, type, &type->rdata.fields[1], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_symbol(parser, type, &type->rdata.fields[2], token)) < 0)
+  if ((r = parse_symbol8(parser, type, &type->rdata.fields[2], token)) < 0)
     return r;
   lex(parser, token);
   if ((r = parse_base64(parser, type, &type->rdata.fields[3], token)) < 0)
@@ -531,10 +556,10 @@ static int32_t parse_nsec3_rdata(
 {
   int32_t r;
 
-  if ((r = parse_symbol(parser, type, &type->rdata.fields[0], token)) < 0)
+  if ((r = parse_symbol8(parser, type, &type->rdata.fields[0], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_symbol(parser, type, &type->rdata.fields[1], token)) < 0)
+  if ((r = parse_symbol8(parser, type, &type->rdata.fields[1], token)) < 0)
     return r;
   lex(parser, token);
   if ((r = parse_int16(parser, type, &type->rdata.fields[2], token)) < 0)
@@ -562,10 +587,10 @@ static int32_t parse_nsec3param_rdata(
 {
   int32_t r;
 
-  if ((r = parse_symbol(parser, type, &type->rdata.fields[0], token)) < 0)
+  if ((r = parse_symbol8(parser, type, &type->rdata.fields[0], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_symbol(parser, type, &type->rdata.fields[1], token)) < 0)
+  if ((r = parse_symbol8(parser, type, &type->rdata.fields[1], token)) < 0)
     return r;
   lex(parser, token);
   if ((r = parse_int16(parser, type, &type->rdata.fields[2], token)) < 0)
@@ -1009,11 +1034,22 @@ static const zone_field_info_t kx_rdata_fields[] = {
   FIELD("exchanger", ZONE_NAME, 0)
 };
 
-static const zone_field_info_t dname_rdata_fields[] = {
-  FIELD("source", ZONE_NAME, 0)
+// https://www.iana.org/assignments/cert-rr-types/cert-rr-types.xhtml
+static const zone_symbol_t cert_type_symbols[] = {
+  SYMBOL("ACPKIX", 7),
+  SYMBOL("IACPKIX", 8),
+  SYMBOL("IPGP", 6),
+  SYMBOL("IPKIX", 4),
+  SYMBOL("ISPKI", 5),
+  SYMBOL("OID", 254),
+  SYMBOL("PGP", 3),
+  SYMBOL("PKIX", 1),
+  SYMBOL("SPKI", 2),
+  SYMBOL("URI", 253),
 };
 
-static const zone_symbol_t ds_algorithm_symbols[] = {
+// https://www.iana.org/assignments/dns-sec-alg-numbers/dns-sec-alg-numbers.xhtml
+static const zone_symbol_t dnssec_algorithm_symbols[] = {
   SYMBOL("DH", 2),
   SYMBOL("DSA", 3),
   SYMBOL("DSA-NSEC-SHA1", 6),
@@ -1031,6 +1067,17 @@ static const zone_symbol_t ds_algorithm_symbols[] = {
   SYMBOL("RSASHA512", 10)
 };
 
+static const zone_field_info_t cert_rdata_fields[] = {
+  FIELD("type", ZONE_INT16, 0, SYMBOLS(cert_type_symbols)),
+  FIELD("key tag", ZONE_INT16, 0),
+  FIELD("algorithm", ZONE_INT8, 0, SYMBOLS(dnssec_algorithm_symbols)),
+  FIELD("certificate", ZONE_BLOB, ZONE_BASE64)
+};
+
+static const zone_field_info_t dname_rdata_fields[] = {
+  FIELD("source", ZONE_NAME, 0)
+};
+
 static const zone_symbol_t ds_digest_type_symbols[] = {
   SYMBOL("GOST", 3),
   SYMBOL("SHA-1", 1),
@@ -1040,7 +1087,7 @@ static const zone_symbol_t ds_digest_type_symbols[] = {
 
 static const zone_field_info_t ds_rdata_fields[] = {
   FIELD("keytag", ZONE_INT16, 0),
-  FIELD("algorithm", ZONE_INT8, 0, SYMBOLS(ds_algorithm_symbols)),
+  FIELD("algorithm", ZONE_INT8, 0, SYMBOLS(dnssec_algorithm_symbols)),
   FIELD("digtype", ZONE_INT8, 0, SYMBOLS(ds_digest_type_symbols)),
   FIELD("digest", ZONE_BLOB, ZONE_BASE16)
 };
@@ -1049,17 +1096,6 @@ static const zone_field_info_t sshfp_rdata_fields[] = {
   FIELD("algorithm", ZONE_INT8, 0),
   FIELD("ftype", ZONE_INT8, 0),
   FIELD("fingerprint", ZONE_BLOB, ZONE_BASE16)
-};
-
-static const zone_symbol_t dnssec_algorithm_symbols[] = {
-  SYMBOL("DH", 2),
-  SYMBOL("DSA", 3),
-  SYMBOL("ECC", 4),
-  SYMBOL("INDIRECT", 252),
-  SYMBOL("PRIVATEDNS", 253),
-  SYMBOL("PRIVATEOID", 254),
-  SYMBOL("RSAMD5", 1),
-  SYMBOL("RSASHA1", 5)
 };
 
 static const zone_field_info_t rrsig_rdata_fields[] = {
@@ -1130,7 +1166,7 @@ static const zone_field_info_t smimea_rdata_fields[] = {
 
 static const zone_field_info_t cds_rdata_fields[] = {
   FIELD("keytag", ZONE_INT16, 0),
-  FIELD("algorithm", ZONE_INT8, 0, SYMBOLS(ds_algorithm_symbols)),
+  FIELD("algorithm", ZONE_INT8, 0, SYMBOLS(dnssec_algorithm_symbols)),
   FIELD("digtype", ZONE_INT8, 0, SYMBOLS(ds_digest_type_symbols)),
   FIELD("digest", ZONE_BLOB, ZONE_BASE16)
 };
@@ -1280,8 +1316,9 @@ static const type_descriptor_t types[] = {
                 zone_check_naptr_rdata, parse_naptr_rdata),
   TYPE("KX", ZONE_KX, ZONE_IN, FIELDS(kx_rdata_fields),
              zone_check_mx_rdata, parse_mx_rdata),
+  TYPE("CERT", ZONE_CERT, ZONE_ANY, FIELDS(cert_rdata_fields),
+               zone_check_cert_rdata, parse_cert_rdata),
 
-  UNKNOWN_TYPE(37),
   UNKNOWN_TYPE(38),
 
   TYPE("DNAME", ZONE_DNAME, ZONE_ANY, FIELDS(dname_rdata_fields),

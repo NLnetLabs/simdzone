@@ -255,6 +255,18 @@ static const char kx_generic_text[] =
 static const rdata_t kx_rdata =
   RDATA(0x00, 0x0a, 0x07, 0x6b, 0x78, 0x2d, 0x68, 0x6f, 0x73, 0x74, EXAMPLE_COM);
 
+static const char cert_text[] =
+  PAD(" CERT PKIX 65535 RSASHA256 Zm9vYmFy");
+static const rdata_t cert_rdata =
+  RDATA(/* type */
+        0x00, 0x01,
+        /* key tag */
+        0xff, 0xff,
+        /* algorithm */
+        0x08,
+        /* certificate */
+        0x66, 0x6F, 0x6F, 0x62, 0x61, 0x72);
+
 static const char dname_text[] = PAD(" DNAME host.example.com.");
 static const char dname_generic_text[] =
   PAD(" DNAME \\# 18 04686f7374076578616d706c6503636f6d00");
@@ -639,6 +651,7 @@ static const test_t tests[] = {
   { ZONE_NAPTR, naptr_generic_text, &naptr_rdata },
   { ZONE_KX, kx_text, &kx_rdata },
   { ZONE_KX, kx_generic_text, &kx_rdata },
+  { ZONE_CERT, cert_text, &cert_rdata },
   { ZONE_DNAME, dname_text, &dname_rdata },
   { ZONE_DNAME, dname_generic_text, &dname_rdata },
   { ZONE_SSHFP, sshfp_text, &sshfp_rdata },
