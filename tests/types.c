@@ -235,6 +235,20 @@ static const char key_generic_text[] =
 static const rdata_t key_rdata =
   RDATA(0x00, 0x00, 0x00, 0x00, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72);
 
+static const char px_text[] =
+  PAD("*.ab.fr.  IN  PX  50  ab.fr.  PRMD-ab.ADMD-ac.C-fr.");
+static const char px_generic_text[] =
+  PAD("*.ab.fr.  IN  TYPE26 \\# 31 0032 02616202667200 0750524d442d61620741444d442d616304432d667200");
+static const rdata_t px_rdata =
+  RDATA(/* preference */
+        0x00, 0x32,
+        /* map822 */
+        0x02, 'a', 'b', 0x02, 'f', 'r', 0x00,
+        /* mapx400 */
+        0x07, 'P', 'R', 'M', 'D', '-', 'a', 'b',
+        0x07, 'A', 'D', 'M', 'D', '-', 'a', 'c',
+        0x04, 'C', '-', 'f', 'r', 0x00);
+
 static const char naptr_text[] =
   PAD(" NAPTR 100 50 \"s\" \"http+I2L+I2C+I2R\" \"\"  _http._tcp.gatech.edu.");
 static const char naptr_generic_text[] =
@@ -664,6 +678,8 @@ static const test_t tests[] = {
   { ZONE_NSAP_PTR, nsap_ptr_text, &nsap_ptr_rdata },
   { ZONE_KEY, key_text, &key_rdata },
   { ZONE_KEY, key_generic_text, &key_rdata },
+  { ZONE_PX, px_text, &px_rdata },
+  { ZONE_PX, px_generic_text, &px_rdata },
   { ZONE_NAPTR, naptr_text, &naptr_rdata },
   { ZONE_NAPTR, naptr_generic_text, &naptr_rdata },
   { ZONE_KX, kx_text, &kx_rdata },

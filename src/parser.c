@@ -536,6 +536,26 @@ int32_t zone_check_key_rdata(
 }
 
 zone_nonnull_all
+int32_t zone_check_px_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = add(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = add(&c, check_name(parser, type, &f[1], o+c, n-c))) ||
+      (r = add(&c, check_name(parser, type, &f[2], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s record", TNAME(type));
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
 int32_t zone_check_aaaa_rdata(
   zone_parser_t *parser, const zone_type_info_t *type)
 {

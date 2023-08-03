@@ -333,6 +333,31 @@ static int32_t parse_key_rdata(
 }
 
 zone_nonnull_all
+extern int32_t zone_check_px_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static zone_really_inline int32_t parse_px_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_int16(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_name(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_name(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
 extern int32_t zone_check_aaaa_rdata(
   zone_parser_t *parser, const zone_type_info_t *type);
 
@@ -1056,6 +1081,12 @@ static const zone_field_info_t key_rdata_fields[] = {
   FIELD("publickey", ZONE_BLOB, ZONE_BASE64)
 };
 
+static const zone_field_info_t px_rdata_fields[] = {
+  FIELD("preference", ZONE_INT16, 0),
+  FIELD("map822", ZONE_NAME, 0),
+  FIELD("mapx400", ZONE_NAME, 0)
+};
+
 static const zone_field_info_t aaaa_rdata_fields[] = {
   FIELD("address", ZONE_IP6, 0)
 };
@@ -1344,8 +1375,9 @@ static const type_descriptor_t types[] = {
 
   TYPE("KEY", ZONE_KEY, ZONE_ANY, FIELDS(key_rdata_fields),
               zone_check_key_rdata, parse_key_rdata),
+  TYPE("PX", ZONE_PX, ZONE_IN, FIELDS(px_rdata_fields),
+             zone_check_px_rdata, parse_px_rdata),
 
-  UNKNOWN_TYPE(26),
   UNKNOWN_TYPE(27),
 
   TYPE("AAAA", ZONE_AAAA, ZONE_IN, FIELDS(aaaa_rdata_fields),
