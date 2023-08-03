@@ -553,6 +553,13 @@ static const char spf_generic_text[] =
 static const rdata_t spf_rdata =
   RDATA(0x0b, 'v', '=', 's', 'p', 'f', '1', ' ', '+', 'a', 'l', 'l');
 
+static const char nid_text[] =
+  PAD(" NID 10 0014:4fff:ff20:ee64");
+static const char nid_generic_text[] =
+  PAD(" TYPE104 \\# 10 000a 0014 4fff ff20 ee64");
+static const rdata_t nid_rdata =
+  RDATA(0x00, 0x0a, 0x00, 0x14, 0x4f, 0xff, 0xff, 0x20, 0xee, 0x64);
+
 static const char l32_text[] =
   PAD(" L32 10 10.1.2.0");
 static const char l32_generic_text[] =
@@ -705,6 +712,8 @@ static const test_t tests[] = {
   { ZONE_ZONEMD, zonemd_generic_text, &zonemd_rdata },
   { ZONE_SPF, spf_text, &spf_rdata },
   { ZONE_SPF, spf_generic_text, &spf_rdata },
+  { ZONE_NID, nid_text, &nid_rdata },
+  { ZONE_NID, nid_generic_text, &nid_rdata },
   { ZONE_L32, l32_text, &l32_rdata },
   { ZONE_L32, l32_generic_text, &l32_rdata },
   { ZONE_L64, l64_text, &l64_rdata },
