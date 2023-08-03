@@ -26,6 +26,7 @@
 #include "generic/caa.h"
 #include "generic/ilnp64.h"
 #include "fallback/eui.h"
+#include "fallback/nsap.h"
 #include "visit.h"
 #include "types.h"
 #include "fallback/type.h"

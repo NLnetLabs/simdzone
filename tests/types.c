@@ -214,6 +214,20 @@ static const rdata_t rt_rdata =
         0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x03, 0x63,
         0x6f, 0x6d, 0x00);
 
+static const char nsap_text[] =
+  PAD(" NSAP 0x47.0005.80.005a00.0000.0001.e133.aaaaaa000111.00");
+static const char nsap_generic_text[] =
+  PAD(" TYPE22 \\# 20 47 0005 80 005a00 0000 0001 e133 aaaaaa000111 00");
+static const rdata_t nsap_rdata =
+  RDATA(0x47, 0x00, 0x05, 0x80, 0x00, 0x5a, 0x00, 0x00,
+        0x00, 0x00, 0x01, 0xe1, 0x33, 0xaa, 0xaa, 0xaa,
+        0x00, 0x01, 0x11, 0x00);
+
+static const char nsap_ptr_text[] =
+  PAD("0.0.2.6.1.0.0.0.f.f.f.f.f.f.3.3.1.e.1.0.0.0.0.0.0.0.0.0.a.5.0.0.0.8.5.0.0.0.7.4.NSAP.INT. NSAP-PTR host.example.com.");
+static const rdata_t nsap_ptr_rdata =
+  RDATA(4, 'h', 'o', 's', 't', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0);
+
 static const char key_text[] =
   PAD(" KEY 0 0 0 Zm9vYmFy");
 static const char key_generic_text[] =
@@ -645,6 +659,9 @@ static const test_t tests[] = {
   { ZONE_ISDN, isdn_generic_text, &isdn_rdata },
   { ZONE_RT, rt_text, &rt_rdata },
   { ZONE_RT, rt_generic_text, &rt_rdata },
+  { ZONE_NSAP, nsap_text, &nsap_rdata },
+  { ZONE_NSAP, nsap_generic_text, &nsap_rdata },
+  { ZONE_NSAP_PTR, nsap_ptr_text, &nsap_ptr_rdata },
   { ZONE_KEY, key_text, &key_rdata },
   { ZONE_KEY, key_generic_text, &key_rdata },
   { ZONE_NAPTR, naptr_text, &naptr_rdata },
