@@ -739,6 +739,28 @@ static int32_t parse_zonemd_rdata(
 }
 
 zone_nonnull_all
+extern int32_t zone_check_nid_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static zone_really_inline int32_t parse_nid_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_int16(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_ilnp64(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
 extern int32_t zone_check_l32_rdata(
   zone_parser_t *parser, const zone_type_info_t *type);
 
@@ -1271,6 +1293,11 @@ static const zone_field_info_t spf_rdata_fields[] = {
   FIELD("text", ZONE_STRING, ZONE_SEQUENCE)
 };
 
+static const zone_field_info_t nid_rdata_fields[] = {
+  FIELD("preference", ZONE_INT16, 0),
+  FIELD("nodeid", ZONE_ILNP64, 0)
+};
+
 // RFC6742 specifies the syntax for the locator is compatible with the syntax
 // for IPv4 addresses, but then proceeds to provide an example with leading
 // zeroes. The example is corrected in the errata.
@@ -1494,8 +1521,9 @@ static const type_descriptor_t types[] = {
   UNKNOWN_TYPE(101),
   UNKNOWN_TYPE(102),
   UNKNOWN_TYPE(103),
-  UNKNOWN_TYPE(104),
 
+  TYPE("NID", ZONE_NID, ZONE_ANY, FIELDS(nid_rdata_fields),
+              zone_check_nid_rdata, parse_nid_rdata),
   TYPE("L32", ZONE_L32, ZONE_ANY, FIELDS(l32_rdata_fields),
               zone_check_l32_rdata, parse_l32_rdata),
   TYPE("L64", ZONE_L64, ZONE_ANY, FIELDS(l64_rdata_fields),
