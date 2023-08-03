@@ -248,7 +248,7 @@ extern int32_t zone_check_rt_rdata(
   zone_parser_t *parser, const zone_type_info_t *type);
 
 zone_nonnull_all
-static int32_t parse_rt_rdata(
+static zone_really_inline int32_t parse_rt_rdata(
   zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
   int32_t r;
@@ -263,6 +263,45 @@ static int32_t parse_rt_rdata(
     return r;
 
   return accept_rr(parser);
+}
+
+zone_nonnull_all
+extern int32_t zone_check_nsap_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static zone_really_inline int32_t parse_nsap_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_nsap(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  return accept_rr(parser);
+}
+
+zone_nonnull_all
+extern int32_t zone_check_nsap_ptr_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static zone_really_inline int32_t parse_nsap_ptr_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_name(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = have_delimiter(parser, type, token)) < 0)
+    return r;
+
+  // RFC1706 section 6 states each nibble is treated as a separate subdomain
+  return zone_check_nsap_ptr_rdata(parser, type);
 }
 
 zone_nonnull_all
@@ -1002,6 +1041,14 @@ static const zone_field_info_t rt_rdata_fields[] = {
   FIELD("hostname", ZONE_NAME, 0)
 };
 
+static const zone_field_info_t nsap_rdata_fields[] = {
+  FIELD("address", ZONE_BLOB, ZONE_NSAP)
+};
+
+static const zone_field_info_t nsap_ptr_rdata_fields[] = {
+  FIELD("hostname", ZONE_NAME, 0)
+};
+
 static const zone_field_info_t key_rdata_fields[] = {
   FIELD("flags", ZONE_INT16, 0),
   FIELD("protocol", ZONE_INT8, 0),
@@ -1288,9 +1335,11 @@ static const type_descriptor_t types[] = {
                zone_check_isdn_rdata, parse_isdn_rdata),
   TYPE("RT", ZONE_RT, ZONE_ANY, FIELDS(rt_rdata_fields),
              zone_check_rt_rdata, parse_rt_rdata),
+  TYPE("NSAP", ZONE_NSAP, ZONE_IN, FIELDS(nsap_rdata_fields),
+               zone_check_nsap_rdata, parse_nsap_rdata),
+  TYPE("NSAP-PTR", ZONE_NSAP_PTR, ZONE_IN, FIELDS(nsap_ptr_rdata_fields),
+                   zone_check_nsap_ptr_rdata, parse_nsap_ptr_rdata),
 
-  UNKNOWN_TYPE(22),
-  UNKNOWN_TYPE(23),
   UNKNOWN_TYPE(24),
 
   TYPE("KEY", ZONE_KEY, ZONE_ANY, FIELDS(key_rdata_fields),
