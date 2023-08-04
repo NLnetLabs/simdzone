@@ -25,6 +25,13 @@ static zone_really_inline int32_t scan_name(
 
   l[0] = 0;
 
+  if (s[0] == '.') {
+    if (delimiters[(uint8_t)s[1]] == token->code)
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    *length = 1;
+    return 0;
+  }
+
   while (b < bs) {
     const uint8_t c = (uint8_t)s[0];
     if (c == '\\') {

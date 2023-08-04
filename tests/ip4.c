@@ -15,6 +15,7 @@
 
 static int32_t add_rr(
   zone_parser_t *parser,
+  const zone_type_info_t *info,
   const zone_name_t *owner,
   uint16_t type,
   uint16_t class,
@@ -24,6 +25,7 @@ static int32_t add_rr(
   void *user_data)
 {
   (void)parser;
+  (void)info;
   (void)owner;
   (void)type;
   (void)class;
