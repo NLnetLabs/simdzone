@@ -34,9 +34,242 @@ static zone_really_inline int32_t parse_type(
   const zone_field_info_t *field,
   const token_t *token);
 
+
+#define SYMBOLS(symbols) \
+  { (sizeof(symbols)/sizeof(symbols[0])), symbols }
+
+#define SYMBOL(name, value) \
+  { { name,  sizeof(name) - 1 }, value }
+
+#define FIELDS(fields) \
+  { (sizeof(fields)/sizeof(fields[0])), fields }
+
+#define FIELD(name, type, /* qualifiers, symbols */ ...) \
+  { { sizeof(name) - 1, name }, type, __VA_ARGS__ }
+
+#define CLASS(name, code) \
+  { { { name, sizeof(name) - 1 }, code } }
+
+#define UNKNOWN_CLASS(code) \
+  { { { "", 0 }, code } }
+
+#define TYPE(name, code, options, fields, check, parse) \
+  { { { { name, sizeof(name) - 1 }, code }, options, fields }, check, parse }
+
+#define UNKNOWN_TYPE(code) \
+  { { { { "", 0 }, code }, 0, { 0, NULL } }, \
+    check_generic_rr, parse_unknown_rdata }
+
+// class descriptor exists to parse classes and types in a uniform way
+typedef struct class_descriptor class_descriptor_t;
+struct class_descriptor {
+  zone_symbol_t name;
+};
+
+typedef struct type_descriptor type_descriptor_t;
+struct type_descriptor {
+  zone_type_info_t info;
+  int32_t (*check)(zone_parser_t *, const zone_type_info_t *);
+  int32_t (*parse)(zone_parser_t *, const zone_type_info_t *, token_t *);
+};
+
+#if _WIN32
+typedef SSIZE_T ssize_t;
+#define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+#else
+#include <strings.h>
+#endif
+
+zone_nonnull((1,2,3,4))
+static zone_really_inline ssize_t check_bytes(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const uint8_t *data,
+  const size_t length,
+  const size_t size)
+{
+  (void)data;
+  if (length < size)
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), TNAME(type));
+  return (ssize_t)size;
+}
+
+#define check_int8(...) check_bytes(__VA_ARGS__, sizeof(uint8_t))
+
+#define check_int16(...) check_bytes(__VA_ARGS__, sizeof(uint16_t))
+
+#define check_int32(...) check_bytes(__VA_ARGS__, sizeof(uint32_t))
+
+#define check_ip4(...) check_bytes(__VA_ARGS__, 4)
+
+#define check_ip6(...) check_bytes(__VA_ARGS__, 16)
+
+#define check_ilnp64(...) check_bytes(__VA_ARGS__, sizeof(uint64_t))
+
+zone_nonnull((1,2,3,4))
+static zone_really_inline ssize_t check_ttl(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const uint8_t *data,
+  const size_t length)
+{
+  uint32_t number;
+
+  if (length < sizeof(number))
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), TNAME(type));
+
+  memcpy(&number, data, sizeof(number));
+  number = ntohl(number);
+
+  if (number > INT32_MAX)
+    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+
+  return 4;
+}
+
+zone_nonnull((1,2,3,4))
+static zone_really_inline ssize_t check_type(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const uint8_t *data,
+  const size_t length)
+{
+  uint16_t number;
+
+  if (length < sizeof(number))
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), TNAME(type));
+
+  memcpy(&number, data, sizeof(number));
+
+  if (!number)
+    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+
+  return 2;
+}
+
+zone_nonnull((1,2,3,4))
+static zone_really_inline ssize_t check_name(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const uint8_t *data,
+  const size_t length)
+{
+  size_t label = 0, count = 0;
+  while (count < length) {
+    label = data[count];
+    count += 1 + label;
+    if (!label)
+      break;
+  }
+
+  if (!count || count > length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+
+  return (ssize_t)count;
+}
+
+zone_nonnull((1,2,3,4))
+static zone_really_inline ssize_t check_string(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const uint8_t *data,
+  const size_t length)
+{
+  size_t count;
+
+  if (!length || (count = 1 + (size_t)data[0]) > length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+
+  return (ssize_t)count;
+}
+
+zone_nonnull((1,2,3,4))
+static zone_really_inline ssize_t check_nsec(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const uint8_t *data,
+  const size_t length)
+{
+  size_t count = 0;
+  size_t last_window = 0;
+
+  while ((count + 2) < length) {
+    const size_t window = (size_t)data[0];
+    const size_t blocks = 1 + (size_t)data[1];
+    if (window < last_window || !window != !last_window)
+      SYNTAX_ERROR(parser, "Invalid %s in %s, windows are out-of-order",
+                   NAME(field), TNAME(type));
+    if (blocks > 32)
+      SYNTAX_ERROR(parser, "Invalid %s in %s, blocks are out-of-bounds",
+                   NAME(field), TNAME(type));
+    count += 2 + blocks;
+    last_window = window;
+  }
+
+  if (count != length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+
+  return (ssize_t)count;
+}
+
+zone_nonnull((1))
+static zone_really_inline int32_t check(size_t *length, ssize_t count)
+{
+  if (count < 0)
+    return (int32_t)count;
+  *length += (size_t)count;
+  return 0;
+}
+
 zone_nonnull_all
-extern int32_t zone_check_a_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static zone_really_inline int32_t accept_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t result;
+
+  assert(parser->owner->length <= UINT8_MAX);
+  assert(parser->rdata->length <= UINT16_MAX);
+  result = parser->options.accept.add(
+    parser,
+    type,
+    &(zone_name_t){ (uint8_t)parser->owner->length, parser->owner->octets },
+    parser->file->last_type,
+    parser->file->last_class,
+    parser->file->last_ttl,
+    (uint16_t)parser->rdata->length,
+    parser->rdata->octets,
+    parser->user_data);
+
+  assert((size_t)result < parser->cache.size);
+  if (result < 0)
+    return result;
+  parser->rdata = &parser->cache.rdata.blocks[result];
+  return 0;
+}
+
+zone_nonnull_all
+static int32_t check_a_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_ip4(parser, type, &f[0], o, n))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_a_rdata(
@@ -50,12 +283,26 @@ static int32_t parse_a_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_ns_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_ns_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_name(parser, type, &f[0], o, n))) < 0)
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_ns_rdata(
@@ -69,12 +316,32 @@ static int32_t parse_ns_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_soa_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_soa_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_name(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_name(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int32(parser, type, &f[2], o+c, n-c))) ||
+      (r = check(&c, check_ttl(parser, type, &f[3], o+c, n-c))) ||
+      (r = check(&c, check_ttl(parser, type, &f[4], o+c, n-c))) ||
+      (r = check(&c, check_ttl(parser, type, &f[5], o+c, n-c))) ||
+      (r = check(&c, check_ttl(parser, type, &f[6], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_soa_rdata(
@@ -106,12 +373,27 @@ static int32_t parse_soa_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_hinfo_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_hinfo_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_string(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_string(parser, type, &f[1], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_hinfo_rdata(
@@ -128,12 +410,27 @@ static int32_t parse_hinfo_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_minfo_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_minfo_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_name(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_name(parser, type, &f[1], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_minfo_rdata(
@@ -150,12 +447,27 @@ static int32_t parse_minfo_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_mx_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_mx_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_name(parser, type, &f[1], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_mx_rdata(
@@ -172,12 +484,30 @@ static int32_t parse_mx_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_txt_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_txt_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_string(parser, type, &f[0], o, n))))
+    return r;
+
+  while (c < n)
+    if ((r = check(&c, check_string(parser, type, &f[0], o+c, n-c))))
+      return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_txt_rdata(
@@ -194,12 +524,26 @@ static int32_t parse_txt_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_x25_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_x25_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_string(parser, type, &f[0], o, n))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_x25_rdata(
@@ -213,12 +557,29 @@ static int32_t parse_x25_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_isdn_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_isdn_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_string(parser, type, &f[0], o, n))))
+    return r;
+  // subaddress is optional
+  if (c < n && (r = check(&c, check_string(parser, type, &f[1], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_isdn_rdata(
@@ -240,15 +601,30 @@ static int32_t parse_isdn_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_rt_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_rt_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_name(parser, type, &f[1], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
-static zone_really_inline int32_t parse_rt_rdata(
+static int32_t parse_rt_rdata(
   zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
   int32_t r;
@@ -262,15 +638,20 @@ static zone_really_inline int32_t parse_rt_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_nsap_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_nsap_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  if (parser->rdata->length == 0)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
-static zone_really_inline int32_t parse_nsap_rdata(
+static int32_t parse_nsap_rdata(
   zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
   int32_t r;
@@ -281,15 +662,57 @@ static zone_really_inline int32_t parse_nsap_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_nsap_ptr_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_nsap_ptr_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  {
+    int32_t r;
+    size_t c = 0;
+    const size_t n = parser->rdata->length;
+    const uint8_t *o = parser->rdata->octets;
+    const zone_field_info_t *f = type->rdata.fields;
+
+    if ((r = check(&c, check_name(parser, type, &f[0], o, n))))
+      return r;
+
+    if (c != parser->rdata->length)
+      SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  }
+
+  {
+    // RFC1706 section 6
+    // A domain name is generated from an NSAP by reversing the hex nibbles of
+    // the NSAP, treating each nibble as a separate subdomain, and appending
+    // the top-level subdomain name "NSAP.INT" to it. For example, the domain
+    // name used in the reverse lookup for the NSAP
+    //
+    //    47.0005.80.005a00.0000.0001.e133.ffffff000162.00
+    //
+    // would appear as
+    //
+    //    0.0.2.6.1.0.0.0.f.f.f.f.f.f.3.3.1.e.1.0.0.0.0.0.0.0.0.0.a.5.0.0.
+    //                        0.8.5.0.0.0.7.4.NSAP.INT.
+    size_t i = 0;
+    const size_t n = parser->file->owner.length;
+    const uint8_t *o = parser->file->owner.octets;
+    for (; i < n; i += 2)
+      if (o[i] != 1 || (b16rmap[o[i+1]] & 0x80))
+        break;
+
+    const uint8_t nsap_int[] = { 4, 'n', 's', 'a', 'p', 3, 'i', 'n', 't', 0 };
+    if (strncasecmp((const char *)o + i, (const char *)nsap_int, 9) != 0 || !i || i + 10 != n)
+      SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  }
+
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
-static zone_really_inline int32_t parse_nsap_ptr_rdata(
+static int32_t parse_nsap_ptr_rdata(
   zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
   int32_t r;
@@ -301,12 +724,32 @@ static zone_really_inline int32_t parse_nsap_ptr_rdata(
     return r;
 
   // RFC1706 section 6 states each nibble is treated as a separate subdomain
-  return zone_check_nsap_ptr_rdata(parser, type);
+  return check_nsap_ptr_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_key_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_key_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+#if 0
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  //
+  // FIXME: implement (RFC2065)
+  //
+  // FIXME: verify the flag, algorithm and protocol combination is valid
+  // FIXME: verify the key is valid for type(3)+algorithm(1)
+  //
+  // The combination is of course subject to secondary checks!
+  //
+#endif
+  (void)type;
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_key_rdata(
@@ -329,15 +772,31 @@ static int32_t parse_key_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return zone_check_key_rdata(parser, type);
+  return check_key_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_px_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_px_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_name(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_name(parser, type, &f[2], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s record", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
-static zone_really_inline int32_t parse_px_rdata(
+static int32_t parse_px_rdata(
   zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
   int32_t r;
@@ -354,12 +813,26 @@ static zone_really_inline int32_t parse_px_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_aaaa_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_aaaa_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_ip6(parser, type, &f[0], o, n))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s record", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_aaaa_rdata(
@@ -373,12 +846,29 @@ static int32_t parse_aaaa_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_srv_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_srv_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int16(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int16(parser, type, &f[2], o+c, n-c))) ||
+      (r = check(&c, check_name(parser, type, &f[3], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_srv_rdata(
@@ -401,12 +891,17 @@ static int32_t parse_srv_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_naptr_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_naptr_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // FIXME: implement actual checks
+  (void)type;
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_naptr_rdata(
@@ -435,12 +930,20 @@ static int32_t parse_naptr_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_cert_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_cert_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // FIXME: implement actual checks
+  (void)type;
+
+  if (parser->rdata->length < 6)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_cert_rdata(
@@ -460,12 +963,31 @@ static int32_t parse_cert_rdata(
   if ((r = parse_base64(parser, type, &type->rdata.fields[3], token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_ds_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_ds_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))))
+    return r;
+
+  // FIXME: can implement checking for digest length based on algorithm here.
+  //        e.g. SHA-1 digest is 20 bytes, see RFC3658 section 2.4
+
+  if (c >= n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_ds_rdata(
@@ -485,12 +1007,36 @@ static int32_t parse_ds_rdata(
   if ((r = parse_base16(parser, type, &type->rdata.fields[3], token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_sshfp_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_sshfp_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int8(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o, n))))
+    return r;
+
+  // https://www.iana.org/assignments/dns-sshfp-rr-parameters
+
+  if (c >= n)
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME((&f[0])), TNAME(type));
+  else if (o[1] == 1 && (n - c) != 20)
+    SEMANTIC_ERROR(parser, "Wrong fingerprint size for type %s in %s",
+                           "SHA1", TNAME(type));
+  else if (o[1] == 2 && (n - c) != 32)
+    SEMANTIC_ERROR(parser, "Wrong fingerprint size for type %s in %s",
+                           "SHA256", TNAME(type));
+
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_sshfp_rdata(
@@ -507,12 +1053,179 @@ static int32_t parse_sshfp_rdata(
   if ((r = parse_base16(parser, type, &type->rdata.fields[2], token)) < 0)
     return r;
 
-  return zone_check_sshfp_rdata(parser, type);
+  return check_sshfp_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_rrsig_rdata(
+static int32_t check_ipseckey_rr(
   zone_parser_t *parser, const zone_type_info_t *type);
+
+zone_nonnull_all
+static int32_t parse_ipseckey_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token);
+
+diagnostic_push()
+gcc_diagnostic_ignored(missing-field-initializers)
+clang_diagnostic_ignored(missing-field-initializers)
+
+static const zone_field_info_t ipseckey_ipv4_rdata_fields[] = {
+  FIELD("precedence", ZONE_INT8, 0),
+  FIELD("gateway type", ZONE_INT8, 0),
+  FIELD("algorithm", ZONE_INT8, 0),
+  FIELD("gateway", ZONE_IP4, 0),
+  FIELD("public key", ZONE_BLOB, ZONE_BASE64)
+};
+
+static const type_descriptor_t ipseckey_ipv4[] = {
+  TYPE("IPSECKEY", ZONE_IPSECKEY, ZONE_IN, FIELDS(ipseckey_ipv4_rdata_fields),
+                   check_ipseckey_rr, parse_ipseckey_rdata),
+};
+
+static const zone_field_info_t ipseckey_ipv6_rdata_fields[] = {
+  FIELD("precedence", ZONE_INT8, 0),
+  FIELD("gateway type", ZONE_INT8, 0),
+  FIELD("algorithm", ZONE_INT8, 0),
+  FIELD("gateway", ZONE_IP6, 0),
+  FIELD("public key", ZONE_BLOB, ZONE_BASE64)
+};
+
+static const type_descriptor_t ipseckey_ipv6[] = {
+  TYPE("IPSECKEY", ZONE_IPSECKEY, ZONE_IN, FIELDS(ipseckey_ipv6_rdata_fields),
+                   check_ipseckey_rr, parse_ipseckey_rdata),
+};
+
+
+diagnostic_pop()
+
+zone_nonnull_all
+static int32_t check_ipseckey_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_type_info_t *t = type;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int8(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))))
+    return r;
+
+  switch (parser->rdata->octets[1]) {
+    case 1: /* IPv4 address */
+      t = (const zone_type_info_t *)ipseckey_ipv4;
+      f = ipseckey_ipv4_rdata_fields;
+      if ((r = check(&c, check_ip4(parser, t, &f[3], o+c, n-c))) < 0)
+        return r;
+      break;
+    case 2: /* IPv6 address */
+      t = (const zone_type_info_t *)ipseckey_ipv6;
+      f = ipseckey_ipv6_rdata_fields;
+      if ((r = check(&c, check_ip6(parser, t, &f[3], o+c, n-c))) < 0)
+        return r;
+      break;
+    case 0: /* no gateway */
+    case 3: /* domain name */
+      if ((r = check(&c, check_name(parser, t, &f[3], o+c, n-c))) < 0)
+        return r;
+      break;
+    default:
+      SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  }
+
+  switch (parser->rdata->octets[2]) {
+    case 0:
+      if (c < n)
+        SYNTAX_ERROR(parser, "Trailing data in %s", TNAME(t));
+      break;
+    default:
+      if (c >= n)
+        SYNTAX_ERROR(parser, "Missing %s in %s", NAME(&f[4]), TNAME(t));
+      break;
+  }
+
+  return accept_rr(parser, t);
+}
+
+zone_nonnull_all
+static int32_t parse_ipseckey_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+  const zone_type_info_t *t;
+
+  if ((r = parse_int8(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int8(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_int8(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+  lex(parser, token);
+
+  switch (parser->rdata->octets[1]) {
+    case 1: /* IPv4 address */
+      t = (const zone_type_info_t *)ipseckey_ipv4;
+      if ((r = parse_ip4(parser, t, &t->rdata.fields[3], token)) < 0)
+        return r;
+      break;
+    case 2: /* IPv6 address */
+      t = (const zone_type_info_t *)ipseckey_ipv6;
+      if ((r = parse_ip6(parser, t, &t->rdata.fields[3], token)) < 0)
+        return r;
+      break;
+    case 0: /* no gateway */
+    case 3: /* domain name */
+      t = type;
+      if ((r = parse_name(parser, t, &t->rdata.fields[3], token)) < 0)
+        return r;
+      break;
+    default:
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&type->rdata.fields[3]), TNAME(type));
+  }
+
+  lex(parser, token);
+  switch (parser->rdata->octets[2]) {
+    case 0:
+      if ((r = have_delimiter(parser, t, token)) < 0)
+        return r;
+      break;
+    default:
+      if ((r = parse_base64(parser, t, &t->rdata.fields[4], token)) < 0)
+        return r;
+      break;
+  }
+
+  return accept_rr(parser, (const zone_type_info_t *)t);
+}
+
+zone_nonnull_all
+static int32_t check_rrsig_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_type(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))) ||
+      (r = check(&c, check_ttl(parser, type, &f[3], o+c, n-c))) ||
+      (r = check(&c, check_int32(parser, type, &f[4], o+c, n-c))) ||
+      (r = check(&c, check_int32(parser, type, &f[5], o+c, n-c))) ||
+      (r = check(&c, check_int16(parser, type, &f[6], o+c, n-c))) ||
+      (r = check(&c, check_name(parser, type, &f[7], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_rrsig_rdata(
@@ -547,12 +1260,27 @@ static int32_t parse_rrsig_rdata(
   if ((r = parse_base64(parser, type, &type->rdata.fields[8], token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_nsec_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_nsec_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_name(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_nsec(parser, type, &f[1], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_nsec_rdata(
@@ -566,12 +1294,28 @@ static int32_t parse_nsec_rdata(
   if ((r = parse_nsec(parser, type, &type->rdata.fields[1], token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_dnskey_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_dnskey_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))))
+    return r;
+
+  if (c >= n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_dnskey_rdata(
@@ -591,12 +1335,20 @@ static int32_t parse_dnskey_rdata(
   if ((r = parse_base64(parser, type, &type->rdata.fields[3], token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_dhcid_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_dhcid_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // RFC4701 section 3.1:
+  // 2-octet identifier type, 1-octet digest type, followed by one or more
+  // octets representing the actual identifier
+  if (parser->rdata->length < 4)
+    SEMANTIC_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_dhcid_rdata(
@@ -607,12 +1359,31 @@ static int32_t parse_dhcid_rdata(
   if ((r = parse_base64(parser, type, &type->rdata.fields[0], token)) < 0)
     return r;
 
-  return zone_check_dhcid_rdata(parser, type);
+  return check_dhcid_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_nsec3_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_nsec3_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int8(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int16(parser, type, &f[2], o+c, n-c))) ||
+      (r = check(&c, check_string(parser, type, &f[3], o+c, n-c))) ||
+      (r = check(&c, check_string(parser, type, &f[4], o+c, n-c))) ||
+      (r = check(&c, check_nsec(parser, type, &f[5], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_nsec3_rdata(
@@ -638,12 +1409,29 @@ static int32_t parse_nsec3_rdata(
   if ((r = parse_nsec(parser, type, &type->rdata.fields[5], token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_nsec3param_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_nsec3param_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int8(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int16(parser, type, &f[2], o+c, n-c))) ||
+      (r = check(&c, check_string(parser, type, &f[3], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_nsec3param_rdata(
@@ -666,12 +1454,28 @@ static int32_t parse_nsec3param_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_tlsa_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_tlsa_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int8(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))))
+    return r;
+
+  if (c >= n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_tlsa_rdata(
@@ -694,12 +1498,19 @@ static int32_t parse_tlsa_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_openpgpkey_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_openpgpkey_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // FIXME: as the RDATA contains a digest, it is likely we can make this
+  //        check stricter, at least, for known algorithms
+  if (parser->rdata->length < 4)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_openpgpkey_rdata(
@@ -710,12 +1521,18 @@ static int32_t parse_openpgpkey_rdata(
   if ((r = parse_base64(parser, type, &type->rdata.fields[0], token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_zonemd_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_zonemd_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // FIXME: RDATA contains digests, do extra checks?
+  if (parser->rdata->length < 6)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_zonemd_rdata(
@@ -735,15 +1552,29 @@ static int32_t parse_zonemd_rdata(
   if ((r = parse_base16(parser, type, &type->rdata.fields[3], token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_nid_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_nid_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_ilnp64(parser, type, &f[1], o+c, n-c))))
+    return r;
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
-static zone_really_inline int32_t parse_nid_rdata(
+static int32_t parse_nid_rdata(
   zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
 {
   int32_t r;
@@ -757,12 +1588,27 @@ static zone_really_inline int32_t parse_nid_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_l32_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_l32_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_ip4(parser, type, &f[1], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_l32_rdata(
@@ -779,12 +1625,26 @@ static int32_t parse_l32_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_l64_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_l64_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_ilnp64(parser, type, &f[1], o+c, n-c))))
+    return r;
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_l64_rdata(
@@ -801,12 +1661,17 @@ static int32_t parse_l64_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_eui48_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_eui48_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  if (parser->rdata->length != 6)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_eui48_rdata(
@@ -820,12 +1685,17 @@ static int32_t parse_eui48_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_eui64_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_eui64_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  if (parser->rdata->length != 8)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_eui64_rdata(
@@ -839,12 +1709,26 @@ static int32_t parse_eui64_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_uri_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_uri_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int16(parser, type, &f[1], o+c, n-c))))
+    return r;
+  if (c >= n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_uri_rdata(
@@ -864,12 +1748,26 @@ static int32_t parse_uri_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
 zone_nonnull_all
-extern int32_t zone_check_caa_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_caa_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int8(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))))
+    return r;
+  if (c >= n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_caa_rdata(
@@ -889,19 +1787,17 @@ static int32_t parse_caa_rdata(
   if ((r = have_delimiter(parser, type, token)) < 0)
     return r;
 
-  return accept_rr(parser);
+  return accept_rr(parser, type);
 }
 
-typedef struct type_descriptor type_descriptor_t;
-struct type_descriptor {
-  zone_type_info_t info;
-  int32_t (*check)(zone_parser_t *, const zone_type_info_t *);
-  int32_t (*parse)(zone_parser_t *, const zone_type_info_t *, token_t *);
-};
-
 zone_nonnull_all
-extern int32_t zone_check_generic_rdata(
-  zone_parser_t *parser, const zone_type_info_t *type);
+static int32_t check_generic_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  (void)type;
+
+  return accept_rr(parser, type);
+}
 
 zone_nonnull_all
 static int32_t parse_generic_rdata(
@@ -951,39 +1847,9 @@ static int32_t parse_unknown_rdata(
   SYNTAX_ERROR(parser, "Unknown record type");
 }
 
-#define SYMBOLS(symbols) \
-  { (sizeof(symbols)/sizeof(symbols[0])), symbols }
-
-#define SYMBOL(name, value) \
-  { { name,  sizeof(name) - 1 }, value }
-
-#define FIELDS(fields) \
-  { (sizeof(fields)/sizeof(fields[0])), fields }
-
-#define FIELD(name, type, /* qualifiers, symbols */ ...) \
-  { { sizeof(name) - 1, name }, type, __VA_ARGS__ }
-
-#define CLASS(name, code) \
-  { { { name, sizeof(name) - 1 }, code } }
-
-#define UNKNOWN_CLASS(code) \
-  { { { "", 0 }, code } }
-
-#define TYPE(name, code, options, fields, check, parse) \
-  { { { { name, sizeof(name) - 1 }, code }, options, fields }, check, parse }
-
-#define UNKNOWN_TYPE(code) \
-  { { { { "", 0 }, code }, 0, { 0, NULL } }, \
-    zone_check_generic_rdata, parse_unknown_rdata }
-
 diagnostic_push()
 gcc_diagnostic_ignored(missing-field-initializers)
 clang_diagnostic_ignored(missing-field-initializers)
-
-typedef struct class_descriptor class_descriptor_t;
-struct class_descriptor {
-  zone_symbol_t name;
-};
 
 static const class_descriptor_t classes[] = {
   UNKNOWN_CLASS(0),
@@ -1198,6 +2064,15 @@ static const zone_field_info_t sshfp_rdata_fields[] = {
   FIELD("fingerprint", ZONE_BLOB, ZONE_BASE16)
 };
 
+// FIXME: IPSECKEY is a little different because the rdata depends on the algorithm!
+static const zone_field_info_t ipseckey_rdata_fields[] = {
+  FIELD("precedence", ZONE_INT8, 0),
+  FIELD("gateway type", ZONE_INT8, 0),
+  FIELD("algorithm", ZONE_INT8, 0),
+  FIELD("gateway", ZONE_NAME, 0),
+  FIELD("public key", ZONE_BLOB, ZONE_BASE64)
+};
+
 static const zone_field_info_t rrsig_rdata_fields[] = {
   FIELD("rrtype", ZONE_INT16, ZONE_TYPE),
   FIELD("algorithm", ZONE_INT8, 0, SYMBOLS(dnssec_algorithm_symbols)),
@@ -1352,63 +2227,63 @@ static const type_descriptor_t types[] = {
   UNKNOWN_TYPE(0),
 
   TYPE("A", ZONE_A, ZONE_ANY, FIELDS(a_rdata_fields),
-            zone_check_a_rdata, parse_a_rdata),
+            check_a_rr, parse_a_rdata),
   TYPE("NS", ZONE_NS, ZONE_ANY, FIELDS(ns_rdata_fields),
-             zone_check_ns_rdata, parse_ns_rdata),
+             check_ns_rr, parse_ns_rdata),
   TYPE("MD", ZONE_MD, ZONE_ANY | ZONE_OBSOLETE, FIELDS(md_rdata_fields),
-             zone_check_ns_rdata, parse_ns_rdata),
+             check_ns_rr, parse_ns_rdata),
   TYPE("MF", ZONE_MF, ZONE_ANY | ZONE_OBSOLETE, FIELDS(mf_rdata_fields),
-             zone_check_ns_rdata, parse_ns_rdata),
+             check_ns_rr, parse_ns_rdata),
   TYPE("CNAME", ZONE_CNAME, ZONE_ANY, FIELDS(cname_rdata_fields),
-                zone_check_ns_rdata, parse_ns_rdata),
+                check_ns_rr, parse_ns_rdata),
   TYPE("SOA", ZONE_SOA, ZONE_ANY, FIELDS(soa_rdata_fields),
-              zone_check_soa_rdata, parse_soa_rdata),
+              check_soa_rr, parse_soa_rdata),
   TYPE("MB", ZONE_MB, ZONE_ANY | ZONE_EXPERIMENTAL, FIELDS(mb_rdata_fields),
-             zone_check_ns_rdata, parse_ns_rdata),
+             check_ns_rr, parse_ns_rdata),
   TYPE("MG", ZONE_MG, ZONE_ANY | ZONE_EXPERIMENTAL, FIELDS(mg_rdata_fields),
-             zone_check_ns_rdata, parse_ns_rdata),
+             check_ns_rr, parse_ns_rdata),
   TYPE("MR", ZONE_MR, ZONE_ANY | ZONE_EXPERIMENTAL, FIELDS(mr_rdata_fields),
-             zone_check_ns_rdata, parse_ns_rdata),
+             check_ns_rr, parse_ns_rdata),
 
   UNKNOWN_TYPE(10),
+  UNKNOWN_TYPE(11), // WKS
 
-  TYPE("WKS", ZONE_WKS, ZONE_IN, FIELDS(wks_rdata_fields), 0, 0),
   TYPE("PTR", ZONE_PTR, ZONE_ANY, FIELDS(ptr_rdata_fields),
-              zone_check_ns_rdata, parse_ns_rdata),
+              check_ns_rr, parse_ns_rdata),
   TYPE("HINFO", ZONE_HINFO, ZONE_ANY, FIELDS(hinfo_rdata_fields),
-                zone_check_hinfo_rdata, parse_hinfo_rdata),
+                check_hinfo_rr, parse_hinfo_rdata),
   TYPE("MINFO", ZONE_MINFO, ZONE_ANY, FIELDS(minfo_rdata_fields),
-                zone_check_minfo_rdata, parse_minfo_rdata),
+                check_minfo_rr, parse_minfo_rdata),
   TYPE("MX", ZONE_MX, ZONE_ANY, FIELDS(mx_rdata_fields),
-             zone_check_mx_rdata, parse_mx_rdata),
+             check_mx_rr, parse_mx_rdata),
   TYPE("TXT", ZONE_TXT, ZONE_ANY, FIELDS(txt_rdata_fields),
-              zone_check_txt_rdata, parse_txt_rdata),
+              check_txt_rr, parse_txt_rdata),
   TYPE("RP", ZONE_RP, ZONE_ANY, FIELDS(rp_rdata_fields),
-             zone_check_minfo_rdata, parse_minfo_rdata),
+             check_minfo_rr, parse_minfo_rdata),
   TYPE("AFSDB", ZONE_AFSDB, ZONE_ANY, FIELDS(afsdb_rdata_fields),
-                zone_check_mx_rdata, parse_mx_rdata),
+                check_mx_rr, parse_mx_rdata),
   TYPE("X25", ZONE_X25, ZONE_ANY, FIELDS(x25_rdata_fields),
-              zone_check_x25_rdata, parse_x25_rdata),
+              check_x25_rr, parse_x25_rdata),
   TYPE("ISDN", ZONE_ISDN, ZONE_ANY, FIELDS(isdn_rdata_fields),
-               zone_check_isdn_rdata, parse_isdn_rdata),
+               check_isdn_rr, parse_isdn_rdata),
   TYPE("RT", ZONE_RT, ZONE_ANY, FIELDS(rt_rdata_fields),
-             zone_check_rt_rdata, parse_rt_rdata),
+             check_rt_rr, parse_rt_rdata),
   TYPE("NSAP", ZONE_NSAP, ZONE_IN, FIELDS(nsap_rdata_fields),
-               zone_check_nsap_rdata, parse_nsap_rdata),
+               check_nsap_rr, parse_nsap_rdata),
   TYPE("NSAP-PTR", ZONE_NSAP_PTR, ZONE_IN, FIELDS(nsap_ptr_rdata_fields),
-                   zone_check_nsap_ptr_rdata, parse_nsap_ptr_rdata),
+                   check_nsap_ptr_rr, parse_nsap_ptr_rdata),
 
   UNKNOWN_TYPE(24),
 
   TYPE("KEY", ZONE_KEY, ZONE_ANY, FIELDS(key_rdata_fields),
-              zone_check_key_rdata, parse_key_rdata),
+              check_key_rr, parse_key_rdata),
   TYPE("PX", ZONE_PX, ZONE_IN, FIELDS(px_rdata_fields),
-             zone_check_px_rdata, parse_px_rdata),
+             check_px_rr, parse_px_rdata),
 
   UNKNOWN_TYPE(27),
 
   TYPE("AAAA", ZONE_AAAA, ZONE_IN, FIELDS(aaaa_rdata_fields),
-               zone_check_aaaa_rdata, parse_aaaa_rdata),
+               check_aaaa_rr, parse_aaaa_rdata),
 
   UNKNOWN_TYPE(29),
   UNKNOWN_TYPE(30),
@@ -1416,49 +2291,48 @@ static const type_descriptor_t types[] = {
   UNKNOWN_TYPE(32),
 
   TYPE("SRV", ZONE_SRV, ZONE_IN, FIELDS(srv_rdata_fields),
-              zone_check_srv_rdata, parse_srv_rdata),
+              check_srv_rr, parse_srv_rdata),
 
   UNKNOWN_TYPE(34),
 
   TYPE("NAPTR", ZONE_NAPTR, ZONE_IN, FIELDS(naptr_rdata_fields),
-                zone_check_naptr_rdata, parse_naptr_rdata),
+                check_naptr_rr, parse_naptr_rdata),
   TYPE("KX", ZONE_KX, ZONE_IN, FIELDS(kx_rdata_fields),
-             zone_check_mx_rdata, parse_mx_rdata),
+             check_mx_rr, parse_mx_rdata),
   TYPE("CERT", ZONE_CERT, ZONE_ANY, FIELDS(cert_rdata_fields),
-               zone_check_cert_rdata, parse_cert_rdata),
+               check_cert_rr, parse_cert_rdata),
 
   UNKNOWN_TYPE(38),
 
   TYPE("DNAME", ZONE_DNAME, ZONE_ANY, FIELDS(dname_rdata_fields),
-                zone_check_ns_rdata, parse_ns_rdata),
+                check_ns_rr, parse_ns_rdata),
 
   UNKNOWN_TYPE(40),
   UNKNOWN_TYPE(41),
   UNKNOWN_TYPE(42),
 
   TYPE("DS", ZONE_DS, ZONE_ANY, FIELDS(ds_rdata_fields),
-             zone_check_ds_rdata, parse_ds_rdata),
+             check_ds_rr, parse_ds_rdata),
   TYPE("SSHFP", ZONE_SSHFP, ZONE_ANY, FIELDS(sshfp_rdata_fields),
-                zone_check_sshfp_rdata, parse_sshfp_rdata),
-
-  UNKNOWN_TYPE(45), // IPSECKEY
-
+                check_sshfp_rr, parse_sshfp_rdata),
+  TYPE("IPSECKEY", ZONE_IPSECKEY, ZONE_IN, FIELDS(ipseckey_rdata_fields),
+                   check_ipseckey_rr, parse_ipseckey_rdata),
   TYPE("RRSIG", ZONE_RRSIG, ZONE_ANY, FIELDS(rrsig_rdata_fields),
-                zone_check_rrsig_rdata, parse_rrsig_rdata),
+                check_rrsig_rr, parse_rrsig_rdata),
   TYPE("NSEC", ZONE_NSEC, ZONE_ANY, FIELDS(nsec_rdata_fields),
-               zone_check_nsec_rdata, parse_nsec_rdata),
+               check_nsec_rr, parse_nsec_rdata),
   TYPE("DNSKEY", ZONE_DNSKEY, ZONE_ANY, FIELDS(dnskey_rdata_fields),
-                 zone_check_dnskey_rdata, parse_dnskey_rdata),
+                 check_dnskey_rr, parse_dnskey_rdata),
   TYPE("DHCID", ZONE_DHCID, ZONE_IN, FIELDS(dhcid_rdata_fields),
-                zone_check_dhcid_rdata, parse_dhcid_rdata),
+                check_dhcid_rr, parse_dhcid_rdata),
   TYPE("NSEC3", ZONE_NSEC3, ZONE_ANY, FIELDS(nsec3_rdata_fields),
-                zone_check_nsec3_rdata, parse_nsec3_rdata),
+                check_nsec3_rr, parse_nsec3_rdata),
   TYPE("NSEC3PARAM", ZONE_NSEC3PARAM, ZONE_ANY, FIELDS(nsec3param_rdata_fields),
-                     zone_check_nsec3param_rdata, parse_nsec3param_rdata),
+                     check_nsec3param_rr, parse_nsec3param_rdata),
   TYPE("TLSA", ZONE_TLSA, ZONE_ANY, FIELDS(tlsa_rdata_fields),
-               zone_check_tlsa_rdata, parse_tlsa_rdata),
+               check_tlsa_rr, parse_tlsa_rdata),
   TYPE("SMIMEA", ZONE_SMIMEA, ZONE_ANY, FIELDS(smimea_rdata_fields),
-                 zone_check_tlsa_rdata, parse_tlsa_rdata),
+                 check_tlsa_rr, parse_tlsa_rdata),
 
   UNKNOWN_TYPE(54),
   UNKNOWN_TYPE(55), // HIP
@@ -1467,16 +2341,16 @@ static const type_descriptor_t types[] = {
   UNKNOWN_TYPE(58),
 
   TYPE("CDS", ZONE_CDS, ZONE_ANY, FIELDS(cds_rdata_fields),
-              zone_check_ds_rdata, parse_ds_rdata),
+              check_ds_rr, parse_ds_rdata),
   TYPE("CDNSKEY", ZONE_CDNSKEY, ZONE_ANY, FIELDS(cdnskey_rdata_fields),
-                  zone_check_dnskey_rdata, parse_dnskey_rdata),
+                  check_dnskey_rr, parse_dnskey_rdata),
   TYPE("OPENPGPKEY", ZONE_OPENPGPKEY, ZONE_ANY, FIELDS(openpgpkey_rdata_fields),
-                     zone_check_openpgpkey_rdata, parse_openpgpkey_rdata),
+                     check_openpgpkey_rr, parse_openpgpkey_rdata),
 
   UNKNOWN_TYPE(62),
 
   TYPE("ZONEMD", ZONE_ZONEMD, ZONE_ANY, FIELDS(zonemd_rdata_fields),
-                 zone_check_zonemd_rdata, parse_zonemd_rdata),
+                 check_zonemd_rr, parse_zonemd_rdata),
 
   UNKNOWN_TYPE(64),
   UNKNOWN_TYPE(65),
@@ -1515,7 +2389,7 @@ static const type_descriptor_t types[] = {
   UNKNOWN_TYPE(98),
 
   TYPE("SPF", ZONE_SPF, ZONE_ANY | ZONE_OBSOLETE, FIELDS(spf_rdata_fields),
-              zone_check_txt_rdata, parse_txt_rdata),
+              check_txt_rr, parse_txt_rdata),
 
   UNKNOWN_TYPE(100),
   UNKNOWN_TYPE(101),
@@ -1523,17 +2397,17 @@ static const type_descriptor_t types[] = {
   UNKNOWN_TYPE(103),
 
   TYPE("NID", ZONE_NID, ZONE_ANY, FIELDS(nid_rdata_fields),
-              zone_check_nid_rdata, parse_nid_rdata),
+              check_nid_rr, parse_nid_rdata),
   TYPE("L32", ZONE_L32, ZONE_ANY, FIELDS(l32_rdata_fields),
-              zone_check_l32_rdata, parse_l32_rdata),
+              check_l32_rr, parse_l32_rdata),
   TYPE("L64", ZONE_L64, ZONE_ANY, FIELDS(l64_rdata_fields),
-              zone_check_l64_rdata, parse_l64_rdata),
+              check_l64_rr, parse_l64_rdata),
   TYPE("LP", ZONE_LP, ZONE_ANY, FIELDS(lp_rdata_fields),
-             zone_check_mx_rdata, parse_mx_rdata),
+             check_mx_rr, parse_mx_rdata),
   TYPE("EUI48", ZONE_EUI48, ZONE_ANY, FIELDS(eui48_rdata_fields),
-                zone_check_eui48_rdata, parse_eui48_rdata),
+                check_eui48_rr, parse_eui48_rdata),
   TYPE("EUI64", ZONE_EUI64, ZONE_ANY, FIELDS(eui64_rdata_fields),
-                zone_check_eui64_rdata, parse_eui64_rdata),
+                check_eui64_rr, parse_eui64_rdata),
 
   UNKNOWN_TYPE(110),
   UNKNOWN_TYPE(111),
@@ -1683,13 +2557,13 @@ static const type_descriptor_t types[] = {
   UNKNOWN_TYPE(255),
 
   TYPE("URI", ZONE_URI, ZONE_ANY, FIELDS(uri_rdata_fields),
-              zone_check_uri_rdata, parse_uri_rdata),
+              check_uri_rr, parse_uri_rdata),
   TYPE("CAA", ZONE_CAA, ZONE_ANY, FIELDS(caa_rdata_fields),
-              zone_check_caa_rdata, parse_caa_rdata),
+              check_caa_rr, parse_caa_rdata),
   TYPE("AVC", ZONE_AVC, ZONE_ANY, FIELDS(avc_rdata_fields),
-              zone_check_txt_rdata, parse_txt_rdata),
+              check_txt_rr, parse_txt_rdata),
   TYPE("DLV", ZONE_DLV, ZONE_ANY | ZONE_OBSOLETE, FIELDS(dlv_rdata_fields),
-              zone_check_ds_rdata, parse_ds_rdata)
+              check_ds_rr, parse_ds_rdata)
 };
 
 #undef UNKNOWN_CLASS

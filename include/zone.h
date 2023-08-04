@@ -482,6 +482,7 @@ struct zone_name {
 // individually by means of the iterator
 typedef int32_t(*zone_add_t)(
   zone_parser_t *,
+  const zone_type_info_t *, // type information
   const zone_name_t *, // owner (length + octets)
   uint16_t, // type
   uint16_t, // class

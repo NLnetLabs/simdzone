@@ -319,6 +319,90 @@ static const rdata_t sshfp_rdata =
         0xde, 0xf6, 0x78, 0x90, 0x12, 0x34, 0x56, 0x78,
         0x9a, 0xbc, 0xde, 0xf1, 0x23, 0x45, 0x67, 0x89);
 
+static const char ipseckey_text[] =
+  PAD("38.2.0.192.in-addr.arpa. 7200 IN     IPSECKEY ( 10 0 2\n"
+      "                 .\n"
+      "                 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ== )");
+static const rdata_t ipseckey_rdata =
+  RDATA(/* precedence */
+        0x0a,
+        /* gateway type */
+        0x00,
+        /* algorithm */
+        0x02,
+        /* gateway */
+        0x00,
+        /* public key */
+        0x01, 0x03, 0x51, 0x53, 0x79, 0x86, 0xed, 0x35,
+        0x53, 0x3b, 0x60, 0x64, 0x47, 0x8e, 0xee, 0xb2,
+        0x7b, 0x5b, 0xd7, 0x4d, 0xae, 0x14, 0x9b, 0x6e,
+        0x81, 0xba, 0x3a, 0x05, 0x21, 0xaf, 0x82, 0xab,
+        0x78, 0x01);
+
+static const char ipseckey_ipv4_text[] =
+  PAD("38.2.0.192.in-addr.arpa. 7200 IN     IPSECKEY ( 10 1 2\n"
+      "                 192.0.2.38\n"
+      "                 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ== )");
+static const rdata_t ipseckey_ipv4_rdata =
+  RDATA(/* precedence */
+        0x0a,
+        /* gateway type */
+        0x01,
+        /* algorithm */
+        0x02,
+        /* gateway */
+        0xc0, 0x00, 0x02, 0x26,
+        /* public key */
+        0x01, 0x03, 0x51, 0x53, 0x79, 0x86, 0xed, 0x35,
+        0x53, 0x3b, 0x60, 0x64, 0x47, 0x8e, 0xee, 0xb2,
+        0x7b, 0x5b, 0xd7, 0x4d, 0xae, 0x14, 0x9b, 0x6e,
+        0x81, 0xba, 0x3a, 0x05, 0x21, 0xaf, 0x82, 0xab,
+        0x78, 0x01);
+
+static const char ipseckey_ipv6_text[] =
+  PAD("$ORIGIN 1.0.0.0.0.0.2.8.B.D.0.1.0.0.2.ip6.arpa.\n"
+      "0.d.4.0.3.0.e.f.f.f.3.f.0.1.2.0 7200 IN     IPSECKEY ( 10 2 2\n"
+      "                 2001:0DB8:0:8002::2000:1\n"
+      "                 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ== )");
+static const rdata_t ipseckey_ipv6_rdata =
+  RDATA(/* precedence */
+        0x0a,
+        /* gateway type */
+        0x02,
+        /* algorithm */
+        0x02,
+        /* gateway */
+        0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x80, 0x02,
+        0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x01,
+        /* public key */
+        0x01, 0x03, 0x51, 0x53, 0x79, 0x86, 0xed, 0x35,
+        0x53, 0x3b, 0x60, 0x64, 0x47, 0x8e, 0xee, 0xb2,
+        0x7b, 0x5b, 0xd7, 0x4d, 0xae, 0x14, 0x9b, 0x6e,
+        0x81, 0xba, 0x3a, 0x05, 0x21, 0xaf, 0x82, 0xab,
+        0x78, 0x01);
+
+static const char ipseckey_name_text[] =
+  PAD("38.1.0.192.in-addr.arpa. 7200 IN     IPSECKEY ( 10 3 2\n"
+      "                 mygateway.example.com.\n"
+      "                 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ== )");
+static const rdata_t ipseckey_name_rdata =
+  RDATA(/* precedence */
+        0x0a,
+        /* gateway type */
+        0x03,
+        /* algorithm */
+        0x02,
+        /* gateway */
+        0x09,  'm',  'y',  'g',  'a',  't',  'e',  'w',
+         'a',  'y', 0x07,  'e',  'x',  'a',  'm',  'p',
+         'l',  'e', 0x03,  'c',  'o',  'm', 0x00,
+        /* public key */
+        0x01, 0x03, 0x51, 0x53, 0x79, 0x86, 0xed, 0x35,
+        0x53, 0x3b, 0x60, 0x64, 0x47, 0x8e, 0xee, 0xb2,
+        0x7b, 0x5b, 0xd7, 0x4d, 0xae, 0x14, 0x9b, 0x6e,
+        0x81, 0xba, 0x3a, 0x05, 0x21, 0xaf, 0x82, 0xab,
+        0x78, 0x01);
+
 // https://www.rfc-editor.org/rfc/rfc4701.html#section-3.6.1
 static const char dhcid_text[] =
   PAD(" DHCID   ( AAIBY2/AuCccgoJbsaxcQc9TUapptP69l"
@@ -696,6 +780,10 @@ static const test_t tests[] = {
   { ZONE_DNAME, dname_generic_text, &dname_rdata },
   { ZONE_SSHFP, sshfp_text, &sshfp_rdata },
   { ZONE_SSHFP, sshfp_generic_text, &sshfp_rdata },
+  { ZONE_IPSECKEY, ipseckey_text, &ipseckey_rdata },
+  { ZONE_IPSECKEY, ipseckey_ipv4_text, &ipseckey_ipv4_rdata },
+  { ZONE_IPSECKEY, ipseckey_ipv6_text, &ipseckey_ipv6_rdata },
+  { ZONE_IPSECKEY, ipseckey_name_text, &ipseckey_name_rdata },
   { ZONE_DHCID, dhcid_text, &dhcid_rdata },
   { ZONE_DHCID, dhcid_generic_text, &dhcid_rdata },
   { ZONE_TLSA, tlsa_text, &tlsa_rdata },
@@ -736,6 +824,7 @@ static const test_t tests[] = {
 
 static int32_t add_rr(
   zone_parser_t *parser,
+  const zone_type_info_t *info,
   const zone_name_t *owner,
   uint16_t type,
   uint16_t class,
@@ -746,6 +835,7 @@ static int32_t add_rr(
 {
   const test_t *test = user_data;
   (void)parser;
+  (void)info;
   (void)owner;
   (void)class;
   (void)ttl;

@@ -47,6 +47,15 @@ static zone_really_inline int32_t scan_name(
 
   *label = 0;
 
+  if (text[0] == '.') {
+    // root needs to be handled differently
+    // FIXME: correct this check for quoted
+    if (is_contiguous((uint8_t)text[1]) || token->code == QUOTED)
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    *length = 1;
+    return 0;
+  }
+
   for (bool loop=true; loop; ) {
     copy_name_block(&block, delimiter, space, text, wire);
 

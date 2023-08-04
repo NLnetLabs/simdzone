@@ -136,7 +136,6 @@ target_include_directories(
 target_sources(zone PRIVATE
   src/zone.c
   src/log.c
-  src/parser.c
   src/fallback/parser.c
   src/generic/base64.c)
 
