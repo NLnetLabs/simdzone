@@ -2,6 +2,7 @@
  * bits.h -- Haswell specific implementation of bit manipulation instructions
  *
  * Copyright (c) 2018-2023 The simdjson authors
+ * Copyright (c) 2023, NLnet Labs. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */

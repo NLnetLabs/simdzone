@@ -82,9 +82,9 @@ void ipv4_syntax(void **state)
   for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
     char rr[128];
     zone_parser_t parser = { 0 };
-    zone_name_block_t name;
-    zone_rdata_block_t rdata;
-    zone_cache_t cache = { 1, &name, &rdata };
+    zone_name_buffer_t name;
+    zone_rdata_buffer_t rdata;
+    zone_buffers_t buffers = { 1, &name, &rdata };
     zone_options_t options = { 0 };
     int32_t result;
 
@@ -95,7 +95,7 @@ void ipv4_syntax(void **state)
     options.default_ttl = 3600;
     options.default_class = ZONE_IN;
 
-    result = zone_parse_string(&parser, &options, &cache, rr, strlen(rr), NULL);
+    result = zone_parse_string(&parser, &options, &buffers, rr, strlen(rr), NULL);
     assert_int_equal(result, tests[i].result);
     if (tests[i].octets)
       assert_memory_equal(rdata.octets, tests[i].octets, 4);

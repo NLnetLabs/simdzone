@@ -28,6 +28,8 @@ typedef struct { __m256i chunks[1]; } simd_8x_t;
 
 typedef struct { __m128i chunks[1]; } simd_8x16_t;
 
+typedef simd_8x_t simd_8x32_t;
+
 typedef struct { __m256i chunks[2]; } simd_8x64_t;
 
 
@@ -75,6 +77,10 @@ static zone_really_inline uint64_t simd_find_8x16(const simd_8x16_t *simd, char 
   const uint64_t m = (uint16_t)_mm_movemask_epi8(r);
   return m;
 }
+
+#define simd_loadu_8x32(simd, address) simd_loadu_8x(simd, address)
+#define simd_storeu_8x32(address, simd) simd_storeu_8x(address, simd)
+#define simd_find_8x32(simd, key) simd_find_8x(simd, key)
 
 zone_nonnull_all
 static zone_really_inline void simd_loadu_8x64(simd_8x64_t *simd, const uint8_t *address)

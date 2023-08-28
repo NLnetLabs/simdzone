@@ -1,5 +1,5 @@
 /*
- * text.h -- some useful comment
+ * text.h -- fallback parser for strings
  *
  * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *
@@ -10,49 +10,20 @@
 #define TEXT_H
 
 zone_nonnull_all
-static zone_really_inline int32_t parse_string_internal(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  const token_t *token)
+static zone_really_inline uint32_t unescape(const char *text, uint8_t *wire)
 {
-  const uint8_t *d = token->code == CONTIGUOUS ? contiguous : quoted;
-  uint8_t *w = &parser->rdata->octets[parser->rdata->length + 1];
-  const uint8_t *ws = w - 1, *we = w + 255;
-  const char *t = token->data;
+  uint8_t d[3];
 
-  while (w < we) {
-    const uint8_t c = (uint8_t)*t;
-    if (c == '\\') {
-      uint8_t x[3];
-      x[0] = (uint8_t)t[1] - '0';
-
-      if (x[0] > 2) {
-        w[0] = (uint8_t)t[1];
-        w += 1; t += 2;
-      } else {
-        x[1] = (uint8_t)t[2] - '0';
-        x[2] = (uint8_t)t[3] - '0';
-        const uint32_t o = x[0] * 100 + x[1] * 10 + x[2];
-        if (o > 255 || x[1] > 9 || x[2] > 9)
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-        w[0] = (uint8_t)o;
-        w += 1; t += 4;
-      }
-    } else if (d[c] == token->code) {
-      w[0] = c;
-      w += 1; t += 1;
-    } else {
-      break;
-    }
+  if ((d[0] = (uint8_t)text[1] - '0') > 9) {
+    *wire = (uint8_t)text[1];
+    return 2u;
+  } else {
+    d[1] = (uint8_t)text[2] - '0';
+    d[2] = (uint8_t)text[3] - '0';
+    uint32_t o = d[0] * 100 + d[1] * 10 + d[2];
+    *wire = (uint8_t)o;
+    return (o > 255 || d[1] > 9 || d[2] > 9) ? 0 : 4u;
   }
-
-  if (w == we)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  assert(d[(uint8_t)*t] != token->code);
-  parser->rdata->octets[parser->rdata->length] = (uint8_t)((w - ws) - 1);
-  parser->rdata->length += (size_t)(w - ws);
-  return ZONE_STRING;
 }
 
 zone_nonnull_all
@@ -62,9 +33,27 @@ static zone_really_inline int32_t parse_string(
   const zone_field_info_t *field,
   const token_t *token)
 {
-  if (zone_likely(token->code & (CONTIGUOUS|QUOTED)))
-    return parse_string_internal(parser, type, field, token);
-  return have_string(parser, type, field, token);
+  uint8_t *w = &parser->rdata->octets[parser->rdata->length + 1];
+  const uint8_t *ws = w - 1, *we = w + 255;
+  const char *t = token->data, *te = t + token->length;
+
+  while ((t < te) & (w < we)) {
+    *w = (uint8_t)*t;
+    if (zone_unlikely(*t == '\\')) {
+      uint32_t o;
+      if (!(o = unescape(t, w)))
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+      w += 1; t += o;
+    } else {
+      w += 1; t += 1;
+    }
+  }
+
+  if (t != te || w >= we)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  parser->rdata->octets[parser->rdata->length] = (uint8_t)((w - ws) - 1);
+  parser->rdata->length += (size_t)(w - ws);
+  return ZONE_STRING;
 }
 
 zone_nonnull_all
@@ -74,39 +63,24 @@ static zone_really_inline int32_t parse_text_internal(
   const zone_field_info_t *field,
   const token_t *token)
 {
-  const uint8_t *d = token->code == CONTIGUOUS ? contiguous : quoted;
   uint8_t *w = &parser->rdata->octets[parser->rdata->length];
-  const uint8_t *ws = w, *we = &parser->rdata->octets[ZONE_RDATA_LIMIT];
-  const char *t = token->data;
+  const uint8_t *ws = w, *we = &parser->rdata->octets[ZONE_RDATA_SIZE];
+  const char *t = token->data, *te = t + token->length;
 
-  while (w < we) {
-    const uint8_t c = (uint8_t)*t;
-    if (c == '\\') {
-      uint8_t x[3];
-      x[0] = (uint8_t)t[1] - '0';
-      if (x[0] > 9) {
-        w[0] = (uint8_t)t[1];
-        w += 1; t += 2;
-      } else {
-        x[1] = (uint8_t)t[2] - '0';
-        x[2] = (uint8_t)t[3] - '0';
-        const uint32_t o = x[0] * 100 + x[1] * 10 + x[0];
-        if (o > 255 || x[1] > 9 || x[2] > 9)
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-        w[0] = (uint8_t)o;
-        w += 1; t += 4;
-      }
-    } else if (d[c] == token->code) {
-      w[0] = c;
-      w += 1; t += 1;
+  while ((t < te) & (w < we)) {
+    *w = (uint8_t)*t;
+    if (zone_unlikely(*t == '\\')) {
+      uint32_t o;
+      if (!(o = unescape(t, w)))
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+      w += 1; t += o;
     } else {
-      break;
+      w += 1; t += 1;
     }
   }
 
-  if (w == we)
+  if (t != te || w >= we)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  assert(d[(uint8_t)*t] != token->code);
   parser->rdata->length += (size_t)(w - ws);
   return ZONE_BLOB;
 }
@@ -118,7 +92,7 @@ static zone_really_inline int32_t parse_quoted_text(
   const zone_field_info_t *field,
   const token_t *token)
 {
-  if (zone_likely(token->code == QUOTED))
+  if (zone_likely(token->code & QUOTED))
     return parse_text_internal(parser, type, field, token);
   return have_quoted(parser, type, field, token);
 }

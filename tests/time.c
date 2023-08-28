@@ -45,40 +45,40 @@ static int32_t add_rr(
 void time_stamp_syntax(void **state)
 {
   static const struct {
-    int32_t result;
     const char *timestamp;
     uint32_t seconds;
+    int32_t result;
   } tests[] = {
     // bad number of digits
-    { ZONE_SYNTAX_ERROR, "202301010101", 0 },
-    { ZONE_SYNTAX_ERROR, "202301010101010", 0 },
+    { "202301010101", 0, ZONE_SYNTAX_ERROR },
+    { "202301010101010", 0, ZONE_SYNTAX_ERROR },
     // year before 1970
-    { ZONE_SYNTAX_ERROR, "19690101010101", 0 },
+    { "19690101010101", 0, ZONE_SYNTAX_ERROR },
     // year after 2106
-    { ZONE_SYNTAX_ERROR, "21070101010101", 0 },
+    { "21070101010101", 0, ZONE_SYNTAX_ERROR },
     // month 0
-    { ZONE_SYNTAX_ERROR, "20230001010101", 0 },
+    { "20230001010101", 0, ZONE_SYNTAX_ERROR },
     // month 13
-    { ZONE_SYNTAX_ERROR, "20231301010101", 0 },
+    { "20231301010101", 0, ZONE_SYNTAX_ERROR },
     // february 29 non-leap year
-    { ZONE_SYNTAX_ERROR, "20230229010101", 0 },
+    { "20230229010101", 0, ZONE_SYNTAX_ERROR },
     // february 29 leap year
-    { ZONE_SUCCESS, "20240229010101", 1709168461 },
+    { "20240229010101", 1709168461, ZONE_SUCCESS },
     // hour 24
-    { ZONE_SYNTAX_ERROR, "20230101240101", 0 },
+    { "20230101240101", 0, ZONE_SYNTAX_ERROR },
     // minute 60
-    { ZONE_SYNTAX_ERROR, "20230101016001", 0 },
+    { "20230101016001", 0, ZONE_SYNTAX_ERROR },
     // correct time stamp
-    { ZONE_SUCCESS, "20230704160000", 1688486400 }
+    { "20230704160000", 1688486400, ZONE_SUCCESS }
   };
 
   (void)state;
 
   for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
     zone_parser_t parser = { 0 };
-    zone_name_block_t name;
-    zone_rdata_block_t rdata;
-    zone_cache_t cache = { 1, &name, &rdata };
+    zone_name_buffer_t name;
+    zone_rdata_buffer_t rdata;
+    zone_buffers_t buffers = { 1, &name, &rdata };
     zone_options_t options = { 0 };
     int32_t result;
 
@@ -99,7 +99,7 @@ void time_stamp_syntax(void **state)
     options.default_ttl = 3600;
     options.default_class = ZONE_IN;
 
-    result = zone_parse_string(&parser, &options, &cache, rr, strlen(rr), NULL);
+    result = zone_parse_string(&parser, &options, &buffers, rr, strlen(rr), NULL);
     free(rr);
     assert_int_equal(result, tests[i].result);
     if (tests[i].result != ZONE_SUCCESS)

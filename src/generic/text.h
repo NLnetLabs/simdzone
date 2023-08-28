@@ -10,7 +10,7 @@
 #define TEXT_H
 
 zone_nonnull_all
-static zone_really_inline size_t unescape(const char *text, uint8_t *wire)
+static zone_really_inline uint32_t unescape(const char *text, uint8_t *wire)
 {
   uint8_t d[3];
   uint32_t o;
@@ -24,12 +24,27 @@ static zone_really_inline size_t unescape(const char *text, uint8_t *wire)
     d[2] = (uint8_t)text[3] - '0';
     o = d[0] * 100 + d[1] * 10 + d[2];
     *wire = (uint8_t)o;
-    return (o > 255 || d[1] > 9 || d[2]) ? 0 : 4u;
+    return (o > 255 || d[1] > 9 || d[2] > 9) ? 0 : 4u;
   }
 }
 
+typedef struct string_block string_block_t;
+struct string_block {
+  uint64_t backslashes;
+};
+
 zone_nonnull_all
-static zone_really_inline int32_t parse_contiguous_string_internal(
+static zone_really_inline void copy_string_block(
+  string_block_t *block, const char *text, uint8_t *wire)
+{
+  simd_8x32_t input;
+  simd_loadu_8x32(&input, text);
+  simd_storeu_8x32(wire, &input);
+  block->backslashes = simd_find_8x32(&input, '\\');
+}
+
+zone_nonnull_all
+static zone_really_inline int32_t parse_string_internal(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
@@ -38,63 +53,29 @@ static zone_really_inline int32_t parse_contiguous_string_internal(
   string_block_t b;
   uint8_t *w = &parser->rdata->octets[parser->rdata->length + 1];
   const uint8_t *ws = w - 1, *we = w + 255;
-  const char *t = token->data;
+  const char *t = token->data, *te = t + token->length;
+  uint64_t left = token->length;
 
-  while (w < we) {
-    copy_contiguous_string_block(t, w, &b);
+  while ((t < te) & (w < we)) {
+    copy_string_block(&b, t, w);
+    uint64_t n = 32;
+    if (left < 32)
+      n = left;
+    uint64_t mask = (1llu << n) - 1;
 
-    if (b.backslash & (b.delimiter - 1)) {
-      const size_t n = trailing_zeroes(b.backslash);
-      const size_t o = unescape(t, w);
-      if (!o)
-        SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-      w += n + 1; t += n + o;
-    } else {
-      const size_t n = trailing_zeroes(b.delimiter | (1llu << 32));
+    if (b.backslashes & mask) {
+      n = trailing_zeroes(b.backslashes);
       w += n; t += n;
-      if (b.delimiter)
-        break;
+      if (!(n = unescape(t, w)))
+        SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+      w += 1; t += n;
+    } else {
+      w += n; t += n;
     }
   }
 
   if (w >= we)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  parser->rdata->octets[parser->rdata->length] = (uint8_t)((w - ws) - 1);
-  parser->rdata->length += (size_t)(w - ws);
-  return ZONE_STRING;
-}
-
-zone_nonnull_all
-static zone_really_inline int32_t parse_quoted_string_internal(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  const token_t *token)
-{
-  string_block_t b;
-  uint8_t *w = &parser->rdata->octets[parser->rdata->length + 1];
-  const uint8_t *ws = w - 1, *we = w + 255;
-  const char *t = token->data;
-
-  while (w < we) {
-    copy_quoted_string_block(t, w, &b);
-
-    if (b.backslash & (b.delimiter - 1)) {
-      const size_t n = trailing_zeroes(b.backslash);
-      const size_t o = unescape(t, w);
-      if (!o)
-        SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-      w += n + 1; t += n + o;
-    } else {
-      const size_t n = trailing_zeroes(b.delimiter | (1llu << 32));
-      w += n; t += n;
-      if (b.delimiter)
-        break;
-    }
-  }
-
-  if (w >= we)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   parser->rdata->octets[parser->rdata->length] = (uint8_t)((w - ws) - 1);
   parser->rdata->length += (size_t)(w - ws);
   return ZONE_STRING;
@@ -107,16 +88,15 @@ static zone_really_inline int32_t parse_string(
   const zone_field_info_t *field,
   const token_t *token)
 {
-  if (zone_likely(token->code == QUOTED)) // strings are usually quoted
-    return parse_quoted_string_internal(parser, type, field, token);
-  else if (token->code == CONTIGUOUS)
-    return parse_contiguous_string_internal(parser, type, field, token);
-  else
-    return have_string(parser, type, field, token);
+  int32_t r;
+
+  if ((r = have_string(parser, type, field, token)) < 0)
+    return r;
+  return parse_string_internal(parser, type, field, token);
 }
 
 zone_nonnull_all
-static zone_really_inline int32_t parse_contiguous_text_internal(
+static zone_really_inline int32_t parse_text_internal(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
@@ -124,65 +104,30 @@ static zone_really_inline int32_t parse_contiguous_text_internal(
 {
   string_block_t b;
   uint8_t *w = &parser->rdata->octets[parser->rdata->length];
-  const uint8_t *ws = w, *we = &parser->rdata->octets[ZONE_RDATA_LIMIT];
-  const char *t = token->data;
+  const uint8_t *ws = w, *we = &parser->rdata->octets[ZONE_RDATA_SIZE];
+  const char *t = token->data, *te = t + token->length;
+  uint64_t left = token->length;
 
-  while (w < we) {
-    copy_contiguous_string_block(t, w, &b);
+  while ((t < te) & (w < we)) {
+    copy_string_block(&b, t, w);
+    uint64_t n = 32;
+    if (left < 32)
+      n = left;
+    uint64_t mask = (1llu << n) - 1;
 
-    if (zone_unlikely(b.backslash & (b.delimiter - 1))) {
-      const size_t n = trailing_zeroes(b.backslash);
-      const size_t o = unescape(t+n, w+n);
-      if (!o)
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-      w += n + 1; t += n + o;
-    } else {
-      const size_t n = trailing_zeroes(b.delimiter | (1llu << 32));
+    if (zone_unlikely(b.backslashes & mask)) {
+      n = trailing_zeroes(b.backslashes);
       w += n; t += n;
-      if (b.delimiter)
-        break;
+      if (!(n = unescape(t, w)))
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+      w += 1; t += n;
+    } else {
+      w += n; t += n;
     }
   }
 
   if (w >= we)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-
-  parser->rdata->length += (size_t)(w - ws);
-  return ZONE_BLOB;
-}
-
-zone_nonnull_all
-static zone_really_inline int32_t parse_quoted_text_internal(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  const token_t *token)
-{
-  string_block_t b;
-  uint8_t *w = &parser->rdata->octets[parser->rdata->length];
-  const uint8_t *ws = w, *we = &parser->rdata->octets[ZONE_RDATA_LIMIT];
-  const char *t = token->data;
-
-  while (w < we) {
-    copy_quoted_string_block(t, w, &b);
-
-    if (zone_unlikely(b.backslash & (b.delimiter - 1))) {
-      const size_t n = trailing_zeroes(b.backslash);
-      const size_t o = unescape(t+n, w+n);
-      if (!o)
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-      w += n + 1; t += n + o;
-    } else {
-      const size_t n = trailing_zeroes(b.delimiter | (1llu << 32));
-      w += n; t += n;
-      if (b.delimiter)
-        break;
-    }
-  }
-
-  if (w >= we)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-
   parser->rdata->length += (size_t)(w - ws);
   return ZONE_BLOB;
 }
@@ -194,9 +139,11 @@ static zone_really_inline int32_t parse_quoted_text(
   const zone_field_info_t *field,
   const token_t *token)
 {
-  if (zone_likely(token->code == QUOTED))
-    return parse_quoted_text_internal(parser, type, field, token);
-  return have_quoted(parser, type, field, token);
+  int32_t r;
+
+  if ((r = have_quoted(parser, type, field, token)) < 0)
+    return r;
+  return parse_text_internal(parser, type, field, token);
 }
 
 zone_nonnull_all
@@ -206,11 +153,11 @@ static zone_really_inline int32_t parse_text(
   const zone_field_info_t *field,
   const token_t *token)
 {
-  if (zone_likely(token->code == QUOTED)) // strings are usually quoted
-    return parse_quoted_text_internal(parser, type, field, token);
-  else if (token->code == CONTIGUOUS)
-    return parse_contiguous_text_internal(parser, type, field, token);
-  return have_string(parser, type, field, token);
+  int32_t r;
+
+  if ((r = have_string(parser, type, field, token)) < 0)
+    return r;
+  return parse_text_internal(parser, type, field, token);
 }
 
 #endif // TEXT_H

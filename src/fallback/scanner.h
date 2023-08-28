@@ -36,6 +36,7 @@ static zone_really_inline const char *scan_quoted(
       parser->file->lines.tail[0] += *(start + 1) == '\n';
       start += 2;
     } else if (*start == '\"') {
+      *parser->file->delimiters.tail++ = start;
       return start + 1;
     } else if (*start == '\n') {
       parser->file->lines.tail[0]++;
@@ -64,6 +65,7 @@ static zone_really_inline const char *scan_contiguous(
         start += 2;
       }
     } else {
+      *parser->file->delimiters.tail++ = start;
       return start;
     }
   }
@@ -145,6 +147,9 @@ static zone_never_inline void step(zone_parser_t *parser, token_t *token)
   parser->file->fields.tail = parser->file->fields.tape;
   if (parser->file->fields.tape[0])
     parser->file->fields.tail++;
+  // delimiters are never deferred
+  parser->file->delimiters.head = parser->file->delimiters.tape;
+  parser->file->delimiters.tail = parser->file->delimiters.tape;
 
 shuffle:
   // refill if required
@@ -204,6 +209,7 @@ terminate:
   }
 
   parser->file->fields.tail[0] = data_limit;
+  parser->file->delimiters.tail[0] = data_limit;
   if (parser->file->fields.head[0] == parser->file->buffer.data)
     parser->file->start_of_line = start_of_line;
   else
@@ -216,6 +222,9 @@ terminate:
     // end-of-file is idempotent
     parser->file->fields.head += (*data != '\0');
     if (zone_likely(token->code == CONTIGUOUS)) {
+      const char *delimiter = *parser->file->delimiters.head++;
+      assert(delimiter > token->data);
+      token->length = (size_t)(delimiter - token->data);
       return;
     } else if (token->code == LINE_FEED) {
       if (zone_unlikely(token->data == line_feed))
@@ -228,7 +237,10 @@ terminate:
       parser->file->start_of_line = !is_blank((uint8_t)*(token->data+1));
       return;
     } else if (token->code == QUOTED) {
+      const char *delimiter = *parser->file->delimiters.head++;
       token->data++;
+      assert(delimiter > token->data);
+      token->length = (size_t)(delimiter - token->data);
       return;
     } else if (token->code == END_OF_FILE) {
       zone_file_t *file;

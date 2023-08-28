@@ -61,7 +61,7 @@ static const target_t targets[] = {
 extern int32_t zone_open(
   zone_parser_t *,
   const zone_options_t *,
-  zone_cache_t *,
+  zone_buffers_t *,
   const char *,
   void *user_data);
 
@@ -129,6 +129,7 @@ static const target_t *select_target(const char *name)
       if (targets[i].instruction_set & supported)
         target = &targets[i];
     }
+    assert(target != NULL);
   } else {
     for (size_t i=0; !target && i < n; i++) {
       if (strcasecmp(name, targets[i].name) == 0)
@@ -208,16 +209,16 @@ int main(int argc, char *argv[])
 
   zone_parser_t parser = { 0 };
   zone_options_t options = { 0 };
-  zone_name_block_t owner;
-  zone_rdata_block_t rdata;
-  zone_cache_t cache = { 1, &owner, &rdata };
+  zone_name_buffer_t owner;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &owner, &rdata };
 
   options.accept.add = &bench_accept;
   options.origin = ".";
   options.default_ttl = 3600;
   options.default_class = ZONE_IN;
 
-  if (zone_open(&parser, &options, &cache, argv[argc-1], NULL) < 0)
+  if (zone_open(&parser, &options, &buffers, argv[argc-1], NULL) < 0)
     exit(EXIT_FAILURE);
   if (bench(&parser, target) < 0)
     exit(EXIT_FAILURE);

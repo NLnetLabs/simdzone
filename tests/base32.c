@@ -49,6 +49,7 @@ void base32_syntax(void **state)
     const uint8_t *octets;
     const size_t length;
   } tests[] = {
+    // FIXME: add tests to ensure padding is not allowed
     // bad character in contiguous set
     { ZONE_SYNTAX_ERROR, "2t7b4g4vsa5zmi47k61mv5bv1a22bojr", NULL, 0 },
     //                               ^ (not in base32 alphabet)
@@ -67,9 +68,9 @@ void base32_syntax(void **state)
     char rr[256];
     const char rrfmt[] = " NSEC3 1 1 12 aabbccdd ( %s A NS )";
     zone_parser_t parser = { 0 };
-    zone_name_block_t name;
-    zone_rdata_block_t rdata;
-    zone_cache_t cache = { 1, &name, &rdata };
+    zone_name_buffer_t name;
+    zone_rdata_buffer_t rdata;
+    zone_buffers_t buffers = { 1, &name, &rdata };
     zone_options_t options = { 0 };
     int32_t result;
 
@@ -80,7 +81,7 @@ void base32_syntax(void **state)
     options.default_ttl = 3600;
     options.default_class = ZONE_IN;
 
-    result = zone_parse_string(&parser, &options, &cache, rr, strlen(rr), NULL);
+    result = zone_parse_string(&parser, &options, &buffers, rr, strlen(rr), NULL);
     assert_int_equal(result, tests[i].result);
     if (tests[i].result == ZONE_SUCCESS)
       assert_memory_equal(rdata.octets+9, tests[i].octets, tests[i].length);

@@ -228,7 +228,7 @@ static void set_defaults(zone_parser_t *parser)
   if (!parser->options.log.write && !parser->options.log.categories)
     parser->options.log.categories = (uint32_t)-1;
   parser->owner = &parser->file->owner;
-  parser->rdata = &parser->cache.rdata.blocks[0];
+  parser->rdata = &parser->buffers.rdata.blocks[0];
 }
 
 diagnostic_push()
@@ -294,7 +294,7 @@ void zone_close(zone_parser_t *parser)
 int32_t zone_open(
   zone_parser_t *parser,
   const zone_options_t *options,
-  zone_cache_t *cache,
+  zone_buffers_t *buffers,
   const char *path,
   void *user_data)
 {
@@ -314,10 +314,10 @@ int32_t zone_open(
     result = ZONE_BAD_PARAMETER;
     goto error;
   }
-  parser->cache.size = cache->size;
-  parser->cache.owner.serial = 0;
-  parser->cache.owner.blocks = cache->owner;
-  parser->cache.rdata.blocks = cache->rdata;
+  parser->buffers.size = buffers->size;
+  parser->buffers.owner.serial = 0;
+  parser->buffers.owner.blocks = buffers->owner;
+  parser->buffers.rdata.blocks = buffers->rdata;
   file->owner = file->origin;
   file->last_type = 0;
   file->last_class = options->default_class;
@@ -336,13 +336,13 @@ diagnostic_pop()
 int32_t zone_parse(
   zone_parser_t *parser,
   const zone_options_t *options,
-  zone_cache_t *cache,
+  zone_buffers_t *buffers,
   const char *path,
   void *user_data)
 {
   int32_t result;
 
-  if ((result = zone_open(parser, options, cache, path, user_data)) < 0)
+  if ((result = zone_open(parser, options, buffers, path, user_data)) < 0)
     return result;
   result = parse(parser, user_data);
   zone_close(parser);
@@ -352,7 +352,7 @@ int32_t zone_parse(
 int32_t zone_parse_string(
   zone_parser_t *parser,
   const zone_options_t *options,
-  zone_cache_t *cache,
+  zone_buffers_t *buffers,
   const char *string,
   size_t length,
   void *user_data)
@@ -387,10 +387,10 @@ int32_t zone_parse_string(
   file->lines.head = file->lines.tape;
   file->lines.tail = file->lines.tape;
 
-  parser->cache.size = cache->size;
-  parser->cache.owner.serial = 0;
-  parser->cache.owner.blocks = cache->owner;
-  parser->cache.rdata.blocks = cache->rdata;
+  parser->buffers.size = buffers->size;
+  parser->buffers.owner.serial = 0;
+  parser->buffers.owner.blocks = buffers->owner;
+  parser->buffers.rdata.blocks = buffers->rdata;
   file->owner = file->origin;
   file->last_type = 0;
   file->last_class = options->default_class;

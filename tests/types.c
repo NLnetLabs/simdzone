@@ -855,9 +855,9 @@ void supported_types(void **state)
   for (size_t i = 0, n = sizeof(tests)/sizeof(tests[0]); i < n; i++) {
     test_t test = tests[i];
     zone_parser_t parser = { 0 };
-    zone_name_block_t name;
-    zone_rdata_block_t rdata;
-    zone_cache_t cache = { 1, &name, &rdata };
+    zone_name_buffer_t name;
+    zone_rdata_buffer_t rdata;
+    zone_buffers_t buffers = { 1, &name, &rdata };
     zone_options_t options = { 0 };
     int32_t result;
 
@@ -868,7 +868,7 @@ void supported_types(void **state)
 
     fprintf(stderr, "INPUT: '%s'\n", tests[i].text);
 
-    result = zone_parse_string(&parser, &options, &cache, tests[i].text, strlen(tests[i].text), &test);
+    result = zone_parse_string(&parser, &options, &buffers, tests[i].text, strlen(tests[i].text), &test);
     assert_int_equal(result, ZONE_SUCCESS);
   }
 }
