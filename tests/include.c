@@ -60,6 +60,8 @@ int teardown(void **state)
   if (input->include.content)
     free(input->include.content);
 
+  free(input);
+
   return 0;
 }
 
@@ -119,7 +121,7 @@ int setup(void **state)
   *state = input;
   return 0;
 err:
-  teardown((void **)&input);
+  teardown((void**)&input);
   return -1;
 }
 
@@ -157,9 +159,9 @@ void include_from_string(void **state)
 {
   input_t *input;
   zone_parser_t parser = { 0 };
-  zone_name_block_t name;
-  zone_rdata_block_t rdata;
-  zone_cache_t cache = { 1, &name, &rdata };
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
   zone_options_t options = { 0 };
   int32_t result;
 
@@ -172,13 +174,13 @@ void include_from_string(void **state)
 
   // verify $INCLUDE is denied by default when parsing strings.
   const char *str = input->includer.content;
-  result = zone_parse_string(&parser, &options, &cache, str, strlen(str), NULL);
+  result = zone_parse_string(&parser, &options, &buffers, str, strlen(str), NULL);
   assert_false(options.no_includes);
   assert_int_equal(result, ZONE_SUCCESS);
 
   // verify $INCLUDE is allowed and works as intented if configured.
   options.no_includes = true;
-  result = zone_parse_string(&parser, &options, &cache, str, strlen(str), NULL);
+  result = zone_parse_string(&parser, &options, &buffers, str, strlen(str), NULL);
   assert_int_equal(result, ZONE_NOT_PERMITTED);
 }
 

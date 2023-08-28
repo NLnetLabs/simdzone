@@ -27,6 +27,8 @@ typedef struct { __m128i chunks[1]; } simd_8x_t;
 
 typedef simd_8x_t simd_8x16_t;
 
+typedef struct { __m128i chunks[2]; } simd_8x32_t;
+
 typedef struct { __m128i chunks[4]; } simd_8x64_t;
 
 zone_nonnull_all
@@ -61,6 +63,31 @@ static zone_really_inline uint64_t simd_find_any_8x(
 
 #define simd_loadu_8x16(simd, address) simd_loadu_8x(simd, address)
 #define simd_find_8x16(simd, key) simd_find_8x(simd, key)
+
+zone_nonnull_all
+static zone_really_inline void simd_loadu_8x32(simd_8x32_t *simd, const char *address)
+{
+  simd->chunks[0] = _mm_loadu_si128((const __m128i *)(address));
+  simd->chunks[1] = _mm_loadu_si128((const __m128i *)(address+16));
+}
+
+zone_nonnull_all
+static zone_really_inline void simd_storeu_8x32(uint8_t *address, const simd_8x32_t *simd)
+{
+  _mm_storeu_si128((__m128i *)(address), simd->chunks[0]);
+  _mm_storeu_si128((__m128i *)(address+16), simd->chunks[1]);
+}
+
+zone_nonnull_all
+static zone_really_inline uint64_t simd_find_8x32(const simd_8x32_t *simd, char key)
+{
+  const __m128i k = _mm_set1_epi8(key);
+  const __m128i r0 = _mm_cmpeq_epi8(simd->chunks[0], k);
+  const __m128i r1 = _mm_cmpeq_epi8(simd->chunks[1], k);
+  const uint32_t m0 = (uint16_t)_mm_movemask_epi8(r0);
+  const uint32_t m1 = (uint16_t)_mm_movemask_epi8(r1);
+  return m0 | (m1 << 16);
+}
 
 zone_nonnull_all
 static zone_really_inline void simd_loadu_8x64(simd_8x64_t *simd, const uint8_t *address)

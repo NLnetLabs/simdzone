@@ -2,6 +2,7 @@
  * bits.h -- Westmere specific implementation of bit manipulation instructions
  *
  * Copyright (c) 2018-2022 The simdjson authors
+ * Copyright (c) 2023, NLnet Labs. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -23,7 +24,7 @@ static inline uint64_t trailing_zeroes(uint64_t input_num) {
   return (uint64_t)__builtin_ctzll(input_num);
 }
 
-/* result might be undefined when input_num is zero */
+// result might be undefined when input_num is zero
 static inline uint64_t clear_lowest_bit(uint64_t input_num) {
   return input_num & (input_num-1);
 }

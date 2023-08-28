@@ -24,20 +24,25 @@ static zone_really_inline int32_t parse_owner(
     // a freestanding "@" denotes the origin
     if (token->data[0] == '@' && !is_contiguous((uint8_t)token->data[1]))
       goto relative;
-    r = scan_contiguous_name(parser, type, field, token, o, &n);
+    r = scan_name(parser, token, o, &n);
     if (r == 0)
       return (void)(parser->owner->length = n), ZONE_NAME;
-    if (r < 0)
-      return r;
+    if (r > 0)
+      goto relative;
   } else if (token->code == QUOTED) {
-    r = scan_quoted_name(parser, type, field, token, o, &n);
+    if (token->length == 0)
+      goto invalid;
+    r = scan_name(parser, token, o, &n);
     if (r == 0)
       return (void)(parser->owner->length = n), ZONE_NAME;
-    if (r < 0)
-      return r;
+    if (r > 0)
+      goto relative;
   } else {
     return have_string(parser, type, field, token);
   }
+
+invalid:
+  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
 relative:
   if (n > 255 - parser->file->origin.length)
@@ -154,8 +159,8 @@ static zone_really_inline int32_t parse_dollar_include(
 
   int32_t r;
   zone_file_t *includer, *file;
-  zone_name_block_t name;
-  const zone_name_block_t *origin = &parser->file->origin;
+  zone_name_buffer_t name;
+  const zone_name_buffer_t *origin = &parser->file->origin;
   const uint8_t *delimiters;
 
   if (parser->options.no_includes)
@@ -179,21 +184,17 @@ static zone_really_inline int32_t parse_dollar_include(
   // $INCLUDE directive may specify an origin
   lex(parser, token);
   if (token->code == CONTIGUOUS) {
-    r = scan_contiguous_name(
-      parser, &type, &fields[1], token, name.octets, &name.length);
-    if (r < 0)
-      goto invalid_name;
+    r = scan_name(parser, token, name.octets, &name.length);
     if (r != 0)
-      goto relative_name;
+      goto invalid_name;
     origin = &name;
     lex(parser, token);
   } else if (token->code == QUOTED) {
-    r = scan_quoted_name(
-      parser, &type, &fields[1], token, name.octets, &name.length);
-    if (r < 0)
+    if (token->length == 0)
       goto invalid_name;
+    r = scan_name(parser, token, name.octets, &name.length);
     if (r != 0)
-      goto relative_name;
+      goto invalid_name;
     origin = &name;
     lex(parser, token);
   }
@@ -222,12 +223,9 @@ static zone_really_inline int32_t parse_dollar_include(
 
   parser->file = file;
   return 0;
-relative_name:
-  zone_close_file(parser, file);
-  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[1]), TNAME(&type));
 invalid_name:
   zone_close_file(parser, file);
-  return r;
+  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[1]), TNAME(&type));
 }
 
 // RFC1035 section 5.1
@@ -245,19 +243,17 @@ static inline int32_t parse_dollar_origin(
 
   lex(parser, token);
   if (zone_likely(token->code == CONTIGUOUS))
-    r = scan_contiguous_name(parser, &type, &field, token,
+    r = scan_name(parser, token,
                              parser->file->origin.octets,
                             &parser->file->origin.length);
   else if (token->code == QUOTED)
-    r = scan_quoted_name(parser, &type, &field, token,
+    r = scan_name(parser, token,
                          parser->file->origin.octets,
                         &parser->file->origin.length);
   else
     return have_string(parser, &type, &field, token);
 
-  if (r < 0)
-    return r;
-  if (r > 0)
+  if (r != 0)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&field), TNAME(&type));
 
   lex(parser, token);

@@ -77,7 +77,7 @@ static zone_really_inline int32_t parse_base16(
 
   uint8_t x0 = 0x80, x1 = 0x80;
   uint8_t *w = &parser->rdata->octets[parser->rdata->length];
-  const uint8_t *ws = w, *we = &parser->rdata->octets[ZONE_RDATA_LIMIT];
+  const uint8_t *ws = w, *we = &parser->rdata->octets[ZONE_RDATA_SIZE];
   const char *p;
 
   do {

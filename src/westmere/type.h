@@ -99,18 +99,22 @@ static zone_really_inline int32_t find_type_or_class(
   // 0x0d        :   carriage return : 0b0000_1101
   //
   // deltas do not catch ('.' (0x2e) or '/' (0x2f)), but neither is a delimiter
-  const __m128i deltas = _mm_setr_epi8(
-    -16, -32, -45, 70, -65, 37, -97, 5, 0, 0, 0, 0, 0, 0, 0, 0);
+  //const __m128i deltas = _mm_setr_epi8(
+  //  -16, -32, -45, 70, -65, 37, -97, 5, 0, 0, 0, 0, 0, 0, 0, 0);
   const __m128i nibbles = _mm_and_si128(_mm_srli_epi32(input, 4), _mm_set1_epi8(0x0f));
-  const __m128i check = _mm_add_epi8(_mm_shuffle_epi8(deltas, nibbles), input);
+  //const __m128i check = _mm_add_epi8(_mm_shuffle_epi8(deltas, nibbles), input);
 
-  int mask = (uint16_t)_mm_movemask_epi8(check);
-  uint16_t length = (uint16_t)__builtin_ctz((unsigned int)mask);
+  //int mask = (uint16_t)_mm_movemask_epi8(check);
+  //uint16_t length = (uint16_t)__builtin_ctz((unsigned int)mask);
 
   const __m128i upper = _mm_setr_epi8(
     -1, -1, -1, -1, -1, -1, -33, -33, -1, -1, -1, -1, -1, -1, -1, -1);
 
-  const __m128i zero_mask = _mm_loadu_si128((const __m128i *)(zero_masks + 16 - length));
+  __m128i zero_mask;
+  //if (token->length > 16)
+  //  zero_mask = _mm_loadu_si128((const __m128i *)zero_masks);
+  //else
+    zero_mask = _mm_loadu_si128((const __m128i *)(zero_masks + 16 - token->length));
   input = _mm_and_si128(input, _mm_shuffle_epi8(upper, nibbles));
   input = _mm_andnot_si128(zero_mask, input);
 
@@ -124,8 +128,8 @@ static zone_really_inline int32_t find_type_or_class(
 
   *code = (uint16_t)(*symbol)->value;
 
-  const uint8_t delimiter = (uint8_t)token->data[length];
-  if (_mm_test_all_zeros(xorthem, xorthem) & (contiguous[delimiter] != CONTIGUOUS))
+  //const uint8_t delimiter = (uint8_t)token->data[token->length];
+  if (_mm_test_all_zeros(xorthem, xorthem))// & (contiguous[delimiter] != CONTIGUOUS))
     return types_and_classes[index].type;
   return 0;
 }

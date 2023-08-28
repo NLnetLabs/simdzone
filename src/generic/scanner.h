@@ -142,7 +142,6 @@ struct block {
   uint64_t follows_contiguous;
   uint64_t blank;
   uint64_t special;
-  uint64_t bits;
 };
 
 static zone_really_inline void scan(zone_parser_t *parser, block_t *block)
@@ -190,63 +189,97 @@ static zone_really_inline void scan(zone_parser_t *parser, block_t *block)
     ~(block->blank | block->special | block->quoted) & ~(block->in_quoted | block->in_comment);
   block->follows_contiguous =
     follows(block->contiguous, &parser->file->state.follows_contiguous);
-
-  // quoted and contiguous have dynamic lengths, write two indexes
-  block->bits = (block->contiguous & ~block->follows_contiguous) | (block->quoted & block->in_quoted) | block->special;
 }
 
-static zone_really_inline void tokenize(zone_parser_t *parser, const block_t *block)
+static zone_really_inline void tokenize(zone_parser_t *parser, const block_t *block, uint64_t clear)
 {
-  uint64_t bits = block->bits;
-  uint64_t count = count_ones(bits);
+  uint64_t fields = (block->contiguous & ~block->follows_contiguous) |
+                    (block->quoted & block->in_quoted) |
+                    (block->special);
+
+  // delimiters are only important for contigouos and quoted character strings
+  // (all other tokens automatically have a length 1). write out both in
+  // separate vectors and base logic solely on field vector, order is
+  // automatically correct
+  uint64_t delimiters = (~block->contiguous & block->follows_contiguous) |
+                        (block->quoted & ~block->in_quoted);
+
+  fields &= ~clear;
+  delimiters &= ~clear;
+
   const char *base = parser->file->buffer.data + parser->file->buffer.index;
+  uint64_t field_count = count_ones(fields);
+  uint64_t delimiter_count = count_ones(delimiters);
+  // bulk of the data are contiguous and quoted character strings. field and
+  // delimiter counts are therefore (mostly) equal. select the greater number
+  // and write out indexes using a single loop, (hopefully) leveraging
+  // superscalar properties of modern CPUs
+  uint64_t count = field_count;
+  if (delimiter_count > field_count)
+    count = delimiter_count;
 
   uint64_t newline = block->newline;
   const uint64_t in_string = block->contiguous | block->in_quoted;
 
-  // take slow path if (escaped) newlines appear in contiguous or quoted.
-  // edge case, but must be supported and handled in the scanner for ease of
-  // use and to accommodate for parallel processing in the parser. note that
-  // escaped newlines may have been present in the last block
+  // take slow path if (escaped) newlines appear in contiguous or quoted
+  // character strings. edge case, but must be supported and handled in the
+  // scanner for ease of use and to accommodate for parallel processing in the
+  // parser. escaped newlines may have been present in the last block
   if (zone_unlikely(parser->file->lines.tail[0] || (newline & in_string))) {
-    for (uint64_t i=0; i < count; i++) {
-      uint64_t bit = -bits & bits;
-      bits ^= bit;
-      if (bit & newline) {
+    // FIXME: test logic properly, likely eligable for simplification
+    for (count=0; count < field_count; count++) {
+      const uint64_t field = -fields & fields;
+      if (field & newline) {
         parser->file->lines.tail++;
-        parser->file->fields.tail[i] = line_feed;
-        newline &= -bit;
+        parser->file->fields.tail[count] = line_feed;
+        newline &= -field;
       } else {
         // count newlines here so number of newlines remains correct if last
         // token is start of contiguous or quoted and index must be reset
-        *parser->file->lines.tail += count_ones(newline & ~(-bit));
-        parser->file->fields.tail[i] = base + trailing_zeroes(bit);
-        newline &= -bit;
+        *parser->file->lines.tail += count_ones(newline & ~(-field));
+        parser->file->fields.tail[count] = base + trailing_zeroes(field);
+        newline &= -field;
       }
+      parser->file->delimiters.tail[count] = base + trailing_zeroes(delimiters);
+      fields = clear_lowest_bit(fields);
+      delimiters = clear_lowest_bit(delimiters);
     }
 
-    parser->file->fields.tail += count;
+    for (; count < delimiter_count; count++) {
+      parser->file->delimiters.tail[count] = base + trailing_zeroes(delimiters);
+      delimiters = clear_lowest_bit(delimiters);
+    }
+
+    parser->file->fields.tail += field_count;
+    parser->file->delimiters.tail += delimiter_count;
   } else {
     for (uint64_t i=0; i < 6; i++) {
-      parser->file->fields.tail[i] = base + trailing_zeroes(bits);
-      bits = clear_lowest_bit(bits);
+      parser->file->fields.tail[i] = base + trailing_zeroes(fields);
+      parser->file->delimiters.tail[i] = base + trailing_zeroes(delimiters);
+      fields = clear_lowest_bit(fields);
+      delimiters = clear_lowest_bit(delimiters);
     }
 
     if (zone_unlikely(count > 6)) {
       for (uint64_t i=6; i < 12; i++) {
-        parser->file->fields.tail[i] = base + trailing_zeroes(bits);
-        bits = clear_lowest_bit(bits);
+        parser->file->fields.tail[i] = base + trailing_zeroes(fields);
+        parser->file->delimiters.tail[i] = base + trailing_zeroes(delimiters);
+        fields = clear_lowest_bit(fields);
+        delimiters = clear_lowest_bit(delimiters);
       }
 
       if (zone_unlikely(count > 12)) {
         for (uint64_t i=12; i < count; i++) {
-          parser->file->fields.tail[i] = base + trailing_zeroes(bits);
-          bits = clear_lowest_bit(bits);
+          parser->file->fields.tail[i] = base + trailing_zeroes(fields);
+          parser->file->delimiters.tail[i] = base + trailing_zeroes(delimiters);
+          fields = clear_lowest_bit(fields);
+          delimiters = clear_lowest_bit(delimiters);
         }
       }
     }
 
-    parser->file->fields.tail += count;
+    parser->file->fields.tail += field_count;
+    parser->file->delimiters.tail += delimiter_count;
   }
 }
 
@@ -273,6 +306,9 @@ static zone_never_inline void step(zone_parser_t *parser, token_t *token)
   parser->file->fields.tail = parser->file->fields.tape;
   if (parser->file->fields.tape[0])
     parser->file->fields.tail++;
+  // delimiters are never deferred
+  parser->file->delimiters.head = parser->file->delimiters.tape;
+  parser->file->delimiters.tail = parser->file->delimiters.tape;
 
 shuffle:
   if (parser->file->end_of_file == ZONE_HAVE_DATA) {
@@ -305,7 +341,7 @@ shuffle:
       goto terminate;
     simd_loadu_8x64(&block.input, (const uint8_t *)data);
     scan(parser, &block);
-    tokenize(parser, &block);
+    tokenize(parser, &block, 0);
     parser->file->buffer.index += ZONE_BLOCK_SIZE;
   }
 
@@ -321,9 +357,9 @@ shuffle:
   const uint64_t clear = ~((1llu << length) - 1);
   simd_loadu_8x64(&block.input, buffer);
   scan(parser, &block);
-  block.bits &= ~clear;
+  //block.starts &= ~clear;
   block.contiguous &= ~clear;
-  tokenize(parser, &block);
+  tokenize(parser, &block, clear);
   parser->file->buffer.index += length;
   parser->file->end_of_file = ZONE_NO_MORE_DATA;
 
@@ -337,6 +373,7 @@ terminate:
   }
 
   parser->file->fields.tail[0] = data_limit;
+  parser->file->delimiters.tail[0] = data_limit;
   if (parser->file->fields.head[0] == parser->file->buffer.data)
     parser->file->start_of_line = start_of_line;
   else
@@ -347,8 +384,11 @@ terminate:
     token->data = data;
     token->code = (int32_t)contiguous[ (uint8_t)*data ];
     // end-of-file is idempotent
-    parser->file->fields.head += (*data != '\0');
+    parser->file->fields.head += (*token->data != '\0');
     if (zone_likely(token->code == CONTIGUOUS)) {
+      const char *delimiter = *parser->file->delimiters.head++;
+      assert(delimiter > token->data);
+      token->length = (size_t)(delimiter - token->data);
       return;
     } else if (token->code == LINE_FEED) {
       if (zone_unlikely(token->data == line_feed))
@@ -359,9 +399,13 @@ terminate:
       parser->file->line += parser->file->span;
       parser->file->span = 0;
       parser->file->start_of_line = !is_blank((uint8_t)*(token->data+1));
+      token->length = 1;
       return;
     } else if (token->code == QUOTED) {
+      const char *delimiter = *parser->file->delimiters.head++;
       token->data++;
+      assert(delimiter >= token->data);
+      token->length = (size_t)(delimiter - token->data);
       return;
     } else if (token->code == END_OF_FILE) {
       zone_file_t *file;
@@ -376,6 +420,7 @@ terminate:
       parser->file = parser->file->includer;
       parser->owner = &parser->file->owner;
       zone_close_file(parser, file);
+      token->length = 1;
       return;
     } else if (token->code == LEFT_PAREN) {
       if (parser->file->grouped)
@@ -389,49 +434,5 @@ terminate:
     }
   }
 }
-
-typedef struct delimited delimited_t;
-struct delimited {
-  simd_8x_t input;
-  uint64_t delimiter;
-};
-
-static const simd_table_t non_contiguous = SIMD_TABLE(
-  0x00, // 0x00 : "\0" : 0x00 -- end-of-file
-  0x00, // 0x01
-  0x22, // 0x02 : "\"" : 0x22 -- start/end quoted
-  0x00, // 0x03
-  0x00, // 0x04
-  0x00, // 0x05
-  0x00, // 0x06
-  0x00, // 0x07
-  0x28, // 0x08 :  "(" : 0x28 -- start grouped
-  0x29, // 0x09 :  ")" : 0x29 -- end grouped
-  0x0a, // 0x0a : "\n" : 0x0a -- end-of-line
-  0x3b, // 0x0b :  ";" : 0x3b -- start comment
-  0x00, // 0x0c
-  0x00, // 0x0d
-  0x00, // 0x0e
-  0x00  // 0x0f
-);
-
-static const simd_table_t non_quoted = SIMD_TABLE(
-  0x00, // 0x00 : "\0" : 0x00 -- end-of-file
-  0x00, // 0x01
-  0x22, // 0x02 : "\"" : 0x22 -- start/end quoted
-  0x00, // 0x03
-  0x00, // 0x04
-  0x00, // 0x05
-  0x00, // 0x06
-  0x00, // 0x07
-  0x00, // 0x08
-  0x00, // 0x09
-  0x00, // 0x0a
-  0x00, // 0x0b
-  0x00, // 0x0c
-  0x00, // 0x0d
-  0x00, // 0x0e
-  0x00  // 0x0f
-);
 
 #endif // SCANNER_H

@@ -21,6 +21,7 @@ typedef struct token token_t;
 struct token {
   int32_t code;
   const char *data;
+  size_t length;
 };
 
 // sorted so that errors, end of file and line feeds are less than contiguous
@@ -232,16 +233,18 @@ static zone_really_inline int32_t refill(zone_parser_t *parser)
 
 #define DEFER_ERROR(parser, token, error) \
   do { \
-    token->data = dummy_data; \
     token->code = error; \
+    token->data = dummy_data; \
+    token->length = 0; \
     return; \
   } while (0)
 
 #define DEFER_SYNTAX_ERROR(parser, token, ...) \
   do { \
     ZONE_LOG(parser, ZONE_ERROR, __VA_ARGS__); \
-    token->data = dummy_data; \
     token->code = ZONE_SYNTAX_ERROR; \
+    token->data = dummy_data; \
+    token->length = 0; \
     return; \
   } while (0)
 
@@ -252,6 +255,9 @@ static zone_really_inline void lex(zone_parser_t *parser, token_t *token)
     token->data = *parser->file->fields.head++;
     token->code = (int32_t)contiguous[ (uint8_t)*token->data ];
     if (zone_likely(token->code == CONTIGUOUS)) {
+      const char *delimiter = *parser->file->delimiters.head++;
+      assert(delimiter > token->data);
+      token->length = (size_t)(delimiter - token->data);
       return;
     } else if (token->code == LINE_FEED) {
       if (zone_unlikely(token->data == line_feed))
@@ -262,9 +268,13 @@ static zone_really_inline void lex(zone_parser_t *parser, token_t *token)
       parser->file->line += parser->file->span;
       parser->file->span = 0;
       parser->file->start_of_line = !is_blank((uint8_t)*(token->data+1));
+      token->length = 1;
       return;
     } else if (token->code == QUOTED) {
       token->data++;
+      const char *delimiter = *parser->file->delimiters.head++;
+      assert(delimiter >= token->data); // allow empty strings (e.g. "")
+      token->length = (size_t)(delimiter - token->data);
       return;
     } else if (token->code == END_OF_FILE) {
       break;

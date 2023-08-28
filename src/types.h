@@ -246,10 +246,10 @@ static zone_really_inline int32_t accept_rr(
     parser->rdata->octets,
     parser->user_data);
 
-  assert((size_t)result < parser->cache.size);
+  assert((size_t)result < parser->buffers.size);
   if (result < 0)
     return result;
-  parser->rdata = &parser->cache.rdata.blocks[result];
+  parser->rdata = &parser->buffers.rdata.blocks[result];
   return 0;
 }
 
