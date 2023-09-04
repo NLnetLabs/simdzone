@@ -23,17 +23,17 @@ similar performance boost for parsing zone data.
 
 ## Results
 Running `zone-bench` on my system (Intel Core i7-1065G7) against an older
-`.com` zone file of 12482791271 bytes under Linux (Fedora 37).
+`.com` zone file of 12482791271 bytes under Linux (Fedora 38).
 
-clang version 15.0.7, release mode:
+clang version 16.0.6, release mode:
 ```
 $ time ./zone-bench parse ../../zones/com.zone
 Selected target haswell
 Parsed 341535548 records
 
-real    0m16.344s
-user    0m15.125s
-sys     0m1.165s
+real    0m14.812s
+user    0m13.704s
+sys     0m1.088s
 ```
 
 There are bound to be bugs and quite possibly smarter ways of implementing
