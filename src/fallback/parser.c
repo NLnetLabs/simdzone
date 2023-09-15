@@ -27,6 +27,7 @@
 #include "generic/ilnp64.h"
 #include "fallback/eui.h"
 #include "fallback/nsap.h"
+#include "generic/wks.h"
 #include "types.h"
 #include "fallback/type.h"
 #include "parser.h"

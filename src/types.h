@@ -377,6 +377,72 @@ static int32_t parse_soa_rdata(
 }
 
 zone_nonnull_all
+static int32_t check_wks_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_ip4(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[0], o+c, n-c))))
+    return r;
+
+  // any bit may, or may not, be set. confirm the bitmap does not exceed the
+  // maximum number of ports
+  if (n > 8192 + 5)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
+static int32_t parse_wks_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t code;
+  if ((code = parse_ip4(parser, type, &type->rdata.fields[0], token) < 0))
+    return code;
+
+  lex(parser, token);
+  int32_t protocol = scan_protocol(token->data, token->length);
+  if (protocol == -1)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&type->rdata.fields[1]), TNAME(type));
+
+  parser->rdata->octets[parser->rdata->length++] = (uint8_t)protocol;
+  uint8_t *bitmap = parser->rdata->octets + parser->rdata->length;
+  int32_t highest_port = -1;
+
+  lex(parser, token);
+  while (token->code == CONTIGUOUS) {
+    int32_t port = scan_service(token->data, token->length, protocol);
+    if (port == -1)
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&type->rdata.fields[2]), TNAME(type));
+
+    if (port > highest_port) {
+      // ensure newly used octets are zeroed out before use
+      size_t offset = highest_port < 0 ? 0 : (size_t)highest_port / 8 + 1;
+      size_t length = (size_t)port / 8 + 1;
+      memset(bitmap + offset, 0, length - offset);
+      highest_port = port;
+    }
+
+    // bits are counted from left to right, so bit 0 is the left most bit
+    bitmap[port / 8] |= (1 << (7 - port % 8));
+    lex(parser, token);
+  }
+
+  parser->rdata->length += (size_t)highest_port / 8 + 1;
+
+  if ((code = have_delimiter(parser, type, token)) < 0)
+    return code;
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
 static int32_t check_hinfo_rr(
   zone_parser_t *parser, const zone_type_info_t *type)
 {
@@ -2246,8 +2312,9 @@ static const type_descriptor_t types[] = {
              check_ns_rr, parse_ns_rdata),
 
   UNKNOWN_TYPE(10),
-  UNKNOWN_TYPE(11), // WKS
 
+  TYPE("WKS", ZONE_WKS, ZONE_IN, FIELDS(wks_rdata_fields),
+              check_wks_rr, parse_wks_rdata),
   TYPE("PTR", ZONE_PTR, ZONE_ANY, FIELDS(ptr_rdata_fields),
               check_ns_rr, parse_ns_rdata),
   TYPE("HINFO", ZONE_HINFO, ZONE_ANY, FIELDS(hinfo_rdata_fields),

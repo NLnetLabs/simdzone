@@ -125,6 +125,18 @@ static const char ptr_text[] =
 static const char ptr_generic_text[] =
   PAD(" PTR \\# 18 04686f7374076578616d706c6503636f6d00");
 
+static const char wks_text[] =
+  PAD(" WKS 192.0.2.1 tcp 0 tcpmux");
+static const char wks_generic_text[] =
+  PAD(" TYPE11 \\# 6 c0000201 06 c0");
+static const rdata_t wks_rdata =
+  RDATA(/* address */
+        0xc0, 0x00, 0x02, 0x01,
+        /* protocol */
+        0x06,
+        /* bitmap */
+        0xc0);
+
 static const char hinfo_text[] =
   PAD(" HINFO amd64 linux");
 static const char hinfo_generic_text[] =
@@ -746,6 +758,8 @@ static const test_t tests[] = {
   { ZONE_MR, mr_generic_text, &mg_rdata },
   { ZONE_PTR, ptr_text, &ns_rdata },
   { ZONE_PTR, ptr_generic_text, &ns_rdata },
+  { ZONE_WKS, wks_text, &wks_rdata },
+  { ZONE_WKS, wks_generic_text, &wks_rdata },
   { ZONE_HINFO, hinfo_text, &hinfo_rdata },
   { ZONE_HINFO, hinfo_generic_text, &hinfo_rdata },
   { ZONE_MINFO, minfo_text, &minfo_rdata },
