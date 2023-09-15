@@ -176,6 +176,10 @@ static zone_really_inline int32_t scan_service(
         return 563;
       case PREFIX64('l', 'd', 'a', 'p', 's'):
         return 636;
+      case PREFIX64('d', 'o', 'm', 'a', 'i', 'n', '-', 's'):
+        if (length == 8)
+          return 853;
+        return -1;
       case PREFIX64('f', 't', 'p', 's', '-', 'd', 'a', 't'):
         if (length == 9 && strncasecmp(name, "ftps-data", 9) == 0)
           return 989;
