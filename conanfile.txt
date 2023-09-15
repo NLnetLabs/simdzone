@@ -5,4 +5,4 @@ cmocka/1.1.5
 CMakeDeps
 
 [options]
-cmocka/*:shared=True
+cmocka*:shared=False
