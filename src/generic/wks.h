@@ -9,18 +9,45 @@
 #ifndef WKS_H
 #define WKS_H
 
-// http://0x80.pl/notesen/2022-01-29-http-verb-parse.html
-#define STRING64(s0, s1, s2, s3, s4, s5, s6, s7, ...) \
-  (((uint64_t)((uint8_t)(s0)) << 0*8) | \
-   ((uint64_t)((uint8_t)(s1)) << 1*8) | \
-   ((uint64_t)((uint8_t)(s2)) << 2*8) | \
-   ((uint64_t)((uint8_t)(s3)) << 3*8) | \
-   ((uint64_t)((uint8_t)(s4)) << 4*8) | \
-   ((uint64_t)((uint8_t)(s5)) << 5*8) | \
-   ((uint64_t)((uint8_t)(s6)) << 6*8) | \
-   ((uint64_t)((uint8_t)(s7)) << 7*8))
-
-#define PREFIX64(...) STRING64(__VA_ARGS__, 0, 0, 0, 0, 0, 0, 0, 0)
+// Matching inspired by Wojciech Muła's article "Fast Parsing HTTP verbs"
+// (http://0x80.pl/notesen/2022-01-29-http-verb-parse.html). Hexadecimal
+// notation rather than macro used to specify prefixes because of compilation
+// errors in Microsoft Visual Studio.
+#define PREFIX_TCP         (0x706374llu)
+#define PREFIX_UDP         (0x706475llu)
+#define PREFIX_TCPMUX      (0x78756d706374llu)
+#define PREFIX_ECHO        (0x6f686365llu)
+#define PREFIX_FTP_DATA    (0x617461642d707466llu)
+#define PREFIX_FTP         (0x707466llu)
+#define PREFIX_SSH         (0x687373llu)
+#define PREFIX_TELNET      (0x74656e6c6574llu)
+#define PREFIX_LMTP        (0x70746d6cllu)
+#define PREFIX_SMTP        (0x70746d73llu)
+#define PREFIX_NICNAME     (0x656d616e63696ellu)
+#define PREFIX_DOMAIN      (0x6e69616d6f64llu)
+#define PREFIX_WHOISPP     (0x707073696f6877llu)
+#define PREFIX_HTTP        (0x70747468llu)
+#define PREFIX_KERBEROS    (0x736f72656272656bllu)
+#define PREFIX_NPP         (0x70706ellu)
+#define PREFIX_POP3        (0x33706f70llu)
+#define PREFIX_NNTP        (0x70746e6ellu)
+#define PREFIX_NTP         (0x70746ellu)
+#define PREFIX_IMAP        (0x70616d69llu)
+#define PREFIX_SNMP        (0x706d6e73llu)
+#define PREFIX_SNMPTRAP    (0x70617274706d6e73llu)
+#define PREFIX_BGMP        (0x706d6762llu)
+#define PREFIX_PTP_EVENT   (0x6e6576652d707470llu)
+#define PREFIX_PTP_GENERAL (0x656e65672d707470llu)
+#define PREFIX_NNSP        (0x70736e6ellu)
+#define PREFIX_HTTPS       (0x7370747468llu)
+#define PREFIX_SUBMISSION  (0x697373696d627573llu)
+#define PREFIX_NNTPS       (0x7370746e6ellu)
+#define PREFIX_LDAPS       (0x737061646cllu)
+#define PREFIX_DOMAIN_S    (0x732d6e69616d6f64llu)
+#define PREFIX_FTPS_DATA   (0x7461642d73707466llu)
+#define PREFIX_FTPS        (0x73707466llu)
+#define PREFIX_IMAPS       (0x7370616d69llu)
+#define PREFIX_POP3S       (0x7333706f70llu)
 
 zone_nonnull((1))
 static zone_really_inline int32_t scan_protocol(
@@ -71,9 +98,9 @@ static zone_really_inline int32_t scan_protocol(
   key |= (key & 0x4040404040404040) >> 1; // convert to lower case
   key &= mask;
 
-  if (key == PREFIX64('t', 'c', 'p'))
+  if (key == PREFIX_TCP)
     return 6;
-  if (key == PREFIX64('u', 'd', 'p'))
+  if (key == PREFIX_UDP)
     return 17;
 
   if (length > 3) // protocol numbers must be between 0 and 255
@@ -110,85 +137,85 @@ static zone_really_inline int32_t scan_service(
 
     // https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
     switch (key) {
-      case PREFIX64('t', 'c', 'p', 'm', 'u', 'x'):
+      case PREFIX_TCPMUX:
         return 1;
-      case PREFIX64('e', 'c', 'h', 'o'):
+      case PREFIX_ECHO:
         return 7;
-      case PREFIX64('f', 't', 'p', '-', 'd', 'a', 't', 'a'):
+      case PREFIX_FTP_DATA:
         return length == 8 ? 20 : -1;
-      case PREFIX64('f', 't', 'p'):
+      case PREFIX_FTP:
         return 21;
-      case PREFIX64('s', 's', 'h'):
+      case PREFIX_SSH:
         return 22;
-      case PREFIX64('t', 'e', 'l', 'n', 'e', 't'):
+      case PREFIX_TELNET:
         return 23;
-      case PREFIX64('l', 'm', 't', 'p'):
+      case PREFIX_LMTP:
         return 24;
-      case PREFIX64('s', 'm', 't', 'p'):
+      case PREFIX_SMTP:
         return 25;
-      case PREFIX64('n', 'i', 'c', 'n', 'a', 'm', 'e'):
+      case PREFIX_NICNAME:
         return 43;
-      case PREFIX64('d', 'o', 'm', 'a', 'i', 'n'):
+      case PREFIX_DOMAIN:
         return 53;
-      case PREFIX64('w', 'h', 'o', 'i', 's', 'p', 'p'):
+      case PREFIX_WHOISPP:
         return 63;
-      case PREFIX64('h', 't', 't', 'p'):
+      case PREFIX_HTTP:
         return 80;
-      case PREFIX64('k', 'e', 'r', 'b', 'e', 'r', 'o', 's'):
+      case PREFIX_KERBEROS:
         if (length == 8)
           return 88;
         return -1;
-      case PREFIX64('n', 'p', 'p'):
+      case PREFIX_NPP:
         return 92;
-      case PREFIX64('p', 'o', 'p', '3'):
+      case PREFIX_POP3:
         return 110;
-      case PREFIX64('n', 'n', 't', 'p'):
+      case PREFIX_NNTP:
         return 119;
-      case PREFIX64('n', 't', 'p'):
+      case PREFIX_NTP:
         return 123;
-      case PREFIX64('i', 'm', 'a', 'p'):
+      case PREFIX_IMAP:
         return 143;
-      case PREFIX64('s', 'n', 'm', 'p'):
+      case PREFIX_SNMP:
         return 161;
-      case PREFIX64('s', 'n', 'm', 'p', 't', 'r', 'a', 'p'):
+      case PREFIX_SNMPTRAP:
         return length == 8 ? 162 : -1;
-      case PREFIX64('b', 'g', 'm', 'p'):
+      case PREFIX_BGMP:
         return 264;
-      case PREFIX64('p', 't', 'p', '-', 'e', 'v', 'e', 'n'):
+      case PREFIX_PTP_EVENT:
         if (length == 9 && strncasecmp(name, "ptp-event", 9) == 0)
           return 319;
         return -1;
-      case PREFIX64('p', 't', 'p', '-', 'g', 'e', 'n', 'e'):
+      case PREFIX_PTP_GENERAL:
         if (length == 11 && strncasecmp(name, "ptp-general", 11) == 0)
           return 320;
         return -1;
-      case PREFIX64('n', 'n', 's', 'p'):
+      case PREFIX_NNSP:
         return 433;
-      case PREFIX64('h', 't', 't', 'p', 's'):
+      case PREFIX_HTTPS:
         return 443;
-      case PREFIX64('s', 'u', 'b', 'm', 'i', 's', 's', 'i'):
+      case PREFIX_SUBMISSION:
         if (length == 10 && strncasecmp(name, "submission", 10) == 0)
           return 587;
         if (length == 11 && strncasecmp(name, "submissions", 11) == 0)
           return 465;
         return 0;
-      case PREFIX64('n', 'n', 't', 'p', 's'):
+      case PREFIX_NNTPS:
         return 563;
-      case PREFIX64('l', 'd', 'a', 'p', 's'):
+      case PREFIX_LDAPS:
         return 636;
-      case PREFIX64('d', 'o', 'm', 'a', 'i', 'n', '-', 's'):
+      case PREFIX_DOMAIN_S:
         if (length == 8)
           return 853;
         return -1;
-      case PREFIX64('f', 't', 'p', 's', '-', 'd', 'a', 't'):
+      case PREFIX_FTPS_DATA:
         if (length == 9 && strncasecmp(name, "ftps-data", 9) == 0)
           return 989;
         return -1;
-      case PREFIX64('f', 't', 'p', 's'):
+      case PREFIX_FTPS:
         return 990;
-      case PREFIX64('i', 'm', 'a', 'p', 's'):
+      case PREFIX_IMAPS:
         return 993;
-      case PREFIX64('p', 'o', 'p', '3', 's'):
+      case PREFIX_POP3S:
         return 995;
       default:
         return -1;
@@ -206,5 +233,41 @@ static zone_really_inline int32_t scan_service(
     return number;
   }
 }
+
+#undef PREFIX_TCP
+#undef PREFIX_UDP
+#undef PREFIX_TCPMUX
+#undef PREFIX_ECHO
+#undef PREFIX_FTP_DATA
+#undef PREFIX_FTP
+#undef PREFIX_SSH
+#undef PREFIX_TELNET
+#undef PREFIX_LMTP
+#undef PREFIX_SMTP
+#undef PREFIX_NICNAME
+#undef PREFIX_DOMAIN
+#undef PREFIX_WHOISPP
+#undef PREFIX_HTTP
+#undef PREFIX_KERBEROS
+#undef PREFIX_NPP
+#undef PREFIX_POP3
+#undef PREFIX_NNTP
+#undef PREFIX_NTP
+#undef PREFIX_IMAP
+#undef PREFIX_SNMP
+#undef PREFIX_SNMPTRAP
+#undef PREFIX_BGMP
+#undef PREFIX_PTP_EVENT
+#undef PREFIX_PTP_GENERAL
+#undef PREFIX_NNSP
+#undef PREFIX_HTTPS
+#undef PREFIX_SUBMISSION
+#undef PREFIX_NNTPS
+#undef PREFIX_LDAPS
+#undef PREFIX_DOMAIN_S
+#undef PREFIX_FTPS_DATA
+#undef PREFIX_FTPS
+#undef PREFIX_IMAPS
+#undef PREFIX_POP3S
 
 #endif // WKS_H
