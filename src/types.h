@@ -1984,7 +1984,7 @@ static const zone_field_info_t minfo_rdata_fields[] = {
 static const zone_field_info_t wks_rdata_fields[] = {
   FIELD("address", ZONE_IP4, 0),
   FIELD("protocol", ZONE_INT8, 0),
-  FIELD("bitmap", ZONE_WKS, 0)
+  FIELD("bitmap", ZONE_SERVICE_BITMAP, 0)
 };
 
 static const zone_field_info_t mx_rdata_fields[] = {
