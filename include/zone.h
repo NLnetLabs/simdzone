@@ -230,7 +230,8 @@ typedef enum {
   // ZONE_EUI64 (ZONE_HEX8?)
   // miscellaneous fields
   ZONE_SVC_PARAM, /**< SVCB service parameter */
-  ZONE_TYPE_BITMAP /**< NSEC type bitmap */
+  ZONE_TYPE_BITMAP, /**< NSEC type bitmap */
+  ZONE_SERVICE_BITMAP /**< WKS service bitmap */
 } zone_type_t;
 
 /**
