@@ -261,6 +261,18 @@ static const rdata_t px_rdata =
         0x07, 'A', 'D', 'M', 'D', '-', 'a', 'c',
         0x04, 'C', '-', 'f', 'r', 0x00);
 
+// RFC1876
+static const char loc_text[] =
+  PAD("cambridge-net.kei.com. LOC 42 21 54 N 71 06 18 W -24m 30m");
+static const rdata_t loc_rdata =
+  RDATA(0x00, // version (always 0)
+        0x33, // size (default 1m)
+        0x16, // horizontal precision (default 10000m)
+        0x13, // vertical precision (default 10m)
+        0x89, 0x17, 0x2d, 0xd0, // latitude
+        0x70, 0xbe, 0x15, 0xf0, // longitude
+        0x00, 0x98, 0x8d, 0x20); // altitude
+
 static const char naptr_text[] =
   PAD(" NAPTR 100 50 \"s\" \"http+I2L+I2C+I2R\" \"\"  _http._tcp.gatech.edu.");
 static const char naptr_generic_text[] =
@@ -785,6 +797,7 @@ static const test_t tests[] = {
   { ZONE_KEY, key_generic_text, &key_rdata },
   { ZONE_PX, px_text, &px_rdata },
   { ZONE_PX, px_generic_text, &px_rdata },
+  { ZONE_LOC, loc_text, &loc_rdata },
   { ZONE_NAPTR, naptr_text, &naptr_rdata },
   { ZONE_NAPTR, naptr_generic_text, &naptr_rdata },
   { ZONE_KX, kx_text, &kx_rdata },

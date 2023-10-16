@@ -916,6 +916,128 @@ static int32_t parse_aaaa_rdata(
 }
 
 zone_nonnull_all
+static int32_t check_loc_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  if (parser->rdata->length != 16)
+    SYNTAX_ERROR(parser, "Invalid %s record", TNAME(type));
+  return accept_rr(parser, type);
+
+  // FIXME: check validity of latitude, longitude and latitude?
+}
+
+zone_nonnull_all
+static int32_t parse_loc_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t result;
+  uint32_t degrees, minutes, seconds;
+  uint32_t latitude, longitude, altitude;
+  const zone_field_info_t *fields = type->rdata.fields;
+  static const uint32_t defaults = 0x13161200;
+
+  // RFC1876 section 3:
+  // If omitted, minutes and seconds default to zero, size defaults to 1m,
+  // horizontal precision defaults to 10000m, and vertical precision defaults
+  // to 10m.
+  memcpy(parser->rdata->octets, &defaults, sizeof(defaults));
+  parser->rdata->length = 16;
+
+  // latitude
+  if ((result = have_contiguous(parser, type, &fields[4], token)) < 0)
+    return result;
+  if (scan_degrees(token->data, token->length, &degrees) == -1)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[4]), TNAME(type));
+  lex(parser, token);
+  if (scan_minutes(token->data, token->length, &minutes) == -1)
+    goto north_south; // minutes default to zero
+  degrees += minutes;
+  lex(parser, token);
+  if (scan_seconds(token->data, token->length, &seconds) == -1)
+    goto north_south; // seconds default to zero
+  degrees += seconds;
+
+  lex(parser, token);
+  if ((result = have_contiguous(parser, type, &fields[4], token)) < 0)
+    return result;
+north_south:
+  if (token->data[0] == 'N')
+    latitude = htonl((1u<<31) + degrees);
+  else if (token->data[1] == 'S')
+    latitude = htonl((1u<<31) - degrees);
+  else
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[4]), TNAME(type));
+
+  memcpy(&parser->rdata->octets[4], &latitude, sizeof(latitude));
+
+  // longitude
+  lex(parser, token);
+  if ((result = have_contiguous(parser, type, &fields[5], token)) < 0)
+    return result;
+  if (scan_degrees(token->data, token->length, &degrees) == -1)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[5]), TNAME(type));
+  lex(parser, token);
+  if (scan_minutes(token->data, token->length, &minutes) == -1)
+    goto east_west; // minutes default to zero
+  degrees += minutes;
+  lex(parser, token);
+  if (scan_seconds(token->data, token->length, &seconds) == -1)
+    goto east_west; // seconds default to zero
+  degrees += seconds;
+
+  lex(parser, token);
+  if ((result = have_contiguous(parser, type, &fields[5], token)) < 0)
+    return result;
+east_west:
+  if (token->data[0] == 'E')
+    longitude = htonl((1u<<31) + degrees);
+  else if (token->data[0] == 'W')
+    longitude = htonl((1u<<31) - degrees);
+  else
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[5]), TNAME(type));
+
+  memcpy(&parser->rdata->octets[8], &longitude, sizeof(longitude));
+
+  // altitude
+  lex(parser, token);
+  if ((result = have_contiguous(parser, type, &fields[6], token)) < 0)
+    return result;
+  if (scan_altitude(token->data, token->length, &altitude) == -1)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[6]), TNAME(type));
+
+  altitude = htonl(altitude);
+  memcpy(&parser->rdata->octets[12], &altitude, sizeof(altitude));
+
+  // size
+  lex(parser, token);
+  if (token->code != CONTIGUOUS)
+    goto skip_optional;
+  if (scan_precision(token->data, token->length, &parser->rdata->octets[1]))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[1]), TNAME(type));
+
+  // horizontal precision
+  lex(parser, token);
+  if (token->code != CONTIGUOUS)
+    goto skip_optional;
+  if (scan_precision(token->data, token->length, &parser->rdata->octets[2]))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[2]), TNAME(type));
+
+  // vertical precision
+  lex(parser, token);
+  if (token->code != CONTIGUOUS)
+    goto skip_optional;
+  if (scan_precision(token->data, token->length, &parser->rdata->octets[3]))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[3]), TNAME(type));
+
+  lex(parser, token);
+skip_optional:
+  if ((result = have_delimiter(parser, type, token)) < 0)
+    return result;
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
 static int32_t check_srv_rr(
   zone_parser_t *parser, const zone_type_info_t *type)
 {
@@ -2045,6 +2167,16 @@ static const zone_field_info_t aaaa_rdata_fields[] = {
   FIELD("address", ZONE_IP6, 0)
 };
 
+static const zone_field_info_t loc_rdata_fields[] = {
+  FIELD("version", ZONE_INT8, 0),
+  FIELD("size", ZONE_INT8, 0),
+  FIELD("horizontal precision", ZONE_INT8, 0),
+  FIELD("vertical precision", ZONE_INT8, 0),
+  FIELD("latitude", ZONE_INT32, 0),
+  FIELD("longitude", ZONE_INT32, 0),
+  FIELD("altitude", ZONE_INT32, 0)
+};
+
 static const zone_field_info_t srv_rdata_fields[] = {
   FIELD("priority", ZONE_INT16, 0),
   FIELD("weight", ZONE_INT16, 0),
@@ -2351,8 +2483,9 @@ static const type_descriptor_t types[] = {
 
   TYPE("AAAA", ZONE_AAAA, ZONE_IN, FIELDS(aaaa_rdata_fields),
                check_aaaa_rr, parse_aaaa_rdata),
+  TYPE("LOC", ZONE_LOC, ZONE_ANY, FIELDS(loc_rdata_fields),
+              check_loc_rr, parse_loc_rdata),
 
-  UNKNOWN_TYPE(29),
   UNKNOWN_TYPE(30),
   UNKNOWN_TYPE(31),
   UNKNOWN_TYPE(32),
