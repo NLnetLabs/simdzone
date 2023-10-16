@@ -189,6 +189,7 @@ struct zone_string {
   const char *data;
 };
 
+// FIXME: probably best to rename this to mnemonic to stay with DNS terminology?
 typedef struct zone_symbol zone_symbol_t;
 struct zone_symbol {
   struct {

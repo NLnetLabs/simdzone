@@ -30,6 +30,7 @@
 #include "fallback/eui.h"
 #include "fallback/nsap.h"
 #include "generic/wks.h"
+#include "generic/loc.h"
 #include "types.h"
 #include "westmere/type.h"
 #include "parser.h"
