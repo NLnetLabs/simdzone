@@ -31,6 +31,7 @@
 #include "fallback/nsap.h"
 #include "generic/wks.h"
 #include "generic/loc.h"
+#include "generic/gpos.h"
 #include "types.h"
 #include "westmere/type.h"
 #include "parser.h"

@@ -883,6 +883,43 @@ static int32_t parse_px_rdata(
 }
 
 zone_nonnull_all
+static int32_t check_gpos_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_string(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_string(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_string(parser, type, &f[2], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s record", TNAME(type));
+  return accept_rr(parser, type);
+}
+
+static int32_t parse_gpos_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_latitude(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_longitude(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_altitude(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
 static int32_t check_aaaa_rr(
   zone_parser_t *parser, const zone_type_info_t *type)
 {
@@ -2163,6 +2200,12 @@ static const zone_field_info_t px_rdata_fields[] = {
   FIELD("mapx400", ZONE_NAME, 0)
 };
 
+static const zone_field_info_t gpos_rdata_fields[] = {
+  FIELD("latitude", ZONE_STRING, 0),
+  FIELD("longitude", ZONE_STRING, 0),
+  FIELD("altitude", ZONE_STRING, 0)
+};
+
 static const zone_field_info_t aaaa_rdata_fields[] = {
   FIELD("address", ZONE_IP6, 0)
 };
@@ -2478,9 +2521,8 @@ static const type_descriptor_t types[] = {
               check_key_rr, parse_key_rdata),
   TYPE("PX", ZONE_PX, ZONE_IN, FIELDS(px_rdata_fields),
              check_px_rr, parse_px_rdata),
-
-  UNKNOWN_TYPE(27),
-
+  TYPE("GPOS", ZONE_GPOS, ZONE_ANY, FIELDS(gpos_rdata_fields),
+               check_gpos_rr, parse_gpos_rdata),
   TYPE("AAAA", ZONE_AAAA, ZONE_IN, FIELDS(aaaa_rdata_fields),
                check_aaaa_rr, parse_aaaa_rdata),
   TYPE("LOC", ZONE_LOC, ZONE_ANY, FIELDS(loc_rdata_fields),
