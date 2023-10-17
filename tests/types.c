@@ -247,6 +247,16 @@ static const char key_generic_text[] =
 static const rdata_t key_rdata =
   RDATA(0x00, 0x00, 0x00, 0x00, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72);
 
+static const char gpos_text[] =
+  PAD(" GPOS -32.6882 116.8652 10.0");
+static const rdata_t gpos_rdata =
+  RDATA(/* latitude */
+        8, '-', '3', '2', '.', '6', '8', '8', '2',
+        /* longitude */
+        8, '1', '1', '6', '.', '8', '6', '5', '2',
+        /* altitude */
+        4, '1', '0', '.', '0');
+
 static const char px_text[] =
   PAD("*.ab.fr.  IN  PX  50  ab.fr.  PRMD-ab.ADMD-ac.C-fr.");
 static const char px_generic_text[] =
@@ -795,6 +805,7 @@ static const test_t tests[] = {
   { ZONE_NSAP_PTR, nsap_ptr_text, &nsap_ptr_rdata },
   { ZONE_KEY, key_text, &key_rdata },
   { ZONE_KEY, key_generic_text, &key_rdata },
+  { ZONE_GPOS, gpos_text, &gpos_rdata },
   { ZONE_PX, px_text, &px_rdata },
   { ZONE_PX, px_generic_text, &px_rdata },
   { ZONE_LOC, loc_text, &loc_rdata },
