@@ -37,6 +37,7 @@ inet_pton4(const char *src, uint8_t *dst)
   static const char digits[] = "0123456789";
   int saw_digit, octets, ch;
   uint8_t tmp[NS_INADDRSZ], *tp;
+  const char *start = src;
 
   saw_digit = 0;
   octets = 0;
@@ -48,11 +49,11 @@ inet_pton4(const char *src, uint8_t *dst)
       uint32_t new = *tp * 10 + (uint32_t)(pch - digits);
 
       if (new > 255)
-        return (0);
+        return -1;
       *tp = (uint8_t)new;
       if (! saw_digit) {
         if (++octets > 4)
-          return (0);
+          return -1;
         saw_digit = 1;
       }
     } else if (ch == '.' && saw_digit) {
@@ -61,13 +62,13 @@ inet_pton4(const char *src, uint8_t *dst)
       *++tp = 0;
       saw_digit = 0;
     } else
-      return (0);
+      break;
   }
   if (octets < 4)
-    return (0);
+    return -1;
 
   memcpy(dst, tmp, NS_INADDRSZ);
-  return (1);
+  return (int)(src - start);
 }
 
 /* int
@@ -92,6 +93,8 @@ inet_pton6(const char *src, uint8_t *dst)
   const char *xdigits, *curtok;
   int ch, saw_xdigit;
   uint32_t val;
+  int len;
+  const char *start = src;
 
   memset((tp = tmp), '\0', NS_IN6ADDRSZ);
   endp = tp + NS_IN6ADDRSZ;
@@ -99,7 +102,7 @@ inet_pton6(const char *src, uint8_t *dst)
   /* Leading :: requires some special handling. */
   if (*src == ':')
     if (*++src != ':')
-      return (0);
+      return -1;
   curtok = src;
   saw_xdigit = 0;
   val = 0;
@@ -112,7 +115,7 @@ inet_pton6(const char *src, uint8_t *dst)
       val <<= 4;
       val |= (pch - xdigits);
       if (val > 0xffff)
-        return (0);
+        return -1;
       saw_xdigit = 1;
       continue;
     }
@@ -133,16 +136,17 @@ inet_pton6(const char *src, uint8_t *dst)
       continue;
     }
     if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) &&
-        inet_pton4(curtok, tp) > 0) {
+        (len = inet_pton4(curtok, tp)) > 0) {
+      src += len;
       tp += NS_INADDRSZ;
       saw_xdigit = 0;
       break;  /* '\0' was seen by inet_pton4(). */
     }
-    return (0);
+    return -1;
   }
   if (saw_xdigit) {
     if (tp + NS_INT16SZ > endp)
-      return (0);
+      return -1;
     *tp++ = (uint8_t) (val >> 8) & 0xff;
     *tp++ = (uint8_t) val & 0xff;
   }
@@ -161,9 +165,20 @@ inet_pton6(const char *src, uint8_t *dst)
     tp = endp;
   }
   if (tp != endp)
-    return (0);
+    return -1;
   memcpy(dst, tmp, NS_IN6ADDRSZ);
-  return (1);
+  return (int)(src - start);
+}
+
+zone_nonnull_all
+static zone_really_inline int32_t scan_ip6(
+  const char *text, uint8_t *wire, size_t *length)
+{
+  int len = inet_pton6(text, wire);
+  if (len == -1)
+    return -1;
+  *length = (size_t)len;
+  return 16;
 }
 
 zone_nonnull_all
@@ -178,7 +193,7 @@ static zone_really_inline int32_t parse_ip6(
   if ((r = have_contiguous(parser, type, field, token)) < 0)
     return r;
 
-  if (inet_pton6(token->data, &parser->rdata->octets[parser->rdata->length]) == 1) {
+  if (inet_pton6(token->data, &parser->rdata->octets[parser->rdata->length]) != -1) {
     parser->rdata->length += 16;
     return ZONE_IP6;
   }

@@ -181,6 +181,17 @@ static inline int sse_inet_aton(const char* ipv4_string, uint8_t* destination, s
 }
 
 zone_nonnull_all
+static zone_really_inline int32_t scan_ip4(
+  const char *text, uint8_t *wire, size_t *length)
+{
+  size_t len;
+  if (sse_inet_aton(text, wire, &len) != 1)
+    return -1;
+  *length = len;
+  return 4;
+}
+
+zone_nonnull_all
 static zone_really_inline int32_t parse_ip4(
   zone_parser_t *parser,
   const zone_type_info_t *type,
