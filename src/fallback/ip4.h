@@ -10,6 +10,41 @@
 #define IP4_H
 
 zone_nonnull_all
+static zone_really_inline int32_t scan_ip4(
+  const char *text, uint8_t *wire, size_t *length)
+{
+  const char *start = text;
+  uint32_t round = 0;
+  for (;;) {
+    uint8_t digits[3];
+    uint32_t octet;
+    digits[0] = (uint8_t)text[0] - '0';
+    digits[1] = (uint8_t)text[1] - '0';
+    digits[2] = (uint8_t)text[2] - '0';
+    if (digits[0] > 9)
+      return -1;
+    else if (digits[1] > 9)
+      (void)(text += 1), octet = digits[0];
+    else if (digits[2] > 9)
+      (void)(text += 2), octet = digits[0] * 10 + digits[1];
+    else
+      (void)(text += 3), octet = digits[0] * 100 + digits[1] * 10 + digits[2];
+
+    if (octet > 255)
+      return -1;
+    wire[round++] = (uint8_t)octet;
+    if (text[0] != '.' || round == 4)
+      break;
+    text += 1;
+  }
+
+  if (round != 4)
+    return -1;
+  *length = (uintptr_t)text - (uintptr_t)start;
+  return 4;
+}
+
+zone_nonnull_all
 static zone_really_inline int32_t parse_ip4(
   zone_parser_t *parser,
   const zone_type_info_t *type,

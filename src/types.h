@@ -1192,6 +1192,41 @@ static int32_t parse_cert_rdata(
 }
 
 zone_nonnull_all
+static int32_t check_apl_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // FIXME: check correctness of fields and total length
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
+static int32_t parse_apl_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t code;
+  uint8_t *octets = parser->rdata->octets;
+  size_t size = ZONE_RDATA_SIZE;
+
+  // RDATA section for APL consists of zero or more items
+  while (token->code == CONTIGUOUS) {
+    int32_t length;
+    if ((length = scan_apl(token->data, token->length, octets, size)) < 0)
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&type->rdata.fields[0]), TNAME(type));
+    assert(length == 8 /* ipv4 */ || length == 20 /* ipv6 */);
+    size -= (size_t)length;
+    octets += (size_t)length;
+    lex(parser, token);
+  }
+
+  parser->rdata->length = ZONE_RDATA_SIZE - size;
+
+  if ((code = have_delimiter(parser, type, token)) < 0)
+    return code;
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
 static int32_t check_ds_rr(
   zone_parser_t *parser, const zone_type_info_t *type)
 {
@@ -2285,6 +2320,10 @@ static const zone_field_info_t dname_rdata_fields[] = {
   FIELD("source", ZONE_NAME, 0)
 };
 
+static const zone_field_info_t apl_rdata_fields[] = {
+  FIELD("prefix", ZONE_INT16, 0)
+};
+
 static const zone_symbol_t ds_digest_type_symbols[] = {
   SYMBOL("GOST", 3),
   SYMBOL("SHA-1", 1),
@@ -2551,8 +2590,9 @@ static const type_descriptor_t types[] = {
 
   UNKNOWN_TYPE(40),
   UNKNOWN_TYPE(41),
-  UNKNOWN_TYPE(42),
 
+  TYPE("APL", ZONE_APL, ZONE_IN, FIELDS(apl_rdata_fields),
+             check_apl_rr, parse_apl_rdata),
   TYPE("DS", ZONE_DS, ZONE_ANY, FIELDS(ds_rdata_fields),
              check_ds_rr, parse_ds_rdata),
   TYPE("SSHFP", ZONE_SSHFP, ZONE_ANY, FIELDS(sshfp_rdata_fields),

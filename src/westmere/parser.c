@@ -32,6 +32,7 @@
 #include "generic/wks.h"
 #include "generic/loc.h"
 #include "generic/gpos.h"
+#include "generic/apl.h"
 #include "types.h"
 #include "westmere/type.h"
 #include "parser.h"
