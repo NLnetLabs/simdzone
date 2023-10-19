@@ -1075,6 +1075,37 @@ skip_optional:
 }
 
 zone_nonnull_all
+static int32_t check_nxt_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_name(parser, type, &f[3], o+c, n-c))))
+    return r;
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
+static int32_t parse_nxt_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_name(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_nxt(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
 static int32_t check_srv_rr(
   zone_parser_t *parser, const zone_type_info_t *type)
 {
@@ -2295,6 +2326,11 @@ static const zone_field_info_t loc_rdata_fields[] = {
   FIELD("altitude", ZONE_INT32, 0)
 };
 
+static const zone_field_info_t nxt_rdata_fields[] = {
+  FIELD("next domain name", ZONE_NAME, 0),
+  FIELD("type bit map", 0, 0)
+};
+
 static const zone_field_info_t srv_rdata_fields[] = {
   FIELD("priority", ZONE_INT16, 0),
   FIELD("weight", ZONE_INT16, 0),
@@ -2347,6 +2383,18 @@ static const zone_symbol_t dnssec_algorithm_symbols[] = {
   SYMBOL("RSASHA1-NSEC3-SHA1", 7),
   SYMBOL("RSASHA256", 8),
   SYMBOL("RSASHA512", 10)
+};
+
+static const zone_field_info_t sig_rdata_fields[] = {
+  FIELD("sigtype", ZONE_INT16, ZONE_TYPE),
+  FIELD("algorithm", ZONE_INT8, 0, SYMBOLS(dnssec_algorithm_symbols)),
+  FIELD("labels", ZONE_INT8, 0),
+  FIELD("origttl", ZONE_INT32, ZONE_TTL),
+  FIELD("expire", ZONE_INT32, ZONE_TIME),
+  FIELD("inception", ZONE_INT32, ZONE_TIME),
+  FIELD("keytag", ZONE_INT16, 0),
+  FIELD("signer", ZONE_NAME, 0),
+  FIELD("signature", ZONE_BLOB, ZONE_BASE64)
 };
 
 static const zone_field_info_t cert_rdata_fields[] = {
@@ -2599,9 +2647,8 @@ static const type_descriptor_t types[] = {
                check_nsap_rr, parse_nsap_rdata),
   TYPE("NSAP-PTR", ZONE_NSAP_PTR, ZONE_IN, FIELDS(nsap_ptr_rdata_fields),
                    check_nsap_ptr_rr, parse_nsap_ptr_rdata),
-
-  UNKNOWN_TYPE(24),
-
+  TYPE("SIG", ZONE_SIG, ZONE_ANY, FIELDS(sig_rdata_fields),
+              check_rrsig_rr, parse_rrsig_rdata),
   TYPE("KEY", ZONE_KEY, ZONE_ANY, FIELDS(key_rdata_fields),
               check_key_rr, parse_key_rdata),
   TYPE("PX", ZONE_PX, ZONE_IN, FIELDS(px_rdata_fields),
@@ -2612,8 +2659,9 @@ static const type_descriptor_t types[] = {
                check_aaaa_rr, parse_aaaa_rdata),
   TYPE("LOC", ZONE_LOC, ZONE_ANY, FIELDS(loc_rdata_fields),
               check_loc_rr, parse_loc_rdata),
+  TYPE("NXT", ZONE_NXT, ZONE_ANY | ZONE_OBSOLETE, FIELDS(nxt_rdata_fields),
+              check_nxt_rr, parse_nxt_rdata),
 
-  UNKNOWN_TYPE(30),
   UNKNOWN_TYPE(31),
   UNKNOWN_TYPE(32),
 

@@ -25,6 +25,7 @@
 #include "westmere/base32.h"
 #include "generic/base64.h"
 #include "generic/nsec.h"
+#include "generic/nxt.h"
 #include "generic/caa.h"
 #include "generic/ilnp64.h"
 #include "fallback/eui.h"
