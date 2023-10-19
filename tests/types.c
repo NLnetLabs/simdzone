@@ -240,6 +240,35 @@ static const char nsap_ptr_text[] =
 static const rdata_t nsap_ptr_rdata =
   RDATA(4, 'h', 'o', 's', 't', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0);
 
+static const char sig_text[] =
+  PAD("big.foo.tld. SIG NXT 1 3 (  ;type-cov=NXT, alg=1, labels=3\n"
+      "             3600           ;original ttl\n"
+      "             19960102030405 ;signature expiration\n"
+      "             19951211100908 ;time signed\n"
+      "             21435          ;key footprint\n"
+      "             foo.tld.       ;signer\n"
+      "MxFcby9k/yvedMfQgKzhH5er0Mu/vILz45IkskceFGgiWCn/GxHhai6VAuHAoNUz4YoU\n"
+      "1tVfSCSqQYn6//11U6Nld80jEeC8aTrO+KKmCaY=\n"
+      ")");
+static const rdata_t sig_rdata =
+  RDATA(0, 30, // type covered
+        1, // algorithm
+        3, // labels
+        0x00, 0x00, 0x0e, 0x10, // original ttl
+        0x30, 0xe8, 0xa0, 0xa5, // signature
+        0x30, 0xcc, 0x03, 0x44, // time signed
+        0x53, 0xbb, // key footprint
+        3, 'f', 'o', 'o', 3, 't', 'l', 'd', 0, // signer
+        // signature
+        0x33, 0x11, 0x5c, 0x6f, 0x2f, 0x64, 0xff, 0x2b, 0xde, 0x74,
+        0xc7, 0xd0, 0x80, 0xac, 0xe1, 0x1f, 0x97, 0xab, 0xd0, 0xcb,
+        0xbf, 0xbc, 0x82, 0xf3, 0xe3, 0x92, 0x24, 0xb2, 0x47, 0x1e,
+        0x14, 0x68, 0x22, 0x58, 0x29, 0xff, 0x1b, 0x11, 0xe1, 0x6a,
+        0x2e, 0x95, 0x02, 0xe1, 0xc0, 0xa0, 0xd5, 0x33, 0xe1, 0x8a,
+        0x14, 0xd6, 0xd5, 0x5f, 0x48, 0x24, 0xaa, 0x41, 0x89, 0xfa,
+        0xff, 0xfd, 0x75, 0x53, 0xa3, 0x65, 0x77, 0xcd, 0x23, 0x11,
+        0xe0, 0xbc, 0x69, 0x3a, 0xce, 0xf8, 0xa2, 0xa6, 0x09, 0xa6);
+
 static const char key_text[] =
   PAD(" KEY 0 0 0 Zm9vYmFy");
 static const char key_generic_text[] =
@@ -282,6 +311,12 @@ static const rdata_t loc_rdata =
         0x89, 0x17, 0x2d, 0xd0, // latitude
         0x70, 0xbe, 0x15, 0xf0, // longitude
         0x00, 0x98, 0x8d, 0x20); // altitude
+
+static const char nxt_text[] =
+  PAD("big.foo.tld. NXT medium.foo.tld. A MX SIG NXT");
+static const rdata_t nxt_rdata =
+  RDATA(6, 'm', 'e', 'd', 'i', 'u', 'm', 3, 'f', 'o', 'o', 3, 't', 'l', 'd', 0,
+        0x40, 0x01, 0x00, 0x82);
 
 static const char naptr_text[] =
   PAD(" NAPTR 100 50 \"s\" \"http+I2L+I2C+I2R\" \"\"  _http._tcp.gatech.edu.");
@@ -821,12 +856,14 @@ static const test_t tests[] = {
   { ZONE_NSAP, nsap_text, &nsap_rdata },
   { ZONE_NSAP, nsap_generic_text, &nsap_rdata },
   { ZONE_NSAP_PTR, nsap_ptr_text, &nsap_ptr_rdata },
+  { ZONE_SIG, sig_text, &sig_rdata },
   { ZONE_KEY, key_text, &key_rdata },
   { ZONE_KEY, key_generic_text, &key_rdata },
   { ZONE_GPOS, gpos_text, &gpos_rdata },
   { ZONE_PX, px_text, &px_rdata },
   { ZONE_PX, px_generic_text, &px_rdata },
   { ZONE_LOC, loc_text, &loc_rdata },
+  { ZONE_NXT, nxt_text, &nxt_rdata },
   { ZONE_NAPTR, naptr_text, &naptr_rdata },
   { ZONE_NAPTR, naptr_generic_text, &naptr_rdata },
   { ZONE_KX, kx_text, &kx_rdata },
