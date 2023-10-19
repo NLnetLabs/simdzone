@@ -648,6 +648,16 @@ static const rdata_t openpgpkey_rdata =
         0xfe, 0x59, 0xed, 0x5a, 0x4c, 0x18, 0x5a, 0x19,
         0xaf, 0x3a, 0x01);
 
+static const char csync_text[] =
+  PAD("example.com. 3600 IN CSYNC 66 3 A NS AAAA");
+static const rdata_t csync_rdata =
+  RDATA(/* serial */
+        0x00, 0x00, 0x00, 0x42,
+        /* flags */
+        0x00, 0x03,
+        /* type bit map */
+        0x00, 0x04, 0x60, 0x00, 0x00, 0x08);
+
 static const char zonemd_text[] =
   PAD("example.com. 86400 IN ZONEMD 2018031500 1 1 (\n"
       "    FEBE3D4CE2EC2FFA4BA99D46CD69D6D29711E55217057BEE\n"
@@ -843,6 +853,7 @@ static const test_t tests[] = {
   { ZONE_CDNSKEY, cdnskey_generic_text, &cdnskey_rdata },
   { ZONE_OPENPGPKEY, openpgpkey_text, &openpgpkey_rdata },
   { ZONE_OPENPGPKEY, openpgpkey_generic_text, &openpgpkey_rdata },
+  { ZONE_CSYNC, csync_text, &csync_rdata },
   { ZONE_ZONEMD, zonemd_text, &zonemd_rdata },
   { ZONE_ZONEMD, zonemd_generic_text, &zonemd_rdata },
   { ZONE_SPF, spf_text, &spf_rdata },
