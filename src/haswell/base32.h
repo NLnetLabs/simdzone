@@ -91,7 +91,7 @@ static zone_really_inline int32_t parse_base32(
   if (is_contiguous((uint8_t)token->data[decoded]))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   if (decoded)
-    parser->rdata->length = (decoded * 5) / 8;
+    parser->rdata->length += (decoded * 5) / 8;
   return ZONE_STRING;
 }
 #endif // BASE32_H

@@ -1785,6 +1785,46 @@ static int32_t parse_openpgpkey_rdata(
 }
 
 zone_nonnull_all
+static int32_t check_csync_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = parser->rdata->length;
+  const uint8_t *o = parser->rdata->octets;
+  const zone_field_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int32(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int16(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_nsec(parser, type, &f[2], o+c, n-c))))
+    return r;
+
+  if (c != n)
+    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
+static int32_t parse_csync_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_int32(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+
+  lex(parser, token);
+  if ((r = parse_int16(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+
+  lex(parser, token);
+  if ((r = parse_nsec(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
 static int32_t check_zonemd_rr(
   zone_parser_t *parser, const zone_type_info_t *type)
 {
@@ -2437,6 +2477,12 @@ static const zone_field_info_t openpgpkey_rdata_fields[] = {
   FIELD("key", ZONE_BLOB, ZONE_BASE64)
 };
 
+static const zone_field_info_t csync_rdata_fields[] = {
+  FIELD("serial", ZONE_INT32, 0),
+  FIELD("flags", ZONE_INT16, 0),
+  FIELD("types", ZONE_NSEC, 0)
+};
+
 static const zone_field_info_t zonemd_rdata_fields[] = {
   FIELD("serial", ZONE_INT32, 0),
   FIELD("scheme", ZONE_INT8, 0),
@@ -2628,9 +2674,8 @@ static const type_descriptor_t types[] = {
                   check_dnskey_rr, parse_dnskey_rdata),
   TYPE("OPENPGPKEY", ZONE_OPENPGPKEY, ZONE_ANY, FIELDS(openpgpkey_rdata_fields),
                      check_openpgpkey_rr, parse_openpgpkey_rdata),
-
-  UNKNOWN_TYPE(62),
-
+  TYPE("CSYNC", ZONE_CSYNC, ZONE_ANY, FIELDS(csync_rdata_fields),
+                check_csync_rr, parse_csync_rdata),
   TYPE("ZONEMD", ZONE_ZONEMD, ZONE_ANY, FIELDS(zonemd_rdata_fields),
                  check_zonemd_rr, parse_zonemd_rdata),
 
