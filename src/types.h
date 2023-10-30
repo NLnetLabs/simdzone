@@ -832,10 +832,7 @@ static int32_t parse_key_rdata(
   if ((r = parse_int8(parser, type, &type->rdata.fields[2], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_base64(parser, type, &type->rdata.fields[3], token)) < 0)
-    return r;
-  lex(parser, token);
-  if ((r = have_delimiter(parser, type, token)) < 0)
+  if ((r = parse_base64_sequence(parser, type, &type->rdata.fields[3], token)) < 0)
     return r;
 
   return check_key_rr(parser, type);
@@ -1216,7 +1213,7 @@ static int32_t parse_cert_rdata(
   if ((r = parse_symbol8(parser, type, &type->rdata.fields[2], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_base64(parser, type, &type->rdata.fields[3], token)) < 0)
+  if ((r = parse_base64_sequence(parser, type, &type->rdata.fields[3], token)) < 0)
     return r;
 
   return accept_rr(parser, type);
@@ -1295,7 +1292,7 @@ static int32_t parse_ds_rdata(
   if ((r = parse_symbol8(parser, type, &type->rdata.fields[2], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_base16(parser, type, &type->rdata.fields[3], token)) < 0)
+  if ((r = parse_base16_sequence(parser, type, &type->rdata.fields[3], token)) < 0)
     return r;
 
   return accept_rr(parser, type);
@@ -1341,7 +1338,7 @@ static int32_t parse_sshfp_rdata(
   if ((r = parse_int8(parser, type, &type->rdata.fields[1], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_base16(parser, type, &type->rdata.fields[2], token)) < 0)
+  if ((r = parse_base16_sequence(parser, type, &type->rdata.fields[2], token)) < 0)
     return r;
 
   return check_sshfp_rr(parser, type);
@@ -1485,7 +1482,7 @@ static int32_t parse_ipseckey_rdata(
         return r;
       break;
     default:
-      if ((r = parse_base64(parser, t, &t->rdata.fields[4], token)) < 0)
+      if ((r = parse_base64_sequence(parser, t, &t->rdata.fields[4], token)) < 0)
         return r;
       break;
   }
@@ -1548,7 +1545,7 @@ static int32_t parse_rrsig_rdata(
   if ((r = parse_name(parser, type, &type->rdata.fields[7], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_base64(parser, type, &type->rdata.fields[8], token)) < 0)
+  if ((r = parse_base64_sequence(parser, type, &type->rdata.fields[8], token)) < 0)
     return r;
 
   return accept_rr(parser, type);
@@ -1623,7 +1620,7 @@ static int32_t parse_dnskey_rdata(
   if ((r = parse_symbol8(parser, type, &type->rdata.fields[2], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_base64(parser, type, &type->rdata.fields[3], token)) < 0)
+  if ((r = parse_base64_sequence(parser, type, &type->rdata.fields[3], token)) < 0)
     return r;
 
   return accept_rr(parser, type);
@@ -1647,7 +1644,7 @@ static int32_t parse_dhcid_rdata(
 {
   int32_t r;
 
-  if ((r = parse_base64(parser, type, &type->rdata.fields[0], token)) < 0)
+  if ((r = parse_base64_sequence(parser, type, &type->rdata.fields[0], token)) < 0)
     return r;
 
   return check_dhcid_rr(parser, type);
@@ -1783,11 +1780,65 @@ static int32_t parse_tlsa_rdata(
   if ((r = parse_int8(parser, type, &type->rdata.fields[2], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_base16(parser, type, &type->rdata.fields[3], token)) < 0)
+  if ((r = parse_base16_sequence(parser, type, &type->rdata.fields[3], token)) < 0)
     return r;
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
+static int32_t check_hip_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // FIXME: verify field lengths etc
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
+static int32_t parse_hip_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t result;
+
+  // reserve octet for HIT length
+  parser->rdata->length = 1;
+
+  // PK algorithm
+  if ((result = parse_int8(parser, type, &type->rdata.fields[1], token)) < 0)
+    return result;
+
+  // reserve octets for PK length
+  parser->rdata->length += 2;
+
+  // HIT
   lex(parser, token);
-  if ((r = have_delimiter(parser, type, token)) < 0)
-    return r;
+  if ((result = parse_base16(parser, type, &type->rdata.fields[3], token)) < 0)
+    return result;
+
+  if (parser->rdata->length > 255 + 4)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&type->rdata.fields[3]), TNAME(type));
+  uint8_t hit_length = (uint8_t)(parser->rdata->length - 4);
+  parser->rdata->octets[0] = hit_length;
+
+  // Public Key
+  lex(parser, token);
+  if ((result = parse_base64(parser, type, &type->rdata.fields[4], token)) < 0)
+    return result;
+
+  if (parser->rdata->length > 65535u + 4u + hit_length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&type->rdata.fields[4]), TNAME(type));
+  uint16_t pk_length = htons((uint16_t)((parser->rdata->length - hit_length) - 4));
+  memcpy(&parser->rdata->octets[2], &pk_length, sizeof(pk_length));
+
+  lex(parser, token);
+  while (token->code & (CONTIGUOUS | QUOTED)) {
+    if ((result = parse_name(parser, type, &type->rdata.fields[5], token)) < 0)
+      return result;
+    lex(parser, token);
+  }
+
+  if ((result = have_delimiter(parser, type, token)) < 0)
+    return result;
 
   return accept_rr(parser, type);
 }
@@ -1809,7 +1860,7 @@ static int32_t parse_openpgpkey_rdata(
 {
   int32_t r;
 
-  if ((r = parse_base64(parser, type, &type->rdata.fields[0], token)) < 0)
+  if ((r = parse_base64_sequence(parser, type, &type->rdata.fields[0], token)) < 0)
     return r;
 
   return accept_rr(parser, type);
@@ -1880,7 +1931,7 @@ static int32_t parse_zonemd_rdata(
   if ((r = parse_int8(parser, type, &type->rdata.fields[2], token)) < 0)
     return r;
   lex(parser, token);
-  if ((r = parse_base16(parser, type, &type->rdata.fields[3], token)) < 0)
+  if ((r = parse_base16_sequence(parser, type, &type->rdata.fields[3], token)) < 0)
     return r;
 
   return accept_rr(parser, type);
@@ -2159,7 +2210,7 @@ static int32_t parse_generic_rdata(
 
   lex(parser, token);
   if (n)
-    r = parse_base16(parser, type, &fields[1], token);
+    r = parse_base16_sequence(parser, type, &fields[1], token);
   else
     r = have_delimiter(parser, type, token);
   if (r < 0)
@@ -2521,6 +2572,15 @@ static const zone_field_info_t cdnskey_rdata_fields[] = {
   FIELD("publickey", ZONE_BLOB, ZONE_BASE64)
 };
 
+static const zone_field_info_t hip_rdata_fields[] = {
+  FIELD("HIT length", ZONE_INT8, 0),
+  FIELD("PK algorithm", ZONE_INT8, 0),
+  FIELD("PK length", ZONE_INT16, 0),
+  FIELD("HIT", ZONE_STRING, 0), // FIXME: not really a string
+  FIELD("Public Key", ZONE_STRING, 0), // FIXME: not really a string
+  FIELD("Rendezvous Servers", ZONE_NAME, ZONE_SEQUENCE)
+};
+
 static const zone_field_info_t openpgpkey_rdata_fields[] = {
   FIELD("key", ZONE_BLOB, ZONE_BASE64)
 };
@@ -2711,7 +2771,10 @@ static const type_descriptor_t types[] = {
                  check_tlsa_rr, parse_tlsa_rdata),
 
   UNKNOWN_TYPE(54),
-  UNKNOWN_TYPE(55), // HIP
+
+  TYPE("HIP", ZONE_HIP, ZONE_ANY, FIELDS(hip_rdata_fields),
+              check_hip_rr, parse_hip_rdata),
+
   UNKNOWN_TYPE(56),
   UNKNOWN_TYPE(57),
   UNKNOWN_TYPE(58),

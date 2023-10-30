@@ -22,7 +22,7 @@
 #include "generic/ip6.h"
 #include "fallback/base16.h"
 #include "fallback/base32.h"
-#include "generic/base64.h"
+#include "fallback/base64.h"
 #include "generic/nsec.h"
 #include "generic/nxt.h"
 #include "generic/caa.h"
