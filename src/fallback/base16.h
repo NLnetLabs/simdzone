@@ -64,7 +64,7 @@ static const uint8_t b16rmap[256] = {
 //        digits are impractical, but supported (BIND supports uneven
 //        sequences)
 zone_nonnull_all
-static zone_really_inline int32_t parse_base16(
+static zone_really_inline int32_t parse_base16_sequence(
   zone_parser_t *parser,
   const zone_type_info_t *type,
   const zone_field_info_t *field,
@@ -113,6 +113,39 @@ static zone_really_inline int32_t parse_base16(
 
   parser->rdata->length += (size_t)(w - ws);
   return ZONE_BLOB;
+}
+
+zone_nonnull_all
+static zone_really_inline int32_t parse_base16(
+  zone_parser_t *parser,
+  const zone_type_info_t *type,
+  const zone_field_info_t *field,
+  const token_t *token)
+{
+  int32_t r;
+
+  if ((r = have_contiguous(parser, type, field, token)) < 0)
+    return r;
+
+  const char *p = token->data;
+  uint8_t x0 = 0x80, x1 = 0x80;
+  uint8_t *ws = &parser->rdata->octets[parser->rdata->length], *w = ws;
+  const uint8_t *we = &parser->rdata->octets[ZONE_RDATA_SIZE];
+
+  while (w < we) {
+    x0 = b16rmap[ (uint8_t)(p[0]) ];
+    x1 = b16rmap[ (uint8_t)(p[1]) ];
+    if ((x0 | x1) & 0x80)
+      break;
+    w[0] = (uint8_t)((x0 << 4) | x1);
+    w += 1; p += 2;
+  }
+
+  if (w - ws == 1 || w >= we || x0 != 0x80)
+    SYNTAX_ERROR(parser, "Invalid %s in %s record", NAME(field), TNAME(type));
+
+  parser->rdata->length += (size_t)(w - ws);
+  return 0;
 }
 
 zone_nonnull_all
