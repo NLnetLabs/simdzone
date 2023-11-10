@@ -10,13 +10,9 @@
 #include <setjmp.h>
 #include <string.h>
 #include <cmocka.h>
-#if _WIN32
-#include <winsock2.h>
-#else
-#include <netinet/in.h>
-#endif
 
 #include "zone.h"
+#include "fallback/endian.h"
 
 static int32_t add_rr(
   zone_parser_t *parser,
@@ -106,7 +102,7 @@ void time_stamp_syntax(void **state)
       continue;
     uint32_t seconds;
     memcpy(&seconds, rdata.octets+8, sizeof(seconds));
-    seconds = ntohl(seconds);
+    seconds = be32toh(seconds);
     assert_int_equal(seconds, tests[i].seconds);
   }
 }

@@ -10,6 +10,7 @@
 #include "diagnostic.h"
 #include "log.h"
 #include "westmere/simd.h"
+#include "fallback/endian.h"
 #include "westmere/bits.h"
 #include "lexer.h"
 #include "table.h"

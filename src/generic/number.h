@@ -9,12 +9,6 @@
 #ifndef NUMBER_H
 #define NUMBER_H
 
-#if _WIN32
-#include <winsock2.h>
-#else
-#include <netinet/in.h>
-#endif
-
 zone_nonnull_all
 static zone_really_inline int32_t parse_symbol8(
   zone_parser_t *parser,
@@ -82,7 +76,7 @@ static zone_really_inline int32_t parse_symbol16(
       SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   }
 
-  uint16_t n16 = htons((uint16_t)n);
+  uint16_t n16 = htobe16((uint16_t)n);
   memcpy(&parser->rdata->octets[parser->rdata->length], &n16, sizeof(n16));
   parser->rdata->length += sizeof(n16);
   return ZONE_INT16;
@@ -141,7 +135,7 @@ static zone_really_inline int32_t parse_int16(
   if (n > UINT16_MAX || p - token->data > 5 || is_contiguous((uint8_t)*p))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
-  uint16_t n16 = htons((uint16_t)n);
+  uint16_t n16 = htobe16((uint16_t)n);
   memcpy(&parser->rdata->octets[parser->rdata->length], &n16, sizeof(n16));
   parser->rdata->length += sizeof(n16);
   return ZONE_INT16;
@@ -171,7 +165,7 @@ static zone_really_inline int32_t parse_int32(
   if (n > UINT32_MAX || p - token->data > 10 || is_contiguous((uint8_t)*p))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
-  const uint32_t n32 = htonl((uint32_t)n);
+  const uint32_t n32 = htobe32((uint32_t)n);
   memcpy(&parser->rdata->octets[parser->rdata->length], &n32, sizeof(n32));
   parser->rdata->length += sizeof(n32);
   return ZONE_INT32;

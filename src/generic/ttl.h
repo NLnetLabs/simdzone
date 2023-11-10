@@ -136,7 +136,7 @@ static zone_really_inline int32_t parse_ttl(
 
   if ((r = scan_ttl(parser, type, field, token, &t)) < 0)
     return r;
-  t = htonl(t);
+  t = htobe32(t);
   memcpy(&parser->rdata->octets[parser->rdata->length], &t, sizeof(t));
   parser->rdata->length += sizeof(t);
   return ZONE_TTL;

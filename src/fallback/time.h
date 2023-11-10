@@ -80,7 +80,7 @@ static zone_really_inline int32_t parse_time(
   const uint64_t minutes = hours * 60 + min;
   const uint64_t seconds = minutes * 60 + sec;
 
-  uint32_t time = htonl((uint32_t)seconds);
+  uint32_t time = htobe32((uint32_t)seconds);
   memcpy(&parser->rdata->octets[parser->rdata->length], &time, sizeof(time));
   parser->rdata->length += sizeof(time);
   return ZONE_INT32;

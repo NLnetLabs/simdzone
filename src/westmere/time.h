@@ -136,7 +136,7 @@ static zone_really_inline int32_t parse_time(
   if (contiguous[(uint8_t)token->data[14]] == CONTIGUOUS)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
 
-  uint32_t time = htonl(sse_result);
+  uint32_t time = htobe32(sse_result);
   memcpy(&parser->rdata->octets[parser->rdata->length], &time, sizeof(time));
   parser->rdata->length += sizeof(time);
   return ZONE_INT32;

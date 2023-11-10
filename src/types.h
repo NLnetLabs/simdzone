@@ -74,6 +74,7 @@ struct type_descriptor {
 };
 
 #if _WIN32
+#include <basetsd.h>
 typedef SSIZE_T ssize_t;
 #define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
 #else
@@ -121,7 +122,7 @@ static zone_really_inline ssize_t check_ttl(
     SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), TNAME(type));
 
   memcpy(&number, data, sizeof(number));
-  number = ntohl(number);
+  number = be32toh(number);
 
   if (number > INT32_MAX)
     SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
@@ -996,9 +997,9 @@ static int32_t parse_loc_rdata(
     return result;
 north_south:
   if (token->data[0] == 'N')
-    latitude = htonl((1u<<31) + degrees);
+    latitude = htobe32((1u<<31) + degrees);
   else if (token->data[1] == 'S')
-    latitude = htonl((1u<<31) - degrees);
+    latitude = htobe32((1u<<31) - degrees);
   else
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[4]), TNAME(type));
 
@@ -1024,9 +1025,9 @@ north_south:
     return result;
 east_west:
   if (token->data[0] == 'E')
-    longitude = htonl((1u<<31) + degrees);
+    longitude = htobe32((1u<<31) + degrees);
   else if (token->data[0] == 'W')
-    longitude = htonl((1u<<31) - degrees);
+    longitude = htobe32((1u<<31) - degrees);
   else
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[5]), TNAME(type));
 
@@ -1039,7 +1040,7 @@ east_west:
   if (scan_altitude(token->data, token->length, &altitude) == -1)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[6]), TNAME(type));
 
-  altitude = htonl(altitude);
+  altitude = htobe32(altitude);
   memcpy(&parser->rdata->octets[12], &altitude, sizeof(altitude));
 
   // size
@@ -1827,7 +1828,7 @@ static int32_t parse_hip_rdata(
 
   if (parser->rdata->length > 65535u + 4u + hit_length)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&type->rdata.fields[4]), TNAME(type));
-  uint16_t pk_length = htons((uint16_t)((parser->rdata->length - hit_length) - 4));
+  uint16_t pk_length = htobe16((uint16_t)((parser->rdata->length - hit_length) - 4));
   memcpy(&parser->rdata->octets[2], &pk_length, sizeof(pk_length));
 
   lex(parser, token);

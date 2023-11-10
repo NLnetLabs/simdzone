@@ -10,6 +10,7 @@
 #include "diagnostic.h"
 #include "log.h"
 #include "haswell/simd.h"
+#include "fallback/endian.h"
 #include "haswell/bits.h"
 #include "lexer.h"
 #include "table.h"

@@ -263,7 +263,7 @@ static zone_really_inline int32_t parse_type(
 
   if ((r = scan_type(parser, type, field, token, &c, &s)) != ZONE_TYPE)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  c = htons(c);
+  c = htobe16(c);
   memcpy(&parser->rdata->octets[parser->rdata->length], &c, sizeof(c));
   parser->rdata->length += sizeof(c);
   return ZONE_TYPE;
