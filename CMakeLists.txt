@@ -46,6 +46,17 @@ endif()
 option(BUILD_TESTING "Build the testing tree." OFF)
 option(BUILD_DOCUMENTATION "Build documentation." OFF)
 
+if(CMAKE_VERSION VERSION_LESS 3.20)
+  # CMAKE_<LANG>_BYTE_ORDER was added in version 3.20. Mimic the option in
+  # prior versions.
+  include(TestBigEndian)
+  test_big_endian(BIG_ENDIAN)
+  if(BIG_ENDIAN)
+    set(CMAKE_C_BYTE_ORDER "BIG_ENDIAN")
+  else()
+    set(CMAKE_C_BYTE_ORDER "LITTLE_ENDIAN")
+  endif()
+endif()
 include(CheckIncludeFile)
 include(CheckCCompilerFlag)
 include(GenerateExportHeader)
@@ -216,6 +227,7 @@ foreach(match ${matches})
 endforeach()
 
 file(GENERATE OUTPUT config.h CONTENT "${template}")
+configure_file(src/fallback/endian.h.in src/fallback/endian.h @ONLY)
 
 
 if(BUILD_TESTING)
