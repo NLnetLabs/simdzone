@@ -9,6 +9,7 @@
 #include "zone.h"
 #include "diagnostic.h"
 #include "log.h"
+#include "fallback/endian.h"
 #include "fallback/bits.h"
 #include "lexer.h"
 #include "table.h"

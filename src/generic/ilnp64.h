@@ -50,10 +50,10 @@ static zone_really_inline int32_t parse_ilnp64(
 
   if (n != 3 || p == g || p - g > 4 || contiguous[(uint8_t)*p] == CONTIGUOUS)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  a[0] = htons(a[0]);
-  a[1] = htons(a[1]);
-  a[2] = htons(a[2]);
-  a[3] = htons(a[3]);
+  a[0] = htobe16(a[0]);
+  a[1] = htobe16(a[1]);
+  a[2] = htobe16(a[2]);
+  a[3] = htobe16(a[3]);
   memcpy(parser->rdata->octets+parser->rdata->length, a, 8);
   parser->rdata->length += 8;
   return ZONE_ILNP64;

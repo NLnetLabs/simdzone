@@ -209,7 +209,7 @@ static zone_really_inline int32_t parse_ip4(
   if (sse_inet_aton(token->data, o, &n) != 1 ||
       is_contiguous((uint8_t)token->data[n]))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  parser->rdata->length += sizeof(struct in_addr);
+  parser->rdata->length += 4;
   return ZONE_IP4;
 }
 

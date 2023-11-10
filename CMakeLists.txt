@@ -227,7 +227,7 @@ foreach(match ${matches})
 endforeach()
 
 file(GENERATE OUTPUT config.h CONTENT "${template}")
-configure_file(src/fallback/endian.h.in src/fallback/endian.h @ONLY)
+configure_file(src/fallback/endian.h.in fallback/endian.h @ONLY)
 
 
 if(BUILD_TESTING)
