@@ -155,9 +155,9 @@ extern "C" {
 #define ZONE_CSYNC (62u)
 /** Zone message digest @rfc{8976} */
 #define ZONE_ZONEMD (63u)
-/** Service binding @draft{dnsop,svcb-https} */
+/** Service binding @rfc{9460} */
 #define ZONE_SVCB (64u)
-/** Service binding @draft{dnsop,svcb-https} */
+/** Service binding @rfc{9460} */
 #define ZONE_HTTPS (65u)
 /** Sender Policy Framework @rfc{7208} */
 #define ZONE_SPF (99u)
@@ -314,7 +314,6 @@ struct zone_field_info {
  *
  * @{
  */
-// ZONE_IN (1) can be used too
 #define ZONE_ANY (1<<2)
 #define ZONE_EXPERIMENTAL (1<<3)
 #define ZONE_OBSOLETE (1<<4)
@@ -347,13 +346,13 @@ struct zone_type_info {
 
 typedef struct zone_name_buffer zone_name_buffer_t;
 struct zone_name_buffer {
-  size_t length; /**< Length of domain name stored in block */
+  size_t length; /**< Length of domain name stored in buffer */
   uint8_t octets[ ZONE_NAME_SIZE + ZONE_PADDING_SIZE ];
 };
 
 typedef struct zone_rdata_buffer zone_rdata_buffer_t;
 struct zone_rdata_buffer {
-  size_t length; /**< Length of RDATA stored in block */
+  size_t length; /**< Length of RDATA stored in buffer */
   uint8_t octets[ ZONE_RDATA_SIZE + 4096 /* nsec padding */ ];
 };
 
@@ -538,7 +537,7 @@ typedef struct {
  */
 typedef struct zone_buffers zone_buffers_t;
 struct zone_buffers {
-  size_t size; /**< Number of name and rdata storage blocks available */
+  size_t size; /**< Number of name and rdata buffers available */
   zone_name_buffer_t *owner;
   zone_rdata_buffer_t *rdata;
 };

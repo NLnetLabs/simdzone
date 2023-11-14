@@ -42,7 +42,7 @@ inet_pton4(const char *src, uint8_t *dst)
   saw_digit = 0;
   octets = 0;
   *(tp = tmp) = 0;
-  while (contiguous[ (ch = *src++) ] == CONTIGUOUS) {
+  for (; (ch = *src); src++) {
     const char *pch;
 
     if ((pch = strchr(digits, ch)) != NULL) {
@@ -106,7 +106,7 @@ inet_pton6(const char *src, uint8_t *dst)
   curtok = src;
   saw_xdigit = 0;
   val = 0;
-  while (contiguous[ (ch = *src++) ] == CONTIGUOUS) {
+  for (; (ch = *src); src++) {
     const char *pch;
 
     if ((pch = strchr((xdigits = xdigits_l), ch)) == NULL)
@@ -120,7 +120,7 @@ inet_pton6(const char *src, uint8_t *dst)
       continue;
     }
     if (ch == ':') {
-      curtok = src;
+      curtok = src+1;
       if (!saw_xdigit) {
         if (colonp)
           return (0);
@@ -137,12 +137,12 @@ inet_pton6(const char *src, uint8_t *dst)
     }
     if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) &&
         (len = inet_pton4(curtok, tp)) > 0) {
-      src += len;
+      src = curtok + len;
       tp += NS_INADDRSZ;
       saw_xdigit = 0;
       break;  /* '\0' was seen by inet_pton4(). */
     }
-    return -1;
+    break;
   }
   if (saw_xdigit) {
     if (tp + NS_INT16SZ > endp)

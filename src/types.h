@@ -1939,6 +1939,62 @@ static int32_t parse_zonemd_rdata(
 }
 
 zone_nonnull_all
+static int32_t check_svcb_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  // FIXME: implement checking parameters etc
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
+static int32_t parse_svcb_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_int16(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  //
+  // See  2.5. Special Handling of "." in TargetName
+  // if "." is used as the name it does not mean <root>, it means something
+  // else for svcb!!!!
+  //
+  if ((r = parse_name(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_svc_params(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
+static int32_t check_https_rr(
+  zone_parser_t *parser, const zone_type_info_t *type)
+{
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
+static int32_t parse_https_rdata(
+  zone_parser_t *parser, const zone_type_info_t *type, token_t *token)
+{
+  int32_t r;
+
+  if ((r = parse_int16(parser, type, &type->rdata.fields[0], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_name(parser, type, &type->rdata.fields[1], token)) < 0)
+    return r;
+  lex(parser, token);
+  if ((r = parse_svc_params(parser, type, &type->rdata.fields[2], token)) < 0)
+    return r;
+
+  return accept_rr(parser, type);
+}
+
+zone_nonnull_all
 static int32_t check_nid_rr(
   zone_parser_t *parser, const zone_type_info_t *type)
 {
@@ -2420,6 +2476,8 @@ static const zone_symbol_t cert_type_symbols[] = {
 
 // https://www.iana.org/assignments/dns-sec-alg-numbers/dns-sec-alg-numbers.xhtml
 static const zone_symbol_t dnssec_algorithm_symbols[] = {
+  // >> we should remove this from the table and use specialized functions
+  //    instead. much easier!
   SYMBOL("DH", 2),
   SYMBOL("DSA", 3),
   SYMBOL("DSA-NSEC-SHA1", 6),
@@ -2597,6 +2655,18 @@ static const zone_field_info_t zonemd_rdata_fields[] = {
   FIELD("scheme", ZONE_INT8, 0),
   FIELD("algorithm", ZONE_INT8, 0),
   FIELD("digest", ZONE_BLOB, ZONE_BASE16),
+};
+
+static const zone_field_info_t svcb_rdata_fields[] = {
+  FIELD("priority", ZONE_INT16, 0),
+  FIELD("target", ZONE_NAME, 0),
+  FIELD("params", 0, 0)
+};
+
+static const zone_field_info_t https_rdata_fields[] = {
+  FIELD("priority", ZONE_INT16, 0),
+  FIELD("target", ZONE_NAME, 0),
+  FIELD("params", 0, 0)
 };
 
 static const zone_field_info_t spf_rdata_fields[] = {
@@ -2790,9 +2860,11 @@ static const type_descriptor_t types[] = {
                 check_csync_rr, parse_csync_rdata),
   TYPE("ZONEMD", ZONE_ZONEMD, ZONE_ANY, FIELDS(zonemd_rdata_fields),
                  check_zonemd_rr, parse_zonemd_rdata),
+  TYPE("SVCB", ZONE_SVCB, ZONE_IN, FIELDS(svcb_rdata_fields),
+               check_svcb_rr, parse_svcb_rdata),
+  TYPE("HTTPS", ZONE_HTTPS, ZONE_IN, FIELDS(https_rdata_fields),
+                check_https_rr, parse_https_rdata),
 
-  UNKNOWN_TYPE(64),
-  UNKNOWN_TYPE(65),
   UNKNOWN_TYPE(66),
   UNKNOWN_TYPE(67),
   UNKNOWN_TYPE(68),

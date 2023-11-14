@@ -748,6 +748,13 @@ static const rdata_t zonemd_rdata =
         0xdd, 0x5b, 0x97, 0xae, 0x49, 0x9f, 0xaf, 0xa4,
         0xf2, 0x2c, 0x6b, 0xd6, 0x47, 0xde);
 
+static const char svcb_text[] =
+  PAD("foo. 1 IN SVCB 0 foo. mandatory=mandatory,key16");
+static const rdata_t svcb_rdata =
+  RDATA(0x00, 0x00,
+        3, 'f', 'o', 'o', 0,
+        0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x10);
+
 static const char spf_text[] =
   PAD(" SPF \"v=spf1 +all\"");
 static const char spf_generic_text[] =
@@ -925,6 +932,7 @@ static const test_t tests[] = {
   { ZONE_CSYNC, csync_text, &csync_rdata },
   { ZONE_ZONEMD, zonemd_text, &zonemd_rdata },
   { ZONE_ZONEMD, zonemd_generic_text, &zonemd_rdata },
+  { ZONE_SVCB, svcb_text, &svcb_rdata },
   { ZONE_SPF, spf_text, &spf_rdata },
   { ZONE_SPF, spf_generic_text, &spf_rdata },
   { ZONE_NID, nid_text, &nid_rdata },

@@ -34,6 +34,7 @@
 #include "generic/loc.h"
 #include "generic/gpos.h"
 #include "generic/apl.h"
+#include "generic/svcb.h"
 #include "types.h"
 #include "fallback/type.h"
 #include "parser.h"
