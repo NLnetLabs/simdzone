@@ -37,6 +37,8 @@ static zone_really_inline int32_t parse_string(
   const uint8_t *ws = w - 1, *we = w + 255;
   const char *t = token->data, *te = t + token->length;
 
+  // FIXME: SWAR can possibly applied to improve performance and copy
+  //        eight bytes as opposed to one
   while ((t < te) & (w < we)) {
     *w = (uint8_t)*t;
     if (zone_unlikely(*t == '\\')) {

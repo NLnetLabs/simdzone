@@ -114,12 +114,15 @@ static zone_really_inline int32_t find_type_or_class(
   //if (token->length > 16)
   //  zero_mask = _mm_loadu_si128((const __m128i *)zero_masks);
   //else
-    zero_mask = _mm_loadu_si128((const __m128i *)(zero_masks + 16 - token->length));
+  // FIXME: fix! length may read out of bounds!
+  zero_mask = _mm_loadu_si128((const __m128i *)(zero_masks + 16 - token->length));
   input = _mm_and_si128(input, _mm_shuffle_epi8(upper, nibbles));
   input = _mm_andnot_si128(zero_mask, input);
 
   // input is now sanitized and upper case
 
+  // FIXME: there is no reason this cannot be used for fallback
+  // https://github.com/lemire/Code-used-on-Daniel-Lemire-s-blog/pull/85
   const uint8_t index = hash((uint64_t)_mm_cvtsi128_si64(input));
   *symbol = types_and_classes[index].symbol;
 

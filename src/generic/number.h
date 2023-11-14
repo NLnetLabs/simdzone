@@ -9,6 +9,7 @@
 #ifndef NUMBER_H
 #define NUMBER_H
 
+// FIXME: remove in favor of specialized functions, much easier
 zone_nonnull_all
 static zone_really_inline int32_t parse_symbol8(
   zone_parser_t *parser,
@@ -21,6 +22,7 @@ static zone_really_inline int32_t parse_symbol8(
   if ((r = have_contiguous(parser, type, field, token)) < 0)
     return r;
 
+  // FIXME: implement generic number scanning
   uint64_t n = 0;
   const char *p = token->data;
   for (;; p++) {
@@ -30,6 +32,7 @@ static zone_really_inline int32_t parse_symbol8(
     n = n * 10 + d;
   }
 
+  // FIXME: replace with simple length check
   if (is_contiguous((uint8_t)*p)) {
     const zone_symbol_t *s;
     if (!(s = lookup_symbol(&field->symbols, token)))
