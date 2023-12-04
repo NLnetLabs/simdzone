@@ -1,15 +1,28 @@
 ![Build Status](https://github.com/NLnetLabs/simdzone/actions/workflows/build-test.yml/badge.svg)
 [![Coverity Status](https://scan.coverity.com/projects/27509/badge.svg)](https://scan.coverity.com/projects/nlnetlabs-simdzone)
 
-simdzone: Parsing zone files really fast
-========================================
+# simdzone: Parsing zone files really fast
 
-Fast and standards compliant DNS zone parser library.
+Fast and standards compliant DNS presentation format parser.
 
-Zone files can become quite large and for some operators the existing parsers
-leave something to be desired. simdjson demonstrates that applying SIMD
-instructions for parsing structured text can quite significantly boost
-performance. simdzone, whose name is a play on simdjson, aims to achieve a
+DNS resource records (RRs) can be expressed in text form using the
+presentation format. The format is most frequently used to define a zone in
+master files, more commonly known as zone files, and is best considered a
+tabular serialization format with provisions for convenient editing.
+
+The format is originally defined in [RFC1035 section 5][rfc1035-section-5] and
+[RFC1034 section 3.6.1][rfc1034-section-3-6-1], but as the DNS is
+intentionally extensible, the format has been extended over time too.
+
+This project provides a lightning fast presentation format deserializer (and
+serializer eventually) for other projects to leverage. e.g. [NSD][nsd], will
+use it to read zone files and serialized zone transfers.
+
+## Motivation
+Zone files can become quite large (.com ~24G, .se ~1.3G) and the parser in
+NSD left something to be desired. simdjson demonstrates that applying SIMD
+instructions for parsing structured text can significantly boost performance.
+simdzone, whose name is a play on [simdjson][simdjson], aims to achieve a
 similar performance boost for parsing zone data.
 
 > Currently SSE4.2 and AVX2 are supported, a fallback is used otherwise.
@@ -18,6 +31,9 @@ similar performance boost for parsing zone data.
 > permission to use and distribute it under the terms of
 > [The 3-Clause BSD License][bsd-3-clause].
 
+[rfc1035-section-5]: https://datatracker.ietf.org/doc/html/rfc1035#section-5
+[rfc1034-section-3-6-1]: https://datatracker.ietf.org/doc/html/rfc1034#section-3.6.1
+[nsd]: https://nlnetlabs.nl/projects/nsd/about/
 [simdjson]: https://github.com/simdjson/simdjson
 [bsd-3-clause]: https://opensource.org/license/bsd-3-clause/
 
