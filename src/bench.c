@@ -1,5 +1,5 @@
 /*
- * bench.c -- some useful comment
+ * bench.c -- simple scanner/parser benchmarking tool
  *
  * Copyright (c) 2023, NLnet Labs. All rights reserved.
  *
@@ -20,12 +20,15 @@
 #include "zone.h"
 #include "config.h"
 #include "isadetection.h"
+#include "attributes.h"
 #include "diagnostic.h"
 
 #if _WIN32
 #define strcasecmp(s1, s2) _stricmp(s1, s2)
 #define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
 #endif
+
+typedef zone_parser_t parser_t;
 
 #if HAVE_HASWELL
 extern int32_t zone_bench_haswell_lex(zone_parser_t *, size_t *);
@@ -40,15 +43,15 @@ extern int32_t zone_westmere_parse(zone_parser_t *);
 extern int32_t zone_bench_fallback_lex(zone_parser_t *, size_t *);
 extern int32_t zone_fallback_parse(zone_parser_t *);
 
-typedef struct target target_t;
-struct target {
+typedef struct kernel kernel_t;
+struct kernel {
   const char *name;
   uint32_t instruction_set;
   int32_t (*bench_lex)(zone_parser_t *, size_t *);
   int32_t (*parse)(zone_parser_t *);
 };
 
-static const target_t targets[] = {
+static const kernel_t kernels[] = {
 #if HAVE_HASWELL
   { "haswell", AVX2, &zone_bench_haswell_lex, &zone_haswell_parse },
 #endif
@@ -68,12 +71,12 @@ extern int32_t zone_open(
 extern void zone_close(
   zone_parser_t *);
 
-static int32_t bench_lex(zone_parser_t *parser, const target_t *target)
+static int32_t bench_lex(zone_parser_t *parser, const kernel_t *kernel)
 {
   size_t tokens = 0;
   int32_t result;
 
-  if ((result = target->bench_lex(parser, &tokens)) < 0)
+  if ((result = kernel->bench_lex(parser, &tokens)) < 0)
     return result;
 
   printf("Lexed %zu tokens\n", tokens);
@@ -81,8 +84,7 @@ static int32_t bench_lex(zone_parser_t *parser, const target_t *target)
 }
 
 static int32_t bench_accept(
-  zone_parser_t *parser,
-  const zone_type_info_t *info,
+  parser_t *parser,
   const zone_name_t *owner,
   uint16_t type,
   uint16_t class,
@@ -92,7 +94,6 @@ static int32_t bench_accept(
   void *user_data)
 {
   (void)parser;
-  (void)info;
   (void)owner;
   (void)type;
   (void)class;
@@ -103,13 +104,13 @@ static int32_t bench_accept(
   return ZONE_SUCCESS;
 }
 
-static int32_t bench_parse(zone_parser_t *parser, const target_t *target)
+static int32_t bench_parse(zone_parser_t *parser, const kernel_t *kernel)
 {
   size_t records = 0;
   int32_t result;
 
   parser->user_data = &records;
-  result = target->parse(parser);
+  result = kernel->parse(parser);
 
   printf("Parsed %zu records\n", records);
   return result;
@@ -118,32 +119,32 @@ static int32_t bench_parse(zone_parser_t *parser, const target_t *target)
 diagnostic_push()
 msvc_diagnostic_ignored(4996)
 
-static const target_t *select_target(const char *name)
+static const kernel_t *select_kernel(const char *name)
 {
-  const size_t n = sizeof(targets)/sizeof(targets[0]);
+  const size_t n = sizeof(kernels)/sizeof(kernels[0]);
   const uint32_t supported = detect_supported_architectures();
-  const target_t *target = NULL;
+  const kernel_t *kernel = NULL;
 
-  if ((!name || !*name) && !(name = getenv("ZONE_TARGET"))) {
-    for (size_t i=0; !target && i < n; i++) {
-      if (targets[i].instruction_set & supported)
-        target = &targets[i];
+  if ((!name || !*name) && !(name = getenv("ZONE_KERNEL"))) {
+    for (size_t i=0; !kernel && i < n; i++) {
+      if (kernel[i].instruction_set & supported)
+        kernel = &kernels[i];
     }
-    assert(target != NULL);
+    assert(kernel != NULL);
   } else {
-    for (size_t i=0; !target && i < n; i++) {
-      if (strcasecmp(name, targets[i].name) == 0)
-        target = &targets[i];
+    for (size_t i=0; !kernel && i < n; i++) {
+      if (strcasecmp(name, kernels[i].name) == 0)
+        kernel = &kernels[i];
     }
 
-    if (!target || (target->instruction_set && !(target->instruction_set & supported))) {
+    if (!kernel || (kernel->instruction_set && !(kernel->instruction_set & supported))) {
       fprintf(stderr, "Target %s is unavailable\n", name);
       return NULL;
     }
   }
 
-  printf("Selected target %s\n", target->name);
-  return target;
+  printf("Selected target %s\n", kernel->name);
+  return kernel;
 }
 
 diagnostic_pop()
@@ -157,12 +158,12 @@ static void help(const char *program)
     "  -h         Display available options.\n"
     "  -t target  Select target (default:%s)\n"
     "\n"
-    "Targets:\n";
+    "Kernels:\n";
 
-  printf(format, program, targets[0].name);
+  printf(format, program, kernels[0].name);
 
-  for (size_t i=0, n=sizeof(targets)/sizeof(targets[0]); i < n; i++)
-    printf("  %s\n", targets[i].name);
+  for (size_t i=0, n=sizeof(kernels)/sizeof(kernels[0]); i < n; i++)
+    printf("  %s\n", kernels[i].name);
 }
 
 static void usage(const char *program)
@@ -195,7 +196,7 @@ int main(int argc, char *argv[])
   if (optind > argc || argc - optind < 2)
     usage(program);
 
-  int32_t (*bench)(zone_parser_t *, const target_t *) = 0;
+  int32_t (*bench)(zone_parser_t *, const kernel_t *) = 0;
   if (strcasecmp(argv[optind], "lex") == 0)
     bench = &bench_lex;
   else if (strcasecmp(argv[optind], "parse") == 0)
@@ -203,8 +204,8 @@ int main(int argc, char *argv[])
   else
     usage(program);
 
-  const target_t *target;
-  if (!(target = select_target(name)))
+  const kernel_t *kernel;
+  if (!(kernel = select_kernel(name)))
     exit(EXIT_FAILURE);
 
   zone_parser_t parser = { 0 };
@@ -213,14 +214,14 @@ int main(int argc, char *argv[])
   zone_rdata_buffer_t rdata;
   zone_buffers_t buffers = { 1, &owner, &rdata };
 
-  options.accept.add = &bench_accept;
+  options.accept.callback = &bench_accept;
   options.origin = ".";
   options.default_ttl = 3600;
   options.default_class = ZONE_IN;
 
   if (zone_open(&parser, &options, &buffers, argv[argc-1], NULL) < 0)
     exit(EXIT_FAILURE);
-  if (bench(&parser, target) < 0)
+  if (bench(&parser, kernel) < 0)
     exit(EXIT_FAILURE);
 
   zone_close(&parser);

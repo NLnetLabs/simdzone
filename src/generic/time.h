@@ -1,5 +1,5 @@
 /*
- * time.h -- parse_time function
+ * time.h -- timestamp parser
  *
  * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *
@@ -28,28 +28,24 @@ static uint64_t leap_days(uint64_t y1, uint64_t y2)
   return (y2/4 - y1/4) - (y2/100 - y1/100) + (y2/400 - y1/400);
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_time(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  token_t *token)
+nonnull_all
+static really_inline int32_t parse_time(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *item,
+  rdata_t *rdata,
+  const token_t *token)
 {
-  int32_t r;
-
-  if ((r = have_contiguous(parser, type, field, token)) < 0)
-    return r;
-
   uint64_t d[14]; // YYYYmmddHHMMSS
   const char *p = token->data;
   for (int i = 0; i < 14; i++) {
     d[i] = (uint8_t)p[i] - '0';
     if (d[i] > 9)
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
   }
 
-  if (contiguous[ (uint8_t)p[14] ] == CONTIGUOUS)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  if (token->length != 14)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
 
   // code adapted from Python 2.4.1 sources (Lib/calendar.py)
   const uint64_t year = (d[0] * 1000) + (d[1] * 100) + (d[2] * 10) + d[3];
@@ -60,17 +56,17 @@ static zone_really_inline int32_t parse_time(
   const uint64_t sec = (d[12] * 10) + d[13];
 
   if (year < 1970 || year > 2106)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
 
   uint64_t leap_year = is_leap_year(year);
   uint64_t days = 365 * (year - 1970) + leap_days(1970, year);
 
   if (!mon || mon > 12)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
   if (!mday || mday > days_in_month[mon] + (leap_year & (mon == 2)))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
   if (hour > 23 || min > 59 || sec > 59)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
 
   days += days_to_month[mon];
   days += (mon > 2) & leap_year;
@@ -81,9 +77,9 @@ static zone_really_inline int32_t parse_time(
   const uint64_t seconds = minutes * 60 + sec;
 
   uint32_t time = htobe32((uint32_t)seconds);
-  memcpy(&parser->rdata->octets[parser->rdata->length], &time, sizeof(time));
-  parser->rdata->length += sizeof(time);
-  return ZONE_INT32;
+  memcpy(rdata->octets, &time, sizeof(time));
+  rdata->octets += 4;
+  return 0;
 }
 
 #endif // TIME_H

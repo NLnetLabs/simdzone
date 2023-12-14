@@ -13,7 +13,7 @@
 #ifndef BASE64_H
 #define BASE64_H
 
-// Slightly modified version of https://github.com/aklomp/base64
+// Modified version of https://github.com/aklomp/base64
 
 struct base64_state {
 	int eof;
@@ -31,13 +31,6 @@ struct base64_state {
 #define BASE64_AEOF 1
 // End-of-file when stream end has been reached or invalid input provided:
 #define BASE64_EOF 2
-
-static const uint8_t
-base64_table_enc_6bit[] =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-  "abcdefghijklmnopqrstuvwxyz"
-  "0123456789"
-  "+/";
 
 // In the lookup table below, note that the value for '=' (character 61) is
 // 254, not 255. This character is used for in-band signaling of the end of
@@ -451,9 +444,9 @@ const uint32_t base64_table_dec_32bit_d3[256] = {
 
 # error "byte order unknown"
 
-#endif // ZONE_LITTLE_ENDIAN
+#endif // LITTLE_ENDIAN
 
-static inline int
+static really_inline int
 dec_loop_generic_32_inner (const uint8_t **s, uint8_t **o, size_t *rounds)
 {
 	const uint32_t str
@@ -484,7 +477,7 @@ dec_loop_generic_32_inner (const uint8_t **s, uint8_t **o, size_t *rounds)
 	return 1;
 }
 
-static inline void
+static really_inline void
 dec_loop_generic_32 (const uint8_t **s, size_t *slen, uint8_t **o, size_t *olen)
 {
 	if (*slen < 8) {
@@ -540,8 +533,8 @@ dec_loop_generic_32 (const uint8_t **s, size_t *slen, uint8_t **o, size_t *olen)
 	*olen -= rounds * 3;
 }
 
-zone_nonnull((1,2,4,5))
-static int base64_stream_decode(
+nonnull((1,2,4,5))
+static really_inline int base64_stream_decode(
   struct base64_state *state,
   const char *src,
   size_t srclen,
@@ -679,70 +672,61 @@ static int base64_stream_decode(
   return ret;
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_base64_sequence(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull((1,3,4))
+static really_inline int base64_decode(
+  const char *src,
+  size_t srclen,
+  uint8_t *out,
+  size_t *outlen)
+{
+  struct base64_state state = { 0 };
+  return base64_stream_decode(&state, src, srclen, out, outlen) & !state.bytes;
+}
+
+nonnull_all
+static really_inline int32_t parse_base64_sequence(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *item,
+  rdata_t *rdata,
   token_t *token)
 {
-  int32_t r;
-  struct base64_state state = { 0 };
+  if (is_contiguous(token)) {
+    struct base64_state state = { 0 };
 
-  if ((r = have_contiguous(parser, type, field, token)) < 0)
-    return r;
+    do {
+      size_t length = token->length / 4;
+      if (((uintptr_t)rdata->limit - (uintptr_t)rdata->octets) / 3 < length)
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
+      if (!base64_stream_decode(&state, token->data, token->length, rdata->octets, &length))
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
+      rdata->octets += length;
+      take(parser, token);
+    } while (is_contiguous(token));
 
-  // implement length check(s) better!
-  do {
-    size_t length;
-    if (token->length / 4 > (ZONE_RDATA_SIZE - parser->rdata->length) / 3)
-      SYNTAX_ERROR(parser, "maximum size exceeded!");
-    int success = base64_stream_decode(
-      &state,
-      token->data,
-      token->length,
-      parser->rdata->octets + parser->rdata->length,
-      &length);
-    if (!success)
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-    parser->rdata->length += length;
-    lex(parser, token);
-  } while (token->code == CONTIGUOUS);
-
-  // if we're still waiting on input, it's an error here
-  if (state.bytes)
-    SYNTAX_ERROR(parser, "invalid base64 sequence!");
+    // incomplete base64 sequence
+    if (state.bytes)
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
+  }
 
   return have_delimiter(parser, type, token);
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_base64(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static really_inline int32_t parse_base64(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *item,
+  rdata_t *rdata,
   const token_t *token)
 {
-  int32_t r;
-  struct base64_state state = { 0 };
-
-  if ((r = have_contiguous(parser, type, field, token)) < 0)
-    return r;
-
-  // check we have enough room in the output buffer!!!
-  size_t length;
-  if (token->length / 4 > (ZONE_RDATA_SIZE - parser->rdata->length) / 3)
-    SYNTAX_ERROR(parser, "maximum size exceeded");
-  int success = base64_stream_decode(
-    &state, token->data, token->length, parser->rdata->octets + parser->rdata->length, &length);
-  if (!success)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  parser->rdata->length += length;
-
-  if (state.bytes)
-    SYNTAX_ERROR(parser, "invalid base64 sequence!");
-
-	return 0;
+  size_t length = token->length / 4;
+  if (((uintptr_t)rdata->limit - (uintptr_t)rdata->octets) / 3 < length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
+  if (!base64_decode(token->data, token->length, rdata->octets, &length))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
+  rdata->octets += length;
+  return 0;
 }
 
 #endif // BASE64_H

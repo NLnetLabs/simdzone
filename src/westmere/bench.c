@@ -7,11 +7,11 @@
  *
  */
 #include "zone.h"
+#include "attributes.h"
 #include "diagnostic.h"
-#include "log.h"
 #include "westmere/simd.h"
 #include "westmere/bits.h"
-#include "lexer.h"
+#include "generic/parser.h"
 #include "generic/scanner.h"
 
 diagnostic_push()
@@ -22,10 +22,10 @@ int32_t zone_bench_westmere_lex(zone_parser_t *parser, size_t *tokens)
   token_t token;
 
   (*tokens) = 0;
-  lex(parser, &token);
+  take(parser, &token);
   while (token.code > 0) {
     (*tokens)++;
-    lex(parser, &token);
+    take(parser, &token);
   }
 
   return token.code ? -1 : 0;

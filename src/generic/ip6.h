@@ -170,8 +170,8 @@ inet_pton6(const char *src, uint8_t *dst)
   return (int)(src - start);
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t scan_ip6(
+nonnull_all
+static really_inline int32_t scan_ip6(
   const char *text, uint8_t *wire, size_t *length)
 {
   int len = inet_pton6(text, wire);
@@ -181,24 +181,20 @@ static zone_really_inline int32_t scan_ip6(
   return 16;
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_ip6(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  token_t *token)
+nonnull_all
+static really_inline int32_t parse_ip6(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *item,
+  rdata_t *rdata,
+  const token_t *token)
 {
-  int32_t r;
-
-  if ((r = have_contiguous(parser, type, field, token)) < 0)
-    return r;
-
-  if (inet_pton6(token->data, &parser->rdata->octets[parser->rdata->length]) != -1) {
-    parser->rdata->length += 16;
-    return ZONE_IP6;
+  if (inet_pton6(token->data, rdata->octets) != -1) {
+    rdata->octets += 16;
+    return 0;
   }
 
-  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
 }
 
 #endif // IP6_H

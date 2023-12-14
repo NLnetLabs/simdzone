@@ -15,7 +15,6 @@
 
 static int32_t add_rr(
   zone_parser_t *parser,
-  const zone_type_info_t *info,
   const zone_name_t *owner,
   uint16_t type,
   uint16_t class,
@@ -25,7 +24,6 @@ static int32_t add_rr(
   void *user_data)
 {
   (void)parser;
-  (void)info;
   (void)owner;
   (void)type;
   (void)class;
@@ -90,7 +88,7 @@ void ipv4_syntax(void **state)
 
     (void)snprintf(rr, sizeof(rr), " A %s", tests[i].address);
 
-    options.accept.add = add_rr;
+    options.accept.callback = add_rr;
     options.origin = "example.com.";
     options.default_ttl = 3600;
     options.default_class = ZONE_IN;

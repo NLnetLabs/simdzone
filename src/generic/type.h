@@ -1,5 +1,5 @@
 /*
- * type.h -- SSE4.1 RRTYPE parser
+ * type.h -- RRTYPE parser
  *
  * Copyright (c) 2023, NLnet Labs. All rights reserved.
  *
@@ -62,10 +62,8 @@ static really_inline int32_t scan_generic_type(
 {
   if (scan_int16(data + 4, length - 4, code) == 0)
     return -1;
-  if (*code <= 258)
+  if (*code <= 4)
     *mnemonic = &types[*code].name;
-  else if (*code == 32769)
-    *mnemonic = &types[259].name;
   else
     *mnemonic = &types[0].name;
   return 1;
@@ -84,10 +82,17 @@ static really_inline int32_t scan_generic_class(
   return 2;
 }
 
-#define TYPE (0x45505954llu)
-#define TYPE_MASK (0xffffffffllu)
-#define CLASS (0x5353414c43llu)
-#define CLASS_MASK (0xffffffffffllu)
+#if BYTE_ORDER == LITTLE_ENDIAN
+# define TYPE (0x45505954llu)
+# define TYPE_MASK (0xffffffffllu)
+# define CLASS (0x5353414c43llu)
+# define CLASS_MASK (0xffffffffffllu)
+#else
+# define TYPE (0x5459504500000000llu)
+# define TYPE_MASK (0xffffffff00000000llu)
+# define CLASS (0x434c415353000000llu)
+# define CLASS_MASK (0xffffffffff000000llu)
+#endif
 
 static const int8_t zero_masks[48] = {
   -1,  -1,  -1,  -1,  -1,  -1,  -1,  -1,
@@ -109,34 +114,41 @@ nonnull_all
 static really_inline int32_t scan_type_or_class(
   const char *data, size_t length, uint16_t *code, const mnemonic_t **mnemonic)
 {
-  __m128i input = _mm_loadu_si128((const __m128i *)data);
+  uint64_t input0, input1;
+  static const uint64_t letter_mask = 0x40404040404040llu;
 
-  const __m128i letter_mask =
-    _mm_srli_epi32(_mm_and_si128(input, _mm_set1_epi8(0x40)), 1);
+  // safe, input is padded
+  memcpy(&input0, data, 8);
+  memcpy(&input1, data + 8, 8);
 
   // convert to upper case
-  input = _mm_andnot_si128(letter_mask, input);
+  input0 = input0 & ~((input0 & letter_mask) >> 1);
+  input1 = input1 & ~((input1 & letter_mask) >> 1);
+
+  length &= 0x1f;
+  const uint8_t *zero_mask = (const uint8_t *)&zero_masks[32 - (length & 0x1f)];
+  uint64_t zero_mask0, zero_mask1;
 
   // sanitize input
-  const __m128i zero_mask =
-    _mm_loadu_si128((const __m128i *)&zero_masks[32 - (length & 0x1f)]);
-  input = _mm_and_si128(input, zero_mask);
+  memcpy(&zero_mask0, zero_mask, 8);
+  memcpy(&zero_mask1, zero_mask + 8, 8);
 
-  // input is now sanitized and upper case
+  input0 &= zero_mask0;
+  input1 &= zero_mask1;
 
-  const uint64_t prefix = (uint64_t)_mm_cvtsi128_si64(input);
-  const uint8_t index = hash(prefix);
+  const uint8_t index = hash(input0);
   *code = (uint16_t)types_and_classes[index].mnemonic->value;
   *mnemonic = types_and_classes[index].mnemonic;
 
-  const __m128i compar = _mm_loadu_si128((const __m128i *)(*mnemonic)->key.data);
-  const __m128i xorthem = _mm_xor_si128(compar, input);
+  uint64_t name0, name1;
+  memcpy(&name0, (*mnemonic)->key.data, 8);
+  memcpy(&name1, (*mnemonic)->key.data + 8, 8);
 
-  if (likely(_mm_test_all_zeros(xorthem, xorthem)))
+  if (likely(((input0 ^ name0) | (input1 ^ name1)) == 0) && *code)
     return types_and_classes[index].code;
-  else if ((prefix & TYPE_MASK) == TYPE)
+  else if ((input0 & TYPE_MASK) == TYPE)
     return scan_generic_type(data, length, code, mnemonic);
-  else if ((prefix & CLASS_MASK) == CLASS)
+  else if ((input0 & CLASS_MASK) == CLASS)
     return scan_generic_class(data, length, code, mnemonic);
   return 0;
 }
@@ -145,33 +157,39 @@ nonnull_all
 static really_inline int32_t scan_type(
   const char *data, size_t length, uint16_t *code, const mnemonic_t **mnemonic)
 {
-  __m128i input = _mm_loadu_si128((const __m128i *)data);
+  uint64_t input0, input1;
+  static const uint64_t letter_mask = 0x40404040404040llu;
 
-  const __m128i letter_mask =
-    _mm_srli_epi32(_mm_and_si128(input, _mm_set1_epi8(0x40)), 1);
+  // safe, input is padded
+  memcpy(&input0, data, 8);
+  memcpy(&input1, data + 8, 8);
 
   // convert to upper case
-  input = _mm_andnot_si128(letter_mask, input);
+  input0 = input0 & ~((input0 & letter_mask) >> 1);
+  input1 = input1 & ~((input1 & letter_mask) >> 1);
+
+  length &= 0x1f;
+  const uint8_t *zero_mask = (const uint8_t *)&zero_masks[32 - (length & 0x1f)];
+  uint64_t zero_mask0, zero_mask1;
 
   // sanitize input
-  const __m128i zero_mask =
-    _mm_loadu_si128((const __m128i *)&zero_masks[32 - (length & 0x1f)]);
-  input = _mm_and_si128(input, zero_mask);
+  memcpy(&zero_mask0, zero_mask, 8);
+  memcpy(&zero_mask1, zero_mask + 8, 8);
 
-  // input is now sanitized and upper case
+  input0 &= zero_mask0;
+  input1 &= zero_mask1;
 
-  const uint64_t prefix = (uint64_t)_mm_cvtsi128_si64(input);
-  const uint8_t index = hash(prefix);
+  const uint8_t index = hash(input0);
   *code = (uint16_t)types_and_classes[index].mnemonic->value;
   *mnemonic = types_and_classes[index].mnemonic;
 
-  const __m128i compar = _mm_loadu_si128((const __m128i *)(*mnemonic)->key.data);
-  const __m128i xorthem = _mm_xor_si128(compar, input);
+  uint64_t name0, name1;
+  memcpy(&name0, (*mnemonic)->key.data, 8);
+  memcpy(&name1, (*mnemonic)->key.data + 8, 8);
 
-  // FIXME: make sure length matches too!
-  if (likely(_mm_test_all_zeros(xorthem, xorthem)))
-    return types_and_classes[index].code == 1;
-  else if ((prefix & TYPE_MASK) == TYPE)
+  if (likely(((input0 ^ name0) | (input1 ^ name1)) == 0) && *code)
+    return types_and_classes[index].code;
+  else if ((input0 & TYPE_MASK) == TYPE)
     return scan_generic_type(data, length, code, mnemonic);
   return 0;
 }

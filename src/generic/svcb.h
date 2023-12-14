@@ -1,5 +1,5 @@
 /*
- * svcb.h -- svcb parser
+ * svcb.h -- svcb (RFC9460) parser
  *
  * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *
@@ -8,31 +8,6 @@
  */
 #ifndef SVCB_H
 #define SVCB_H
-
-typedef struct svc_param_info svc_param_info_t;
-struct svc_param_info;
-
-// FIXME: move, to be used by all parse functions
-typedef struct rdata rdata_t;
-struct rdata {
-  uint8_t *octets;
-  uint8_t *limit;
-};
-
-typedef int32_t (*svc_param_parse_t)(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  uint16_t key,
-  const svc_param_info_t *svc_param_info,
-  rdata_t *rdata,
-  const token_t *);
-
-struct svc_param_info {
-  zone_symbol_t name;
-  bool value;
-  svc_param_parse_t parse, parse_strict;
-};
 
 // RFC9460 section 7.1:
 //   The "alpn" and "no-default-alpn" SvcParamKeys together indicate the set
@@ -57,11 +32,11 @@ struct svc_param_info {
 //   ... A value-list parser that splits on "," and prohibits items
 //   containing "\"" is sufficient to comply with all requirements in
 //   this document. ...
-zone_nonnull_all
+nonnull_all
 static int32_t parse_alpn(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *param,
   rdata_t *rdata,
@@ -72,7 +47,7 @@ static int32_t parse_alpn(
   uint8_t *octet = rdata->octets + 1;
   uint8_t *limit = rdata->octets + 1 + token->length;
   if (limit > rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid alpn in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
 
   memcpy(octet, token->data, token->length);
 
@@ -83,35 +58,35 @@ static int32_t parse_alpn(
   for (; octet < limit; octet++) {
     // FIXME: SIMD and possibly SWAR can easily be used to improve
     if (*octet == '\\')
-      SYNTAX_ERROR(parser, "Invalid alpn in %s", TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
     if (*octet != ',')
       continue;
     assert(separator < octet);
     const size_t length = ((uintptr_t)octet - (uintptr_t)separator) - 1;
     if (length == 0)
-      SYNTAX_ERROR(parser, "Invalid alpn in %s", TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
     if (length > 255)
-      SYNTAX_ERROR(parser, "Invalid alpn in %s", TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
     *separator = (uint8_t)length;
     separator = octet;
   }
 
   const size_t length = ((uintptr_t)octet - (uintptr_t)separator) - 1;
   if (length == 0)
-    SYNTAX_ERROR(parser, "Invalid alpn in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
   if (length > 255)
-    SYNTAX_ERROR(parser, "Invalid alpn in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
   *separator = (uint8_t)length;
 
   rdata->octets = limit;
   return 0;
 }
 
-zone_nonnull_all
+nonnull_all
 static int32_t parse_port(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *param,
   rdata_t *rdata,
@@ -124,7 +99,7 @@ static int32_t parse_port(
   (void)param;
 
   if (!token->length || token->length > 5)
-    SYNTAX_ERROR(parser, "Invalid port in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid port in %s", NAME(type));
 
   uint64_t number = 0;
   for (;; data++) {
@@ -140,17 +115,17 @@ static int32_t parse_port(
   rdata->octets += 2;
 
   if (rdata->octets > rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
   if (data != token->data + token->length || number > 65535)
-    SYNTAX_ERROR(parser, "Invalid port in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid port in %s", NAME(type));
   return 0;
 }
 
-zone_nonnull_all
+nonnull_all
 static int32_t parse_ipv4hint(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *param,
   rdata_t *rdata,
@@ -164,29 +139,29 @@ static int32_t parse_ipv4hint(
   (void)param;
 
   if (scan_ip4(t, rdata->octets, &n) == -1)
-    SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", NAME(type));
   rdata->octets += 4;
   t += n;
 
   while (*t == ',') {
     if (rdata->octets > rdata->limit)
-      SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", NAME(type));
     if (scan_ip4(t + 1, rdata->octets, &n) == -1)
-      SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", NAME(type));
     rdata->octets += 4;
     t += n + 1;
   }
 
   if (t != te || rdata->octets > rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", NAME(type));
   return 0;
 }
 
-zone_nonnull_all
+nonnull_all
 static int32_t parse_ech(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *param,
   rdata_t *rdata,
@@ -205,20 +180,20 @@ static int32_t parse_ech(
   struct base64_state state = { 0 };
   if (!base64_stream_decode(
     &state, token->data, token->length, rdata->octets, &length))
-    SYNTAX_ERROR(parser, "Invalid ech in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid ech in %s", NAME(type));
 
   rdata->octets += length;
   if (state.bytes)
-    SYNTAX_ERROR(parser, "Invalid ech in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid ech in %s", NAME(type));
 
   return 0;
 }
 
-zone_nonnull_all
+nonnull_all
 static int32_t parse_ipv6hint(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *param,
   rdata_t *rdata,
@@ -232,21 +207,21 @@ static int32_t parse_ipv6hint(
   (void)param;
 
   if (scan_ip6(t, rdata->octets, &n) == -1)
-    SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", NAME(type));
   rdata->octets += 16;
   t += n;
 
   while (*t == ',') {
     if (rdata->octets >= rdata->limit)
-      SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", NAME(type));
     if (scan_ip6(t + 1, rdata->octets, &n) == -1)
-      SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", NAME(type));
     rdata->octets += 16;
     t += n + 1;
   }
 
   if (t != te || rdata->octets > rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", NAME(type));
   return 0;
 }
 
@@ -254,11 +229,11 @@ static int32_t parse_ipv6hint(
 //   "dohpath" is a single-valued SvcParamKey whose value (in both
 //   presentation format and wire format) MUST be a URI Template in
 //   relative form ([RFC6570], Section 1.1) encoded in UTF-8 [RFC3629].
-zone_nonnull_all
-static int32_t parse_dohpath_strict(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static int32_t parse_dohpath(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *param,
   rdata_t *rdata,
@@ -276,7 +251,7 @@ static int32_t parse_dohpath_strict(
     if (*t == '\\') {
       uint32_t o;
       if (!(o = unescape(t, rdata->octets)))
-        SYNTAX_ERROR(parser, "Invalid dohpath in %s", TNAME(type));
+        SYNTAX_ERROR(parser, "Invalid dohpath in %s", NAME(type));
       rdata->octets += 1; t += o;
     } else {
       rdata->octets += 1; t += 1;
@@ -290,15 +265,15 @@ static int32_t parse_dohpath_strict(
   // FIXME: implement
 
   if (t != te || rdata->octets >= rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid dohpath in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid dohpath in %s", NAME(type));
   return 0;
 }
 
-zone_nonnull_all
-static int32_t parse_dohpath(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static int32_t parse_dohpath_non_strict(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *param,
   rdata_t *rdata,
@@ -316,7 +291,7 @@ static int32_t parse_dohpath(
     if (*t == '\\') {
       uint32_t o;
       if (!(o = unescape(t, rdata->octets)))
-        SYNTAX_ERROR(parser, "Invalid dohpath in %s", TNAME(type));
+        SYNTAX_ERROR(parser, "Invalid dohpath in %s", NAME(type));
       rdata->octets += 1; t += o;
     } else {
       rdata->octets += 1; t += 1;
@@ -324,15 +299,15 @@ static int32_t parse_dohpath(
   }
 
   if (t != te || rdata->octets >= rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid dohpath in %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid dohpath in %s", NAME(type));
   return 0;
 }
 
-zone_nonnull_all
-static zone_never_inline int32_t parse_unknown(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static int32_t parse_unknown(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *param,
   rdata_t *rdata,
@@ -348,7 +323,7 @@ static zone_never_inline int32_t parse_unknown(
     if (*t == '\\') {
       uint32_t o;
       if (!(o = unescape(t, rdata->octets)))
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
       rdata->octets += 1; t += o;
     } else {
       rdata->octets += 1; t += 1;
@@ -356,7 +331,7 @@ static zone_never_inline int32_t parse_unknown(
   }
 
   if (t != te || rdata->octets >= rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
   return 0;
 }
 
@@ -389,31 +364,31 @@ static zone_never_inline int32_t parse_unknown(
 #define SVC_PARAM_KEY_INVALID_KEY (65535u)
 /** @} */
 
-zone_nonnull_all
-static int32_t parse_mandatory_strict(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static int32_t parse_mandatory_non_strict(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *svc_param,
   rdata_t *rdata,
   const token_t *token);
 
-zone_nonnull_all
+nonnull_all
 static int32_t parse_mandatory(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *svc_param,
   rdata_t *rdata,
   const token_t *token);
 
-#define SVC_PARAM(name, key, value, parse, parse_sorted) \
-  { { { name, sizeof(name) - 1 }, key }, value, parse, parse_sorted }
+#define SVC_PARAM(name, key, value, parse, parse_non_strict) \
+  { { { name, sizeof(name) - 1 }, key }, value, parse, parse_non_strict }
 
 static const svc_param_info_t svc_params[] = {
-  SVC_PARAM("mandatory", 0u, true, parse_mandatory, parse_mandatory_strict),
+  SVC_PARAM("mandatory", 0u, true, parse_mandatory, parse_mandatory_non_strict),
   SVC_PARAM("alpn", 1u, true, parse_alpn, parse_alpn),
   // RFC9460 section 7.1.1:
   //   For "no-default-alpn", the presentation and wire format values MUST be
@@ -427,7 +402,7 @@ static const svc_param_info_t svc_params[] = {
   // RFC9461 section 5:
   //   If the "alpn" SvcParam indicates support for HTTP, "dohpath" MUST be
   //   present.
-  SVC_PARAM("dohpath", 7u, true, parse_dohpath, parse_dohpath_strict),
+  SVC_PARAM("dohpath", 7u, true, parse_dohpath, parse_dohpath_non_strict),
   SVC_PARAM("ohttp", 8u, false, 0, 0),
 };
 
@@ -436,30 +411,37 @@ static const svc_param_info_t unknown_svc_param =
 
 #undef SVC_PARAM
 
-zone_nonnull_all
-static zone_really_inline size_t scan_unknown_svc_param_key(
+nonnull_all
+static really_inline size_t scan_unknown_svc_param_key(
   const char *data, uint16_t *key, const svc_param_info_t **param)
 {
-  size_t length = 0;
-  uint64_t number = 0;
+  size_t length = 4;
+  uint32_t number = (uint8_t)data[3] - '0';
+
+  if (number > 9)
+    return 0;
+
+  uint32_t leading_zero = number == 0;
+
   for (;; length++) {
-    const uint64_t digit = (uint8_t)data[length] - '0';
+    const uint32_t digit = (uint8_t)data[length] - '0';
     if (digit > 9)
       break;
     number = number * 10 + digit;
   }
 
-  if (!length || length > 4)
+  leading_zero &= length > 4;
+  if (leading_zero || length > 3 + 5)
     return 0;
   if (number < (sizeof(svc_params) / sizeof(svc_params[0])))
     return (void)(*param = &svc_params[(*key = (uint16_t)number)]), length;
   if (number < 65535)
-    return (void)(*key = (uint16_t)number), (void)(*param = &unknown_svc_param), length + 3;
+    return (void)(*key = (uint16_t)number), (void)(*param = &unknown_svc_param), length;
   return 0;
 }
 
-zone_nonnull_all
-static zone_really_inline size_t scan_svc_param(
+nonnull_all
+static really_inline size_t scan_svc_param(
   const char *data, uint16_t *key, const svc_param_info_t **param)
 {
   // draft-ietf-dnsop-svcb-https-12 section 2.1:
@@ -486,13 +468,13 @@ static zone_really_inline size_t scan_svc_param(
   else if (memcmp(data, "ohttp", 5) == 0)
     return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_OHTTP)]), 5;
   else if (memcmp(data, "key", 0) == 0)
-    return scan_unknown_svc_param_key(data + 3, key, param);
+    return scan_unknown_svc_param_key(data, key, param);
   else
     return 0;
 }
 
-zone_nonnull_all
-static zone_really_inline size_t scan_svc_param_key(
+nonnull_all
+static really_inline size_t scan_svc_param_key(
   const char *data, uint16_t *key)
 {
   // FIXME: improve implementation
@@ -500,17 +482,18 @@ static zone_really_inline size_t scan_svc_param_key(
   return scan_svc_param(data, key, &param);
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_mandatory_strict(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static int32_t parse_mandatory(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *param,
   rdata_t *rdata,
   const token_t *token)
 {
   (void)field;
+  (void)param;
 
   // RFC9460 section 8:
   //   The presentation value SHALL be a comma-seperatred list of one or more
@@ -521,7 +504,7 @@ static zone_really_inline int32_t parse_mandatory_strict(
   size_t skip;
 
   if (!(skip = scan_svc_param_key(data, &key)))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", TNAME(param), TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid mandatory in %s", NAME(type));
 
   highest_key = key;
   key = htobe16(key);
@@ -531,7 +514,7 @@ static zone_really_inline int32_t parse_mandatory_strict(
 
   while (*data == ',' && rdata->octets < rdata->limit) {
     if (!(skip = scan_svc_param_key(data + 1, &key)))
-      SYNTAX_ERROR(parser, "Invalid mandatory of %s", TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid mandatory of %s", NAME(type));
     data += skip + 1;
     if (key > highest_key) {
       highest_key = key;
@@ -555,7 +538,7 @@ static zone_really_inline int32_t parse_mandatory_strict(
       // RFC9460 section 8:
       //   Keys MAY appear in any order, but MUST NOT appear more than once.
       if (key == smaller_key)
-        SYNTAX_ERROR(parser, "Duplicate key in mandatory of %s", TNAME(type));
+        SYNTAX_ERROR(parser, "Duplicate key in mandatory of %s", NAME(type));
       assert(key < smaller_key);
       uint16_t length = (uint16_t)(rdata->octets - octets);
       memmove(octets + 2, octets, length);
@@ -566,102 +549,223 @@ static zone_really_inline int32_t parse_mandatory_strict(
   }
 
   if (rdata->octets >= rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
   if (data != token->data + token->length)
-    SYNTAX_ERROR(parser, "...");
+    SYNTAX_ERROR(parser, "Invalid mandatory in %s", NAME(type));
   return 0;
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_mandatory(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static int32_t parse_mandatory_non_strict(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
   uint16_t key,
   const svc_param_info_t *param,
   rdata_t *rdata,
   const token_t *token)
 {
-  size_t skip;
-  const char *data = token->data;
-
   (void)field;
 
+  // RFC9460 section 8:
+  //   The presentation value SHALL be a comma-seperatred list of one or more
+  //   valid SvcParamKeys, ...
+  bool out_of_order = false;
+  int32_t highest_key = -1;
+  const uint8_t *whence = rdata->octets;
+  const char *data = token->data;
+  size_t skip;
+
   if (!(skip = scan_svc_param_key(data, &key)))
-    SYNTAX_ERROR(parser, "Invalid key in %s of %s", TNAME(param), TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid key in %s of %s", NAME(param), NAME(type));
   memcpy(rdata->octets, &key, 2);
   rdata->octets += 2;
   data += skip;
 
   while (*data == ',' && rdata->octets < rdata->limit) {
     if (!(skip = scan_svc_param_key(data + 1, &key)))
-      SYNTAX_ERROR(parser, "Invalid key in %s of %s", TNAME(param), TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid key in %s of %s", NAME(param), NAME(type));
+
+    if ((int32_t)key <= highest_key) {
+      // RFC9460 section 8:
+      //   In wire format, the keys are represented by their numeric values in
+      //   network byte order, concatenated in ascending order.
+      const uint8_t *octets = whence;
+      uint16_t smaller_key = 0;
+      while (octets < rdata->octets) {
+        memcpy(&smaller_key, octets, sizeof(smaller_key));
+        smaller_key = be16toh(smaller_key);
+        if (key < smaller_key)
+          break;
+        octets += 2;
+      }
+      assert(octets < rdata->octets);
+      // RFC9460 section 8:
+      //   Keys MAY appear in any order, but MUST NOT appear more than once.
+      if (key == smaller_key)
+        SEMANTIC_ERROR(parser, "Duplicate key in mandatory of %s", NAME(type));
+      assert(key < smaller_key);
+      out_of_order = true;
+    }
+
     data += skip + 1;
+    key = htobe16(key);
     memcpy(rdata->octets, &key, 2);
     rdata->octets += 2;
   }
 
+  if (out_of_order)
+    SEMANTIC_ERROR(parser, "Out of order keys in mandatory of %s", NAME(type));
   if (rdata->octets >= rdata->limit - 2)
-    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
   if (data != token->data + token->length)
-    SYNTAX_ERROR(parser, "Invalid %s", TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
   return 0;
 }
 
-// https://www.iana.org/assignments/dns-svcb/dns-svcb.xhtml
-zone_nonnull_all
-static zone_really_inline int32_t parse_svc_params_strict(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  // rdata_t rdata,
+nonnull_all
+static int32_t parse_svc_params_non_strict(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
   token_t *token)
 {
-  const uint16_t zero = 0;
+  bool out_of_order = false;
   int32_t code, highest_key = -1;
-  uint8_t *whence = parser->rdata->octets + parser->rdata->length;
-  rdata_t rdata = { parser->rdata->octets + parser->rdata->length,
-                    parser->rdata->octets + ZONE_RDATA_SIZE };
+  const uint16_t zero = 0;
+  const uint8_t *whence = rdata->octets;
 
-  while (token->code == CONTIGUOUS) {
+  while (is_contiguous(token)) {
     size_t skip;
     uint16_t key;
     const svc_param_info_t *param;
 
     if (!(skip = scan_svc_param(token->data, &key, &param)))
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    assert(param);
+
+    if ((int32_t)key <= highest_key) {
+      const uint8_t *octets = whence;
+      uint16_t smaller_key = 65535;
+      out_of_order = true;
+
+      while (octets < rdata->octets) {
+        memcpy(&smaller_key, octets, sizeof(smaller_key));
+        smaller_key = be16toh(smaller_key);
+        if (key <= smaller_key)
+          break;
+        uint16_t length;
+        memcpy(&length, octets + 2, sizeof(length));
+        length = be16toh(length);
+        octets += length + 4;
+      }
+
+      assert(octets < rdata->octets);
+      if (key == smaller_key)
+        SEMANTIC_ERROR(parser, "Duplicate key in %s", NAME(type));
+    }
+
+    switch ((token->data[skip] == '=') + (param->has_value << 1)) {
+      case 1: // void parameter with value
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      case 0: // void parameter without value
+      case 2: // parameter without value
+        if (skip != token->length)
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        key = htobe16(key);
+        memcpy(rdata->octets, &key, sizeof(key));
+        memcpy(rdata->octets+2, &zero, sizeof(zero));
+        rdata->octets += 4;
+        break;
+      case 3: // parameter with value
+        skip += 1;
+        // quoted value, separate token
+        if (token->data[skip] != '"')
+          (void)(token->data += skip), token->length -= skip;
+        else if ((code = take_quoted(parser, type, field, token)) < 0)
+          return 0;
+        {
+          uint8_t *octets = rdata->octets;
+          rdata->octets += 4;
+          code = param->parse_non_strict(
+            parser, type, field, key, param, rdata, token);
+          if (code)
+            return code;
+          uint16_t length = (uint16_t)(rdata->octets - octets) - 4;
+          key = htobe16(key);
+          length = htobe16(length);
+          memcpy(octets, &key, sizeof(key));
+          memcpy(octets+2, &length, sizeof(length));
+        }
+        break;
+    }
+
+    take(parser, token);
+  }
+
+  if (out_of_order)
+    SEMANTIC_ERROR(parser, "Out of order parameters in %s", NAME(type));
+
+  return have_delimiter(parser, type, token);
+}
+
+// https://www.iana.org/assignments/dns-svcb/dns-svcb.xhtml
+nonnull_all
+static really_inline int32_t parse_svc_params(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
+  token_t *token)
+{
+  // propagate data as-is if secondary
+  if (parser->options.non_strict)
+    return parse_svc_params_non_strict(parser, type, field, rdata, token);
+
+  const uint16_t zero = 0;
+  int32_t code, highest_key = -1;
+  uint8_t *whence = rdata->octets;
+
+  while (is_contiguous(token)) {
+    size_t skip;
+    uint16_t key;
+    const svc_param_info_t *param;
+
+    if (!(skip = scan_svc_param(token->data, &key, &param)))
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
     assert(param);
 
     if (key > highest_key) {
       highest_key = key;
 
-      switch ((token->data[skip] == '=') + (param->value << 1)) {
+      switch ((token->data[skip] == '=') | (param->has_value << 1)) {
         case 1: // void parameter with value
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
         case 0: // void parameter without value
         case 2: // parameter without optional value
           if (skip != token->length)
-            SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+            SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
           key = htobe16(key);
-          memcpy(rdata.octets, &key, sizeof(key));
-          memcpy(rdata.octets+2, &zero, sizeof(zero));
-          rdata.octets += 4;
+          memcpy(rdata->octets, &key, sizeof(key));
+          memcpy(rdata->octets+2, &zero, sizeof(zero));
+          rdata->octets += 4;
           break;
         case 3: // parameter with value
           skip += 1;
           // quoted parameter, separate token
-          if (token->data[skip] == '"')
-            lex(parser, token);
-          else
+          if (token->data[skip] != '"')
             (void)(token->data += skip), token->length -= skip;
+          else if ((code = take_quoted(parser, type, field, token)) < 0)
+            return code;
           {
-            uint8_t *octets = rdata.octets;
-            rdata.octets += 4;
-            code = param->parse_strict(
-              parser, type, field, key, param, &rdata, token);
+            uint8_t *octets = rdata->octets;
+            rdata->octets += 4;
+            code = param->parse(
+              parser, type, field, key, param, rdata, token);
             if (code < 0)
               return code;
-            uint16_t length = (uint16_t)(rdata.octets - octets) - 4;
+            uint16_t length = (uint16_t)(rdata->octets - octets) - 4;
             key = htobe16(key);
             length = htobe16(length);
             memcpy(octets, &key, sizeof(key));
@@ -673,7 +777,7 @@ static zone_really_inline int32_t parse_svc_params_strict(
       uint8_t *octets = whence;
       uint16_t smaller_key = 65535;
 
-      while (octets < rdata.octets) {
+      while (octets < rdata->octets) {
         memcpy(&smaller_key, octets, sizeof(smaller_key));
         smaller_key = be16toh(smaller_key);
         if (key <= smaller_key)
@@ -684,28 +788,28 @@ static zone_really_inline int32_t parse_svc_params_strict(
         octets += length + 4;
       }
 
-      assert(octets < rdata.octets);
+      assert(octets < rdata->octets);
       if (key == smaller_key)
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-      switch ((token->data[skip] == '=') + (param->value << 1)) {
+      switch ((token->data[skip] == '=') + (param->has_value << 1)) {
         case 1: // void parameter with value
-          SYNTAX_ERROR(parser, "foobar1");
+          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
         case 0: // void parameter without value
         case 2: // parameter without value
           key = htobe16(key);
-          memmove(octets + 4, octets, (uintptr_t)rdata.octets - (uintptr_t)octets);
+          memmove(octets + 4, octets, (uintptr_t)rdata->octets - (uintptr_t)octets);
           memcpy(octets, &key, sizeof(key));
           memcpy(octets+2, &zero, sizeof(zero));
-          rdata.octets += 4;
+          rdata->octets += 4;
           break;
         case 3: // parameter with value
           skip += 1;
           // quoted parameter, separate token
-          if (token->data[skip] == '"')
-            lex(parser, token);
-          else
+          if (token->data[skip] != '"')
             (void)(token->data += skip), token->length -= skip;
+          else if ((code = take_quoted(parser, type, field, token)) < 0)
+            return code;
           {
             uint16_t length;
             rdata_t param_rdata;
@@ -714,20 +818,20 @@ static zone_really_inline int32_t parse_svc_params_strict(
             //
             // move existing data to end of the buffer and reset limit to
             // avoid allocating memory
-            assert(rdata.octets - octets < ZONE_RDATA_SIZE);
-            length = (uint16_t)(rdata.octets - octets);
+            assert(rdata->octets - octets < ZONE_RDATA_SIZE);
+            length = (uint16_t)(rdata->octets - octets);
             param_rdata.octets = octets + 4u;
             param_rdata.limit = parser->rdata->octets + (ZONE_RDATA_SIZE - length);
             // move data PADDING_SIZE past limit to ensure SIMD operatations
             // do not overwrite existing data
             memmove(param_rdata.limit + ZONE_PADDING_SIZE, octets, length);
-            code = param->parse_strict(
+            code = param->parse(
               parser, type, field, key, param, &param_rdata, token);
             if (code)
               return code;
             assert(param_rdata.octets < param_rdata.limit);
             memmove(param_rdata.octets, param_rdata.limit + ZONE_PADDING_SIZE, length);
-            rdata.octets = param_rdata.octets + length;
+            rdata->octets = param_rdata.octets + length;
             length = (uint16_t)(param_rdata.octets - octets) - 4u;
             key = htobe16(key);
             length = htobe16(length);
@@ -738,84 +842,10 @@ static zone_really_inline int32_t parse_svc_params_strict(
       }
     }
 
-    lex(parser, token);
+    take(parser, token);
   }
 
-  // FIXME: check all keys specified in mandatory are actually specified!!!!
-
-  // FIXME: remove once all parsers use rdata_t
-  parser->rdata->length = (uintptr_t)rdata.octets - (uintptr_t)parser->rdata->octets;
-
-  return have_delimiter(parser, type, token);
-}
-
-zone_nonnull_all
-static zone_really_inline int32_t parse_svc_params(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  // rdata_t *rdata,
-  token_t *token)
-{
-  // propagate data as-is if secondary
-  if (!parser->options.secondary)
-    return parse_svc_params_strict(parser, type, field, token);
-
-  int32_t code;
-  const uint16_t zero = 0;
-  rdata_t rdata = {
-    parser->rdata->octets + parser->rdata->length,
-    parser->rdata->octets + 65535 };
-
-  while (token->code == CONTIGUOUS) {
-    size_t skip;
-    uint16_t key;
-    const svc_param_info_t *param;
-
-    if (!(skip = scan_svc_param(token->data, &key, &param)))
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-    assert(param);
-
-    switch ((token->data[skip] == '=') + (param->value << 1)) {
-      case 1: // void parameter with value
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-      case 0: // void parameter without value
-      case 2: // parameter without value
-        if (skip != token->length)
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-        key = htobe16(key);
-        memcpy(rdata.octets, &key, sizeof(key));
-        memcpy(rdata.octets+2, &zero, sizeof(zero));
-        rdata.octets += 4;
-        break;
-      case 3: // parameter with value
-        skip += 1;
-        // quoted value, separate token
-        if (token->data[skip] == '"')
-          lex(parser, token);
-        else
-          (void)(token->data += skip), token->length -= skip;
-        {
-          uint8_t *octets = rdata.octets;
-          rdata.octets += 4;
-          code = param->parse(
-            parser, type, field, key, param, &rdata, token);
-          if (code)
-            return code;
-          uint16_t length = (uint16_t)(rdata.octets - octets) - 4;
-          key = htobe16(key);
-          length = htobe16(length);
-          memcpy(octets, &key, sizeof(key));
-          memcpy(octets+2, &length, sizeof(length));
-        }
-        break;
-    }
-
-    lex(parser, token);
-  }
-
-  // FIXME: remove once all parsers use rdata_t
-  parser->rdata->length = (uintptr_t)rdata.octets - (uintptr_t)parser->rdata->octets;
+  // FIXME: check keys specified in mandatory are actually specified!
 
   return have_delimiter(parser, type, token);
 }
