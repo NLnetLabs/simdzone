@@ -1,5 +1,5 @@
 /*
- * diagnostic.h -- some useful comment
+ * diagnostic.h -- compiler diagnostic abstractions
  *
  * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *

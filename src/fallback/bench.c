@@ -7,23 +7,23 @@
  *
  */
 #include "zone.h"
+#include "attributes.h"
 #include "diagnostic.h"
-#include "log.h"
-#include "lexer.h"
+#include "generic/parser.h"
 #include "fallback/scanner.h"
 
 diagnostic_push()
 clang_diagnostic_ignored(missing-prototypes)
 
-int32_t zone_bench_fallback_lex(zone_parser_t *parser, size_t *tokens)
+int32_t zone_bench_fallback_lex(parser_t *parser, size_t *tokens)
 {
   token_t token;
 
   (*tokens) = 0;
-  lex(parser, &token);
+  take(parser, &token);
   while (token.code > 0) {
     (*tokens)++;
-    lex(parser, &token);
+    take(parser, &token);
   }
 
   return token.code ? -1 : 0;

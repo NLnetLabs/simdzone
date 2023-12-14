@@ -9,8 +9,8 @@
 #ifndef LOC_H
 #define LOC_H
 
-zone_nonnull_all
-static zone_really_inline int32_t scan_degrees(
+nonnull_all
+static really_inline int32_t scan_degrees(
 	const char *text, size_t length, uint32_t *degrees)
 {
   uint8_t digits[3];
@@ -44,8 +44,8 @@ static zone_really_inline int32_t scan_degrees(
   }
 }
 
-zone_nonnull_all
-static zone_really_inline int64_t scan_minutes(
+nonnull_all
+static really_inline int64_t scan_minutes(
 	const char *text, size_t length, uint32_t *minutes)
 {
   uint8_t digits[2];
@@ -69,8 +69,8 @@ static zone_really_inline int64_t scan_minutes(
   }
 }
 
-zone_nonnull_all
-static zone_really_inline int64_t scan_seconds(
+nonnull_all
+static really_inline int64_t scan_seconds(
 	const char *text, size_t length, uint32_t *seconds)
 {
   uint8_t digits[3];
@@ -124,8 +124,8 @@ static zone_really_inline int64_t scan_seconds(
   }
 }
 
-zone_nonnull((1,3))
-static zone_really_inline int32_t scan_altitude(
+nonnull((1,3))
+static really_inline int32_t scan_altitude(
   const char *text, size_t length, uint32_t *altitude)
 {
   uint64_t negative = 0, limit = 11, maximum = 4284967295llu;
@@ -182,8 +182,8 @@ static zone_really_inline int32_t scan_altitude(
 }
 
 // converts ascii size/precision X * 10**Y(cm) to 0xXY
-zone_nonnull((1,3))
-static zone_really_inline int32_t scan_precision(
+nonnull((1,3))
+static really_inline int32_t scan_precision(
   const char *text, size_t length, uint8_t *scientific)
 {
   uint64_t meters = 0, centimeters;

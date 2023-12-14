@@ -9,7 +9,7 @@
 #ifndef APL_H
 #define APL_H
 
-static zone_really_inline int32_t scan_apl(
+static really_inline int32_t scan_apl(
   const char *text, size_t length, uint8_t *octets, size_t size)
 {
   uint8_t negate = text[0] == '!';

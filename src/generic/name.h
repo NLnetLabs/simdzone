@@ -1,5 +1,5 @@
 /*
- * name.h -- some useful comment
+ * name.h -- domain name parser
  *
  * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *
@@ -15,8 +15,8 @@ struct name_block {
   uint64_t dots;
 };
 
-zone_nonnull_all
-static zone_really_inline void copy_name_block(
+nonnull_all
+static really_inline void copy_name_block(
   name_block_t *block, const char *text, uint8_t *wire)
 {
   simd_8x32_t input;
@@ -26,22 +26,17 @@ static zone_really_inline void copy_name_block(
   block->dots = simd_find_8x32(&input, '.');
 }
 
-#define likely(...) zone_likely(__VA_ARGS__)
-#define unlikely(...) zone_unlikely(__VA_ARGS__)
-
-zone_nonnull_all
-static zone_really_inline int32_t scan_name(
-  zone_parser_t *parser,
-  const token_t *token,
+nonnull_all
+static really_inline int32_t scan_name(
+  const char *data,
+  size_t tlength,
   uint8_t octets[255 + ZONE_BLOCK_SIZE],
   size_t *lengthp)
 {
   uint64_t label = 0;
-  const char *text = token->data;
+  const char *text = data;
   uint8_t *wire = octets + 1;
   name_block_t block;
-
-  (void)parser;
 
   octets[0] = 0;
 
@@ -50,10 +45,10 @@ static zone_really_inline int32_t scan_name(
   // octets. encode in 32-byte blocks.
   copy_name_block(&block, text, wire);
 
-  uint64_t count = 32, length = 0, base = 0, left = token->length;
+  uint64_t count = 32, length = 0, base = 0, left = tlength;
   uint64_t carry = 0;
-  if (token->length < 32)
-    count = token->length;
+  if (tlength < 32)
+    count = tlength;
   uint64_t mask = (1llu << count) - 1u;
 
   // check for escape sequences
@@ -62,7 +57,7 @@ static zone_really_inline int32_t scan_name(
 
   // check for root, i.e. "."
   if (unlikely(block.dots & 1llu))
-    return ((*lengthp = token->length) == 1 ? 0 : -1);
+    return ((*lengthp = tlength) == 1 ? 0 : -1);
 
   length = count;
   block.dots &= mask;
@@ -154,52 +149,6 @@ escaped:
 
   *lengthp = length + 1;
   return carry == 0;
-}
-
-#undef likely
-#undef unlikely
-
-zone_nonnull_all
-static zone_really_inline int32_t parse_name(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  const token_t *token)
-{
-  int32_t r;
-  size_t n = 0;
-  uint8_t *o = &parser->rdata->octets[parser->rdata->length];
-
-  if (zone_likely(token->code == CONTIGUOUS)) {
-    // a freestanding "@" denotes the current origin
-    if (token->data[0] == '@' && token->length == 1)
-      goto relative;
-    r = scan_name(parser, token, o, &n);
-    if (r == 0)
-      return (void)(parser->rdata->length += n), ZONE_NAME;
-    if (r > 0)
-      goto relative;
-  } else if (token->code == QUOTED) {
-    if (token->length == 0)
-      goto invalid;
-    r = scan_name(parser, token, o, &n);
-    if (r == 0)
-      return (void)(parser->rdata->length += n), ZONE_NAME;
-    if (r > 0)
-      goto relative;
-  } else {
-    return have_string(parser, type, field, token);
-  }
-
-invalid:
-  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-
-relative:
-  if (n > 255 - parser->file->origin.length)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  memcpy(o+n, parser->file->origin.octets, parser->file->origin.length);
-  parser->rdata->length += n + parser->file->origin.length;
-  return ZONE_NAME;
 }
 
 #endif // NAME_H

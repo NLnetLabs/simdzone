@@ -115,31 +115,25 @@ static bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
   return time_in_second64 == (uint32_t)time_in_second64;
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_time(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  token_t *token)
+nonnull_all
+static really_inline int32_t parse_time(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
+  const token_t *token)
 {
-  int32_t r;
+  uint32_t time;
 
-  if ((r = have_contiguous(parser, type, field, token)) < 0)
-    return r;
-
-  const char *p = token->data;
-  uint32_t sse_result;
-  if (!sse_parse_time(p, &sse_result))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
   // FIXME: once support for specifying as an unsigned number of seconds is
   //        implemented, update this check too
-  if (contiguous[(uint8_t)token->data[14]] == CONTIGUOUS)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  if (token->length != 14 || !sse_parse_time(token->data, &time))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  uint32_t time = htobe32(sse_result);
-  memcpy(&parser->rdata->octets[parser->rdata->length], &time, sizeof(time));
-  parser->rdata->length += sizeof(time);
-  return ZONE_INT32;
+  time = htobe32(time);
+  memcpy(rdata->octets, &time, sizeof(time));
+  rdata->octets += sizeof(time);
+  return 0;
 }
 
 #endif // TIME_H

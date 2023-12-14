@@ -13,12 +13,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "zone.h"
-#include "log.h"
-
 // Copied from simdjson under the terms of The 3-Clause BSD License.
 // Copyright (c) 2018-2023 The simdjson authors
-static inline uint64_t find_escaped(
+static really_inline uint64_t find_escaped(
   uint64_t backslash, uint64_t *is_escaped)
 {
   backslash &= ~ *is_escaped;
@@ -43,7 +40,7 @@ static inline uint64_t find_escaped(
 // includes a semicolon (or newline for that matter) and/or a comment region
 // includes one (or more) quote characters. also, for comments, only newlines
 // directly following a non-escaped, non-quoted semicolon must be included
-static inline void find_delimiters(
+static really_inline void find_delimiters(
   uint64_t quotes,
   uint64_t semicolons,
   uint64_t newlines,
@@ -144,7 +141,7 @@ struct block {
   uint64_t special;
 };
 
-static zone_really_inline void scan(zone_parser_t *parser, block_t *block)
+static really_inline void scan(parser_t *parser, block_t *block)
 {
   // escaped newlines are classified as contiguous. however, escape sequences
   // have no meaning in comments and newlines, escaped or not, have no
@@ -191,7 +188,7 @@ static zone_really_inline void scan(zone_parser_t *parser, block_t *block)
     follows(block->contiguous, &parser->file->state.follows_contiguous);
 }
 
-static zone_really_inline void tokenize(zone_parser_t *parser, const block_t *block, uint64_t clear)
+static really_inline void write_indexes(parser_t *parser, const block_t *block, uint64_t clear)
 {
   uint64_t fields = (block->contiguous & ~block->follows_contiguous) |
                     (block->quoted & block->in_quoted) |
@@ -225,7 +222,7 @@ static zone_really_inline void tokenize(zone_parser_t *parser, const block_t *bl
   // character strings. edge case, but must be supported and handled in the
   // scanner for ease of use and to accommodate for parallel processing in the
   // parser. escaped newlines may have been present in the last block
-  if (zone_unlikely(parser->file->lines.tail[0] || (newline & in_string))) {
+  if (unlikely(parser->file->lines.tail[0] || (newline & in_string))) {
     // FIXME: test logic properly, likely eligable for simplification
     for (count=0; count < field_count; count++) {
       const uint64_t field = -fields & fields;
@@ -260,7 +257,7 @@ static zone_really_inline void tokenize(zone_parser_t *parser, const block_t *bl
       delimiters = clear_lowest_bit(delimiters);
     }
 
-    if (zone_unlikely(count > 6)) {
+    if (unlikely(count > 6)) {
       for (uint64_t i=6; i < 12; i++) {
         parser->file->fields.tail[i] = base + trailing_zeroes(fields);
         parser->file->delimiters.tail[i] = base + trailing_zeroes(delimiters);
@@ -268,7 +265,7 @@ static zone_really_inline void tokenize(zone_parser_t *parser, const block_t *bl
         delimiters = clear_lowest_bit(delimiters);
       }
 
-      if (zone_unlikely(count > 12)) {
+      if (unlikely(count > 12)) {
         for (uint64_t i=12; i < count; i++) {
           parser->file->fields.tail[i] = base + trailing_zeroes(fields);
           parser->file->delimiters.tail[i] = base + trailing_zeroes(delimiters);
@@ -283,156 +280,54 @@ static zone_really_inline void tokenize(zone_parser_t *parser, const block_t *bl
   }
 }
 
-zone_nonnull_all
-static zone_never_inline void step(zone_parser_t *parser, token_t *token)
+nonnull_all
+warn_unused_result
+static really_inline int32_t reindex(parser_t *parser)
 {
   block_t block = { 0 };
-  bool start_of_line = false;
-  const char *data_limit, **tape_limit;
 
-  // start of line is initially true
-  if (parser->file->fields.tail == parser->file->fields.tape)
-    start_of_line = true;
-  else if (parser->file->fields.tail[-1][0] == '\n')
-    start_of_line = !is_blank((uint8_t)parser->file->fields.tail[-1][1]);
+  assert(parser->file->buffer.index <= parser->file->buffer.length);
+  size_t left = parser->file->buffer.length - parser->file->buffer.index;
+  const char *data = parser->file->buffer.data + parser->file->buffer.index;
+  const char **tape = parser->file->fields.tail;
+  const char **tape_limit = parser->file->fields.tape + ZONE_TAPE_SIZE;
 
-  // restore deferred line count
-  parser->file->lines.tape[0] = parser->file->lines.tail[0];
-  parser->file->lines.head = parser->file->lines.tape;
-  parser->file->lines.tail = parser->file->lines.tape;
-  // restore (possibly) deferred field
-  parser->file->fields.tape[0] = parser->file->fields.tail[1];
-  parser->file->fields.head = parser->file->fields.tape;
-  parser->file->fields.tail = parser->file->fields.tape;
-  if (parser->file->fields.tape[0])
-    parser->file->fields.tail++;
-  // delimiters are never deferred
-  parser->file->delimiters.head = parser->file->delimiters.tape;
-  parser->file->delimiters.tail = parser->file->delimiters.tape;
+  if (left >= ZONE_BLOCK_SIZE) {
+    const char *data_limit = parser->file->buffer.data +
+                            (parser->file->buffer.length - ZONE_BLOCK_SIZE);
+    while (data <= data_limit && ((uintptr_t)tape_limit - (uintptr_t)tape) >= ZONE_BLOCK_SIZE) {
+      simd_loadu_8x64(&block.input, (const uint8_t *)data);
+      scan(parser, &block);
+      write_indexes(parser, &block, 0);
+      parser->file->buffer.index += ZONE_BLOCK_SIZE;
+      data += ZONE_BLOCK_SIZE;
+      tape = parser->file->fields.tail;
+    }
 
-shuffle:
-  if (parser->file->end_of_file == ZONE_HAVE_DATA) {
-    int32_t code;
-    const char *start;
-    if (parser->file->fields.head[0])
-      start = parser->file->fields.head[0];
-    else
-      start = parser->file->buffer.data + parser->file->buffer.index;
-    parser->file->fields.head[0] = parser->file->buffer.data;
-    const size_t length =
-      (size_t)((parser->file->buffer.data+parser->file->buffer.length) - start);
-    const size_t index =
-      (size_t)((parser->file->buffer.data+parser->file->buffer.index) - start);
-    memmove(parser->file->buffer.data, start, length);
-    parser->file->buffer.length = length;
-    parser->file->buffer.index = index;
-    parser->file->buffer.data[length] = '\0';
-    if ((code = refill(parser)) < 0)
-      DEFER_ERROR(parser, token, code);
+    assert(parser->file->buffer.index <= parser->file->buffer.length);
+    left = parser->file->buffer.length - parser->file->buffer.index;
   }
 
-  data_limit = parser->file->buffer.data + parser->file->buffer.length;
-  tape_limit = parser->file->fields.tape + ZONE_TAPE_SIZE;
-  for (;;) {
-    const char *data = parser->file->buffer.data + parser->file->buffer.index;
-    if (data_limit - data < ZONE_BLOCK_SIZE)
-      break;
-    if (tape_limit - parser->file->fields.tail < ZONE_BLOCK_SIZE)
-      goto terminate;
-    simd_loadu_8x64(&block.input, (const uint8_t *)data);
-    scan(parser, &block);
-    tokenize(parser, &block, 0);
-    parser->file->buffer.index += ZONE_BLOCK_SIZE;
-  }
-
-  const size_t length = parser->file->buffer.length - parser->file->buffer.index;
-  assert(length <= ZONE_BLOCK_SIZE);
-  if (parser->file->end_of_file == ZONE_HAVE_DATA)
-    goto terminate;
-  if (length > (size_t)(tape_limit - parser->file->fields.tail))
-    goto terminate;
-
-  uint8_t buffer[ZONE_BLOCK_SIZE] = { 0 };
-  memcpy(buffer, &parser->file->buffer.data[parser->file->buffer.index], length);
-  const uint64_t clear = ~((1llu << length) - 1);
-  simd_loadu_8x64(&block.input, buffer);
-  scan(parser, &block);
-  //block.starts &= ~clear;
-  block.contiguous &= ~clear;
-  tokenize(parser, &block, clear);
-  parser->file->buffer.index += length;
-  parser->file->end_of_file = ZONE_NO_MORE_DATA;
-
-terminate:
-  // make sure tape contains no partial tokens
-  if ((uint64_t)((int64_t)(block.contiguous | block.in_quoted) >> 63)) {
-    parser->file->fields.tail[0] = parser->file->fields.tail[-1];
-    parser->file->fields.tail--;
-  } else {
-    parser->file->fields.tail[1] = NULL;
-  }
-
-  parser->file->fields.tail[0] = data_limit;
-  parser->file->delimiters.tail[0] = data_limit;
-  if (parser->file->fields.head[0] == parser->file->buffer.data)
-    parser->file->start_of_line = start_of_line;
-  else
-    parser->file->start_of_line = false;
-
-  for (;;) {
-    const char *data = parser->file->fields.head[0];
-    token->data = data;
-    token->code = (int32_t)contiguous[ (uint8_t)*data ];
-    // end-of-file is idempotent
-    parser->file->fields.head += (*token->data != '\0');
-    if (zone_likely(token->code == CONTIGUOUS)) {
-      const char *delimiter = *parser->file->delimiters.head++;
-      assert(delimiter > token->data);
-      token->length = (size_t)(delimiter - token->data);
-      return;
-    } else if (token->code == LINE_FEED) {
-      if (zone_unlikely(token->data == line_feed))
-        parser->file->span += *parser->file->lines.head++;
-      parser->file->span++;
-      if (parser->file->grouped)
-        continue;
-      parser->file->line += parser->file->span;
-      parser->file->span = 0;
-      parser->file->start_of_line = !is_blank((uint8_t)*(token->data+1));
-      token->length = 1;
-      return;
-    } else if (token->code == QUOTED) {
-      const char *delimiter = *parser->file->delimiters.head++;
-      token->data++;
-      assert(delimiter >= token->data);
-      token->length = (size_t)(delimiter - token->data);
-      return;
-    } else if (token->code == END_OF_FILE) {
-      zone_file_t *file;
-
-      if (parser->file->end_of_file != ZONE_NO_MORE_DATA)
-        goto shuffle;
-      if (parser->file->grouped)
-        DEFER_SYNTAX_ERROR(parser, token, "Missing closing brace");
-      if (!parser->file->includer)
-        return;
-      file = parser->file;
-      parser->file = parser->file->includer;
-      parser->owner = &parser->file->owner;
-      zone_close_file(parser, file);
-      token->length = 1;
-      return;
-    } else if (token->code == LEFT_PAREN) {
-      if (parser->file->grouped)
-        DEFER_SYNTAX_ERROR(parser, token, "Nested opening brace");
-      parser->file->grouped = true;
-    } else {
-      assert(token->code == RIGHT_PAREN);
-      if (!parser->file->grouped)
-        DEFER_SYNTAX_ERROR(parser, token, "Missing opening brace");
-      parser->file->grouped = false;
+  // only scan partial blocks after reading all data
+  if (parser->file->end_of_file) {
+    assert(left < ZONE_BLOCK_SIZE);
+    if (!left) {
+      parser->file->end_of_file = ZONE_NO_MORE_DATA;
+    } else if (((uintptr_t)tape_limit - (uintptr_t)tape) >= left) {
+      // input is required to be padded, but may contain garbage
+      uint8_t buffer[ZONE_BLOCK_SIZE] = { 0 };
+      memcpy(buffer, data, left);
+      const uint64_t clear = ~((1llu << left) - 1);
+      simd_loadu_8x64(&block.input, buffer);
+      scan(parser, &block);
+      block.contiguous &= ~clear;
+      write_indexes(parser, &block, clear);
+      parser->file->end_of_file = ZONE_NO_MORE_DATA;
+      parser->file->buffer.index += left;
     }
   }
+
+  return (uint64_t)((int64_t)(block.contiguous | block.in_quoted) >> 63) != 0;
 }
 
 #endif // SCANNER_H

@@ -87,4 +87,4 @@ jobs:
           set -e -x
           cd build
           ctest -j 4 --output-on-failure -T test -C ${BUILD_TYPE:-RelWithDebInfo}
-          ZONE_TARGET=fallback ctest -j 4 --output-on-failure -T test -C ${BUILD_TYPE:-RelWithDebInfo}
+          ZONE_KERNEL=fallback ctest -j 4 --output-on-failure -T test -C ${BUILD_TYPE:-RelWithDebInfo}

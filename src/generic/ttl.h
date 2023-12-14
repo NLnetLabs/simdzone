@@ -1,5 +1,5 @@
 /*
- * ttl.h -- some useful comment
+ * ttl.h -- Time to Live (TTL) parser
  *
  * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *
@@ -10,7 +10,7 @@
 #define TTL_H
 
 // [sS] = 1, [mM] = 60, [hH] = 60*60, [dD] = 24*60*60, [wW] = 7*24*60*60
-static const uint32_t units[256] = {
+static const uint32_t ttl_units[256] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,         // 0x00 - 0x0f
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,         // 0x10 - 0x1f
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,         // 0x20 - 0x2f
@@ -29,117 +29,89 @@ static const uint32_t units[256] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0          // 0xf0 - 0xff
 };
 
-zone_nonnull_all
-static zone_really_inline int32_t scan_ttl(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  token_t *token,
-  uint32_t *seconds)
+nonnull_all
+static really_inline int32_t scan_ttl(
+  const char *data, size_t length, bool allow_units, uint32_t *ttl)
 {
-  int32_t r;
-  uint64_t t = 0, m = parser->options.secondary ? UINT32_MAX : INT32_MAX;
+  if (scan_int32(data, length, ttl))
+    return 1;
+  if (!allow_units)
+    return 0;
 
-  if ((r = have_contiguous(parser, type, field, token)) < 0)
-    return r;
+  uint64_t sum = 0, number = (uint8_t)data[0] - '0';
+  // ttls must start with a number. e.g. 1h not h1
+  if (number > 9)
+    return 0;
 
-  const char *p = token->data;
-  for (;; p++) {
-    const uint64_t d = (uint8_t)*p - '0';
-    if (d > 9)
-      break;
-    t = t * 10 + d;
-  }
+  uint64_t unit = 0, last_unit = 0;
+  enum { NUMBER, UNIT } state = NUMBER;
 
-  if (zone_likely(contiguous[ (uint8_t)*p ] != CONTIGUOUS)) {
-    // FIXME: comment RFC2308 msb
-    if (t > m || !t || p - token->data > 10)
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-    if (t & (1llu << 31))
-      SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-    *seconds = (uint32_t)t;
-    return ZONE_TTL;
-  } else if (p == token->data || !parser->options.pretty_ttls) {
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  }
+  for (size_t count = 1; count < length; count++) {
+    const uint64_t digit = (uint8_t)data[count] - '0';
 
-  uint64_t n = t, u = 0, f = 0;
-  enum { NUMBER, UNIT } s = UNIT;
-
-  for (t = 0; ; p++) {
-    const uint64_t d = (uint8_t)*p - '0';
-
-    if (s == NUMBER) {
-      if (d <= 9) {
-        n = n * 10 + d;
-      } else if (!(u = units[ (uint8_t)*p ])) {
-        break;
+    if (state == NUMBER) {
+      if (digit < 10) {
+        number = number * 10 + digit;
+        if (number > UINT32_MAX)
+          return 0;
+      } else if (!(unit = ttl_units[ (uint8_t)data[count] ])) {
+        return 0;
       // units must not be repeated e.g. 1m1m
-      } else if (u == f) {
-        SYNTAX_ERROR(parser, "Invalid %s in %s, reuse of unit %c",
-                     NAME(field), TNAME(type), *p);
+      } else if (unit == last_unit) {
+        return 0;
       // greater units must precede smaller units. e.g. 1m1s, not 1s1m
-      } else if (u < f) {
-        SYNTAX_ERROR(parser, "Invalid %s in %s, unit %c follows smaller unit",
-                     NAME(field), TNAME(type), *p);
+      } else if (unit < last_unit) {
+        return 0;
       } else {
-        f = u;
-        n = n * u;
-        s = UNIT;
+        if (UINT32_MAX / unit < number)
+          return 0;
+        number *= unit;
+        if (UINT32_MAX - sum < number)
+          return 0;
+        last_unit = unit;
+        sum += number;
+        number = 0;
+        state = UNIT;
       }
-
-      if (n > m)
-        SYNTAX_ERROR(parser, "Invalid %s in %s",
-                     NAME(field), TNAME(type));
-    } else if (s == UNIT) {
+    } else if (state == UNIT) {
       // units must be followed by a number. e.g. 1h30m, not 1hh
-      if (d > 9)
-        SYNTAX_ERROR(parser, "Invalid %s in %s, non-digit follows unit",
-                     NAME(field), TNAME(type));
+      if (digit > 9)
+        return 0;
       // units must not be followed by a number if smallest unit,
       // i.e. seconds, was previously specified
-      if (f == 1)
-        SYNTAX_ERROR(parser, "Invalid %s in %s, digit follows unit s",
-                     NAME(field), TNAME(type));
-      t = t + n;
-      n = d;
-      s = NUMBER;
-
-      if (t > m)
-        SYNTAX_ERROR(parser, "Invalid %s in %s",
-                     NAME(field), TNAME(type));
+      if (last_unit == 1)
+        return 0;
+      number = digit;
+      state = NUMBER;
     }
   }
 
-  if (zone_unlikely(contiguous[ (uint8_t)*p ] != CONTIGUOUS))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  if (UINT32_MAX - sum < number)
+    return 0;
 
-  t = t + n;
-  if (t > m || !t)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  if (t & (1llu << 31))
-    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-
-  *seconds = (uint32_t)t;
-  return ZONE_TTL;
+  sum += number;
+  *ttl = (uint32_t)sum;
+  return 1;
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_ttl(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  token_t *token)
+nonnull_all
+static really_inline int32_t parse_ttl(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
+  const token_t *token)
 {
-  int32_t r;
-  uint32_t t = 0;
-
-  if ((r = scan_ttl(parser, type, field, token, &t)) < 0)
-    return r;
-  t = htobe32(t);
-  memcpy(&parser->rdata->octets[parser->rdata->length], &t, sizeof(t));
-  parser->rdata->length += sizeof(t);
-  return ZONE_TTL;
+  uint32_t ttl;
+  if (!scan_ttl(token->data, token->length, parser->options.pretty_ttls, &ttl))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  // FIXME: comment RFC2308 msb
+  if (ttl & (1u << 31))
+    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  ttl = htobe32(ttl);
+  memcpy(rdata->octets, &ttl, sizeof(ttl));
+  rdata->octets += 4;
+  return 0;
 }
 
 #endif // TTL_H

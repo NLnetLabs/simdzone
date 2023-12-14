@@ -1,5 +1,5 @@
 /*
- * zone.h -- (DNS) zone parser
+ * zone.h -- (DNS) presentation format parser
  *
  * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *
@@ -40,6 +40,8 @@ extern "C" {
 #define ZONE_CH (3u)
 /** Hesiod @rfc{1035} */
 #define ZONE_HS (4u)
+/** Any (QCLASS) @rfc{1035} */
+#define ZONE_ANY (255u)
 /** @} */
 
 /**
@@ -133,11 +135,11 @@ extern "C" {
 #define ZONE_NSEC (47u)
 /** DNS Public Key @rfc{4034} @rfc{3755} */
 #define ZONE_DNSKEY (48u)
-/** DHCID [RFC4701] */
+/** DHCID @rfc{4701} */
 #define ZONE_DHCID (49u)
-/** NSEC3 [RFC5155] */
+/** NSEC3 @rfc{5155} */
 #define ZONE_NSEC3 (50u)
-/** NSEC3PARAM [RFC5155] */
+/** NSEC3PARAM @rfc{5155} */
 #define ZONE_NSEC3PARAM (51u)
 /** TLSA @rfc{6698} */
 #define ZONE_TLSA (52u)
@@ -183,155 +185,8 @@ extern "C" {
 #define ZONE_DLV (32769u)
 /** @} */
 
-typedef struct zone_string zone_string_t;
-struct zone_string {
-  size_t length;
-  const char *data;
-};
-
-// FIXME: probably best to rename this to mnemonic to stay with DNS terminology?
-typedef struct zone_symbol zone_symbol_t;
-struct zone_symbol {
-  struct {
-    char data[24]; // zero padded for convenient vectorized comparison
-    size_t length;
-  } key;
-  uint32_t value;
-};
-
-typedef struct zone_table zone_table_t;
-struct zone_table {
-  size_t length;
-  const zone_symbol_t *symbols; // sorted for use with bsearch
-};
-
-/**
- * @brief Type of value defined by field
- *
- * Fields are defined by their binary representation, NOT their textual
- * representation. e.g. time-to-live and timestamp fields are encoded as
- * 32-bit integers on the wire. @ref type_qualifiers are used to complement
- * the type information. e.g. @ref ZONE_TTL and @ref ZONE_TIME can be used to
- * provide extra information regarding the aforementioned types.
- */
-typedef enum {
-  ZONE_INT8,
-  ZONE_INT16,
-  ZONE_INT32,
-  ZONE_IP4,
-  ZONE_IP6,
-  ZONE_NAME,
-  ZONE_STRING,
-  // (B)inary (L)arge (Ob)ject. Inspired by relational database terminology.
-  // Must be last.
-  ZONE_BLOB,
-  ZONE_ILNP64,
-  // hex fields
-  // ZONE_EUI48 (ZONE_HEX6?)
-  // ZONE_EUI64 (ZONE_HEX8?)
-  // miscellaneous fields
-  ZONE_SVC_PARAM, /**< SVCB service parameter */
-  ZONE_TYPE_BITMAP, /**< NSEC type bitmap */
-  ZONE_SERVICE_BITMAP /**< WKS service bitmap */
-} zone_type_t;
-
-/**
- * @defgroup type_qualifiers Type qualifiers
- *
- * Type qualifiers provide additional information for RDATA fields. Types
- * indicate the binary representation of an RDATA field, qualifier(s) can be
- * used to communicate semantics. e.g. a time-to-live is presented on the
- * wire as a 32-bit integer, ZONE_TTL can be used to signal the field
- * represents a time-to-live value.
- *
- * @note Some types allow for more than one qualifier to be specified, hence
- *       each qualifier is assigned a separate bit.
- *
- * @{
- */
-/**
- * @brief Type code (#ZONE_INT16)
- *
- * Type codes may appear in text by name or generic type notation @rfc{3597}.
- */
-#define ZONE_TYPE (1u << 0)
-/**
- * @brief Class code (#ZONE_INT16)
- *
- * Class codes may appear in text by name or generic class notation @rfc{3597}.
- */
-#define ZONE_CLASS (1u << 1)
-/**
- * @brief Time-to-live (TTL) (#ZONE_INT32)
- *
- * Time-to-live values may appear in text as numeric value (seconds) or in
- * "1h2m3s" notation (@e extension).
- */
-#define ZONE_TTL (1u << 2)
-/**
- * @brief Timestamp (#ZONE_INT32)
- *
- * Timestamps must be presented in text in "YYYYMMDDHHmmSS" notation.
- */
-#define ZONE_TIME (1u << 3)
-/** @brief Text representation is base16 (#ZONE_STRING or #ZONE_BLOB) */
-#define ZONE_BASE16 (1u << 4)
-/** @brief Text representation is base32 (#ZONE_BLOB) */
-#define ZONE_BASE32 (1u << 5)
-/** @brief Text representation is base64 (#ZONE_BLOB) */
-#define ZONE_BASE64 (1u << 6)
-/** @brief Name is compressed (#ZONE_NAME) */
-#define ZONE_COMPRESSED (1u << 7)
-/** @brief Name represents a mailbox (#ZONE_NAME) */
-#define ZONE_MAILBOX (1u << 8)
-/** @brief Name is converted to lower case for DNSSEC validation (#ZONE_NAME) */
-#define ZONE_LOWER_CASE (1u << 9)
-/** @brief Optional (#ZONE_NAME) */
-#define ZONE_OPTIONAL (1u << 10)
-/**
- * @brief May occur multiple times (#ZONE_STRING or #ZONE_SVC_PARAM)
- *
- * Field may occur multiple times. e.g. #ZONE_STRING in #ZONE_TXT or
- * #ZONE_SVC_PARAM in #ZONE_SVCB. Sequences must be the last field in the
- * record.
- */
-#define ZONE_SEQUENCE (1u << 11)
-
-#define ZONE_CAA_TAG (1u << 12)
-/** @} */
-
-typedef struct zone_field_info zone_field_info_t;
-struct zone_field_info {
-  zone_string_t name;
-  uint32_t type;
-  uint32_t qualifiers;
-  zone_table_t symbols;
-};
-
-/**
- * @defgroup options Type options
- * @brief Options for record types
- *
- * @{
- */
-#define ZONE_ANY (1<<2)
-#define ZONE_EXPERIMENTAL (1<<3)
-#define ZONE_OBSOLETE (1<<4)
-/** @} */
-
-typedef struct zone_type_info zone_type_info_t;
-struct zone_type_info {
-  zone_symbol_t name;
-  uint32_t options;
-  struct {
-    size_t length;
-    const zone_field_info_t *fields;
-  } rdata;
-};
-
 #define ZONE_BLOCK_SIZE (64)
 #define ZONE_WINDOW_SIZE (256 * ZONE_BLOCK_SIZE) // 16KB
-
 
 // tape capacity must be large enough to hold every token from a single
 // worst-case read (e.g. 64 consecutive line feeds). in practice a single
@@ -350,10 +205,10 @@ struct zone_name_buffer {
   uint8_t octets[ ZONE_NAME_SIZE + ZONE_PADDING_SIZE ];
 };
 
+// FIXME: explain need for NSEC padding
 typedef struct zone_rdata_buffer zone_rdata_buffer_t;
 struct zone_rdata_buffer {
-  size_t length; /**< Length of RDATA stored in buffer */
-  uint8_t octets[ ZONE_RDATA_SIZE + 4096 /* nsec padding */ ];
+  uint8_t octets[ ZONE_RDATA_SIZE + 4096 /* NSEC padding */ ];
 };
 
 // @private
@@ -425,39 +280,12 @@ struct zone_parser;
 
 typedef void(*zone_log_t)(
   zone_parser_t *,
-  const char *, // file
-  size_t, // line
-  const char *, // function
   uint32_t, // category
   const char *, // message
   void *); // user data
 
 /**
  * @brief Write error message to active log handler.
- *
- * @note Direct use is discouraged. Use of #ZONE_LOG instead.
- *
- * @param[in]  parser    Zone parser
- * @param[in]  file      Name of source file
- * @param[in]  line      Line number in source file
- * @param[in]  function  Name of function
- * @param[in]  category  Log category
- * @param[in]  format    Format string compatible with printf
- * @param[in]  ...       Variadic arguments corresponding to #format
- */
-ZONE_EXPORT void zone_log(
-  zone_parser_t *parser,
-  const char *file,
-  size_t line,
-  const char *function,
-  uint32_t category,
-  const char *format,
-  ...)
-zone_nonnull((1,2,4,6))
-zone_format_printf(6,7);
-
-/**
- * @brief Write log message to active log handler.
  *
  * The zone parser operates on a per-record base and therefore cannot detect
  * errors that span records. e.g. SOA records being specified more than once.
@@ -467,10 +295,15 @@ zone_format_printf(6,7);
  * @param[in]  parser    Zone parser
  * @param[in]  category  Log category
  * @param[in]  format    Format string compatible with printf
- * @param[in]  ...       Variadic arguments corresponding to @ref format
+ * @param[in]  ...       Variadic arguments corresponding to #format
  */
-#define ZONE_LOG(parser, category, ...) \
-  zone_log(parser, __FILE__, __LINE__, __func__, category, __VA_ARGS__)
+ZONE_EXPORT void zone_log(
+  zone_parser_t *parser,
+  uint32_t category,
+  const char *format,
+  ...)
+zone_nonnull((1,3))
+zone_format_printf(3,4);
 
 typedef struct zone_name zone_name_t;
 struct zone_name {
@@ -478,12 +311,11 @@ struct zone_name {
   uint8_t *octets;
 };
 
-// invoked for each record (host order). header (owner, type, class and ttl)
+// invoked for each resource record (host order). header (owner, type, class and ttl)
 // fields are passed individually for convenience. rdata fields can be visited
 // individually by means of the iterator
-typedef int32_t(*zone_add_t)(
+typedef int32_t(*zone_accept_t)(
   zone_parser_t *,
-  const zone_type_info_t *, // type information
   const zone_name_t *, // owner (length + octets)
   uint16_t, // type
   uint16_t, // class
@@ -493,16 +325,17 @@ typedef int32_t(*zone_add_t)(
   void *); // user data
 
 typedef struct {
-  /** Lax mode of operation. */
+  /** Non-strict mode of operation. */
   /** Authoritative servers may choose to be more lenient when operating as
-      as a secondary as data may have been transferred over AXFR/IXFR that
+      a secondary as data may have been transferred over AXFR/IXFR that
       would have triggered an error otherwise. */
-  bool secondary;
+  bool non_strict;
   /** Disable $INCLUDE directive. */
   /** Useful in setups where untrusted input may be offered. */
   bool no_includes;
   /** Enable 1h2m3s notations for TTLS. */
   bool pretty_ttls;
+  // FIXME: require origin to be in wire format? (#115)
   const char *origin;
   uint32_t default_ttl;
   uint16_t default_class;
@@ -512,13 +345,10 @@ typedef struct {
         custom callback was specified. */
     uint32_t categories;
     /** Callback used to write out log messages. */
-    zone_log_t write;
+    zone_log_t callback;
   } log;
   struct {
-    zone_add_t add;
-    // FIXME: more callbacks to be added at a later stage to support efficient
-    //        (de)serialization of AXFR/IXFR in text representation.
-    //zone_delete_t remove;
+    zone_accept_t callback;
   } accept;
 } zone_options_t;
 
@@ -568,21 +398,21 @@ struct zone_parser {
 /** Success */
 #define ZONE_SUCCESS (0)
 /** Syntax error */
-#define ZONE_SYNTAX_ERROR (-1)
+#define ZONE_SYNTAX_ERROR (-256)  // (-1 << 8)
 /** Semantic error */
-#define ZONE_SEMANTIC_ERROR (-2)
+#define ZONE_SEMANTIC_ERROR (-512)  // (-2 << 8)
 /** Operation failed due to lack of memory */
-#define ZONE_OUT_OF_MEMORY (-3)
+#define ZONE_OUT_OF_MEMORY (-768)  // (-3 << 8)
 /** Bad parameter value */
-#define ZONE_BAD_PARAMETER (-4)
+#define ZONE_BAD_PARAMETER (-1024)  // (-4 << 8)
 /** Error reading zone file */
-#define ZONE_IO_ERROR (-5)
+#define ZONE_READ_ERROR (-1280)  // (-5 << 8)
 /** Control directive or support for record type is not implemented */
-#define ZONE_NOT_IMPLEMENTED (-6)
+#define ZONE_NOT_IMPLEMENTED (-1536)  // (-6 << 8)
 /** Specified file does not exist */
-#define ZONE_NOT_A_FILE (-6)
+#define ZONE_NOT_A_FILE (-1792)  // (-7 << 8)
 /** Access to specified file is not allowed */
-#define ZONE_NOT_PERMITTED (-7)
+#define ZONE_NOT_PERMITTED (-2048)  // (-8 << 8)
 /** @} */
 
 /**

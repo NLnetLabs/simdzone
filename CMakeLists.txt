@@ -145,9 +145,7 @@ target_include_directories(
               $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
 target_sources(zone PRIVATE
-  src/zone.c
-  src/log.c
-  src/fallback/parser.c)
+  src/zone.c src/fallback/parser.c)
 
 add_executable(zone-bench src/bench.c src/fallback/bench.c)
 target_include_directories(
@@ -227,7 +225,8 @@ foreach(match ${matches})
 endforeach()
 
 file(GENERATE OUTPUT config.h CONTENT "${template}")
-configure_file(src/fallback/endian.h.in fallback/endian.h @ONLY)
+# FIXME: we'll need to port this over to autoconf as well
+configure_file(src/generic/endian.h.in generic/endian.h @ONLY)
 
 
 if(BUILD_TESTING)

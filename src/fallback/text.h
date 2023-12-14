@@ -1,5 +1,5 @@
 /*
- * text.h -- fallback parser for strings
+ * text.h -- fallback string parser
  *
  * Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
  *
@@ -9,8 +9,8 @@
 #ifndef TEXT_H
 #define TEXT_H
 
-zone_nonnull_all
-static zone_really_inline uint32_t unescape(const char *text, uint8_t *wire)
+nonnull_all
+static really_inline uint32_t unescape(const char *text, uint8_t *wire)
 {
   uint8_t d[3];
 
@@ -26,89 +26,78 @@ static zone_really_inline uint32_t unescape(const char *text, uint8_t *wire)
   }
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_string(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static really_inline int32_t parse_text_inner(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
   const token_t *token)
 {
-  uint8_t *w = &parser->rdata->octets[parser->rdata->length + 1];
-  const uint8_t *ws = w - 1, *we = w + 255;
-  const char *t = token->data, *te = t + token->length;
+  uint32_t skip;
+  const char *data = token->data, *limit = token->data + token->length;
 
-  // FIXME: SWAR can possibly applied to improve performance and copy
-  //        eight bytes as opposed to one
-  while ((t < te) & (w < we)) {
-    *w = (uint8_t)*t;
-    if (zone_unlikely(*t == '\\')) {
-      uint32_t o;
-      if (!(o = unescape(t, w)))
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-      w += 1; t += o;
-    } else {
-      w += 1; t += 1;
+  if ((uintptr_t)rdata->limit - (uintptr_t)rdata->octets >= token->length) {
+    while (data < limit) {
+      *rdata->octets = (uint8_t)*data;
+      if (likely(*data != '\\'))
+        (void)(rdata->octets += 1), data += 1;
+      else if (!(skip = unescape(data, rdata->octets)))
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      else
+        (void)(rdata->octets += 1), data += skip;
     }
-  }
 
-  if (t != te || w >= we)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  parser->rdata->octets[parser->rdata->length] = (uint8_t)((w - ws) - 1);
-  parser->rdata->length += (size_t)(w - ws);
-  return ZONE_STRING;
-}
-
-zone_nonnull_all
-static zone_really_inline int32_t parse_text_internal(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  const token_t *token)
-{
-  uint8_t *w = &parser->rdata->octets[parser->rdata->length];
-  const uint8_t *ws = w, *we = &parser->rdata->octets[ZONE_RDATA_SIZE];
-  const char *t = token->data, *te = t + token->length;
-
-  while ((t < te) & (w < we)) {
-    *w = (uint8_t)*t;
-    if (zone_unlikely(*t == '\\')) {
-      uint32_t o;
-      if (!(o = unescape(t, w)))
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-      w += 1; t += o;
-    } else {
-      w += 1; t += 1;
+    if (data != limit)
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    return 0;
+  } else {
+    while (data < limit && rdata->octets < rdata->limit) {
+      *rdata->octets = (uint8_t)*data;
+      if (likely(*data != '\\'))
+        (void)(rdata->octets += 1), data += 1;
+      else if (!(skip = unescape(data, rdata->octets)))
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+      else
+        (void)(rdata->octets += 1), data += skip;
     }
+
+    if (data != limit || rdata->octets >= rdata->limit)
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+    return 0;
   }
-
-  if (t != te || w >= we)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  parser->rdata->length += (size_t)(w - ws);
-  return ZONE_BLOB;
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_quoted_text(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static really_inline int32_t parse_string(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
   const token_t *token)
 {
-  if (zone_likely(token->code & QUOTED))
-    return parse_text_internal(parser, type, field, token);
-  return have_quoted(parser, type, field, token);
+  int32_t code;
+  uint8_t *octets = rdata->octets;
+  uint8_t *limit = rdata->limit;
+  if ((uintptr_t)rdata->limit - (uintptr_t)rdata->octets > 1 + 255)
+    rdata->limit = rdata->octets + 1 + 255;
+  rdata->octets += 1;
+
+  code = parse_text_inner(parser, type, field, rdata, token);
+  *octets = (uint8_t)((uintptr_t)rdata->octets - (uintptr_t)octets) - 1;
+  rdata->limit = limit;
+  return code;
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_text(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static really_inline int32_t parse_text(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
   const token_t *token)
 {
-  if (zone_likely(token->code & (CONTIGUOUS|QUOTED)))
-    return parse_text_internal(parser, type, field, token);
-  return have_string(parser, type, field, token);
+  return parse_text_inner(parser, type, field, rdata, token);
 }
 
 #endif // TEXT_H

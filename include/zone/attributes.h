@@ -43,27 +43,9 @@
 #define zone_nonnull_all zone_attribute((__nonnull__))
 
 #if _MSC_VER
-# define zone_really_inline __forceinline
-# define zone_never_inline __declspec(noinline)
-# define zone_warn_unused_result
-
-# define zone_likely(params) (params)
-# define zone_unlikely(params) (params)
-
 # define zone_format(params)
 # define zone_format_printf(string_index, first_to_check)
 #else // _MSC_VER
-# define zone_really_inline inline zone_attribute((always_inline))
-# define zone_never_inline zone_attribute((noinline))
-# if zone_has_attribute(warn_unused_result)
-#   define zone_warn_unused_result zone_attribute((warn_unused_result))
-# else
-#   define zone_warn_unused_result
-# endif
-
-# define zone_likely(params) __builtin_expect(!!(params), 1)
-# define zone_unlikely(params) __builtin_expect(!!(params), 0)
-
 # if zone_has_attribute(format)
 #   define zone_format(params) zone_attribute((__format__ params))
 #   if __MINGW32__

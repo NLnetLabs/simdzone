@@ -49,8 +49,8 @@
 #define PREFIX_IMAPS       (0x7370616d69llu)
 #define PREFIX_POP3S       (0x7333706f70llu)
 
-zone_nonnull((1))
-static zone_really_inline int32_t scan_protocol(
+nonnull((1))
+static really_inline int32_t scan_protocol(
   const char *name, size_t length)
 {
   // RFC1035 section 3.4.2:
@@ -117,8 +117,8 @@ static zone_really_inline int32_t scan_protocol(
   return number;
 }
 
-zone_nonnull((1))
-static zone_really_inline int32_t scan_service(
+nonnull((1))
+static really_inline int32_t scan_service(
   const char *name, size_t length, int32_t protocol)
 {
   uint8_t digit = (uint8_t)*name - '0';

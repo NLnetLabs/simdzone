@@ -9,8 +9,8 @@
 #ifndef IP4_H
 #define IP4_H
 
-zone_nonnull_all
-static zone_really_inline int32_t scan_ip4(
+nonnull_all
+static really_inline int32_t scan_ip4(
   const char *text, uint8_t *wire, size_t *length)
 {
   const char *start = text;
@@ -44,19 +44,15 @@ static zone_really_inline int32_t scan_ip4(
   return 4;
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_ip4(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
-  token_t *token)
+nonnull_all
+static really_inline int32_t parse_ip4(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *item,
+  rdata_t *rdata,
+  const token_t *token)
 {
-  int32_t r;
-
-  if ((r = have_contiguous(parser, type, field, token)) < 0)
-    return r;
-
-  uint8_t *o = &parser->rdata->octets[parser->rdata->length];
+  uint8_t *o = rdata->octets;
   const uint8_t *os = o;
   uint64_t n = 0;
   const char *p = token->data;
@@ -69,7 +65,7 @@ static zone_really_inline int32_t parse_ip4(
       n = n * 10 + (uint8_t)d;
     } else {
       if (!(p - ps) || p - ps > 3 || n < m[(p - ps)] || n > 255 || o - os > 3)
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
       ps = p + 1;
       *o++ = (uint8_t)n;
       if (*p != '.')
@@ -78,11 +74,11 @@ static zone_really_inline int32_t parse_ip4(
     }
   }
 
-  if (is_contiguous((uint8_t)*p) || o - os != 4)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  if (p != token->data + token->length || o - os != 4)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
 
-  parser->rdata->length += 4;
-  return ZONE_IP4;
+  rdata->octets += 4;
+  return 0;
 }
 
 #endif // IP4_H

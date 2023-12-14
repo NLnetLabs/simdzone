@@ -9,11 +9,12 @@
 #ifndef GPOS_H
 #define GPOS_H
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_latitude(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static really_inline int32_t parse_latitude(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
   const token_t *token)
 {
   const char *text = token->data + (token->data[0] == '-');
@@ -49,13 +50,13 @@ static zone_really_inline int32_t parse_latitude(
       if (text[1] != '.')
         text += 1;
       else
-        for (text += 2; 9u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
+        for (text += 2; 10u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
       break;
     case 0x0b: // 0b1011 ("dd.d")
       if (text[2] != '.')
         text += 2;
       else
-        for (text += 3; 9u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
+        for (text += 3; 10u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
       break;
     default:
       goto bad_latitude;
@@ -64,22 +65,20 @@ static zone_really_inline int32_t parse_latitude(
   if (text != token->data + token->length)
     goto bad_latitude;
 
-  parser->rdata->octets[parser->rdata->length] = (uint8_t)token->length;
-  memcpy(parser->rdata->octets + parser->rdata->length + 1, token->data, token->length);
-  parser->rdata->length += token->length + 1;
+  *rdata->octets = (uint8_t)token->length;
+  memcpy(rdata->octets + 1, token->data, token->length);
+  rdata->octets += 1 + token->length;
   return 0;
-
 bad_latitude:
-  if (token->code != CONTIGUOUS)
-    return have_contiguous(parser, type, field, token);
-  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_longitude(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static really_inline int32_t parse_longitude(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
   const token_t *token)
 {
   const char *text = token->data + (token->data[0] == '-');
@@ -105,7 +104,7 @@ static zone_really_inline int32_t parse_longitude(
     case 0x09: // 0b01001 ("d..d.")
     case 0x19: // 0b11001 ("d..dd")
       text += 1;
-      break;
+       break;
     case 0x03: // 0b00011 ("dd...")
     case 0x13: // 0b10011 ("dd..d")
       degrees = digits[0] * 10 + digits[1];
@@ -127,7 +126,7 @@ static zone_really_inline int32_t parse_longitude(
       if (text[1] != '.')
         text += 1;
       else
-        for (text += 2; 9u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
+        for (text += 2; 10u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
       break;
     case 0x0b: // 0b01011 ("dd.d.")
     case 0x1b: // 0b11011 ("dd.dd")
@@ -138,7 +137,7 @@ static zone_really_inline int32_t parse_longitude(
       if (text[2] != '.')
         text += 2;
       else
-        for (text += 3; 9u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
+        for (text += 3; 10u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
       break;
     case 0x17: // 0b10111 ("ddd.d")
       // ensure no leading zero and range is between -180 and 180
@@ -148,7 +147,7 @@ static zone_really_inline int32_t parse_longitude(
       if (text[3] != '.')
         text += 3;
       else
-        for (text += 4; 9u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
+        for (text += 4; 10u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
       break;
     default:
       goto bad_longitude;
@@ -157,29 +156,26 @@ static zone_really_inline int32_t parse_longitude(
   if (text != token->data + token->length)
     goto bad_longitude;
 
-  parser->rdata->octets[parser->rdata->length] = (uint8_t)token->length;
-  memcpy(parser->rdata->octets + parser->rdata->length + 1, token->data, token->length);
-  parser->rdata->length += token->length + 1;
+  *rdata->octets = (uint8_t)token->length;
+  memcpy(rdata->octets + 1, token->data, token->length);
+  rdata->octets += 1 + token->length;
   return 0;
-
 bad_longitude:
-  if (token->code != CONTIGUOUS)
-    return have_contiguous(parser, type, field, token);
-
-  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_altitude(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static really_inline int32_t parse_altitude(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
   const token_t *token)
 {
   const char *text = token->data;
 
   if (token->length > 255)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
   for (; 9u > (uint8_t)((uint8_t)*text - '0'); text++) ;
 
@@ -187,11 +183,11 @@ static zone_really_inline int32_t parse_altitude(
     for (text++; 9u > (uint8_t)((uint8_t)*text - '0'); text++) ;
 
   if (text != token->data + token->length)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  parser->rdata->octets[parser->rdata->length] = (uint8_t)token->length;
-  memcpy(parser->rdata->octets + parser->rdata->length + 1, token->data, token->length);
-  parser->rdata->length += token->length + 1;
+  *rdata->octets = (uint8_t)token->length;
+  memcpy(rdata->octets + 1, token->data, token->length);
+  rdata->octets += 1 + token->length;
   return 0;
 }
 

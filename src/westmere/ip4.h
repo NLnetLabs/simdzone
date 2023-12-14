@@ -180,8 +180,8 @@ static inline int sse_inet_aton(const char* ipv4_string, uint8_t* destination, s
   return (int)(length + check_mask - pattern_ptr[6]);
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t scan_ip4(
+nonnull_all
+static really_inline int32_t scan_ip4(
   const char *text, uint8_t *wire, size_t *length)
 {
   size_t len;
@@ -191,26 +191,21 @@ static zone_really_inline int32_t scan_ip4(
   return 4;
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_ip4(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static really_inline int32_t parse_ip4(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
   const token_t *token)
 {
-  int32_t r;
-  size_t n;
-  uint8_t *o = &parser->rdata->octets[parser->rdata->length];
-
-  if ((r = have_contiguous(parser, type, field, token)) < 0)
-    return r;
+  size_t length;
 
   // Note that this assumes that reading up to token->data + 16 is safe (i.e., we do not cross a page).
-  if (sse_inet_aton(token->data, o, &n) != 1 ||
-      is_contiguous((uint8_t)token->data[n]))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  parser->rdata->length += 4;
-  return ZONE_IP4;
+  if (sse_inet_aton(token->data, rdata->octets, &length) != 1 || length != token->length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  rdata->octets += 4;
+  return 0;
 }
 
 #endif // IP4_H

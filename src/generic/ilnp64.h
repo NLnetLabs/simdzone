@@ -1,5 +1,5 @@
 /*
- * ilnp64.h -- some useful comment
+ * ilnp64.h -- 64-bit Locator (RFC6742 section 2.3) parser
  *
  * Copyright (c) 2023, NLnet Labs. All rights reserved.
  *
@@ -11,18 +11,14 @@
 
 // FIXME: very likely eligable for vectorization (or optimization even), but
 //        gains are small as the type is not frequently used
-zone_nonnull_all
-static zone_really_inline int32_t parse_ilnp64(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static really_inline int32_t parse_ilnp64(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
   const token_t *token)
 {
-  int32_t r;
-
-  if ((r = have_contiguous(parser, type, field, token)) < 0)
-    return r;
-
   uint16_t a[4] = { 0, 0, 0, 0 };
   size_t n = 0;
   const char *p = token->data, *g = p;
@@ -48,15 +44,15 @@ static zone_really_inline int32_t parse_ilnp64(
     }
   }
 
-  if (n != 3 || p == g || p - g > 4 || contiguous[(uint8_t)*p] == CONTIGUOUS)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
+  if (n != 3 || p == g || p - g > 4 || classify[(uint8_t)*p] == CONTIGUOUS)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
   a[0] = htobe16(a[0]);
   a[1] = htobe16(a[1]);
   a[2] = htobe16(a[2]);
   a[3] = htobe16(a[3]);
-  memcpy(parser->rdata->octets+parser->rdata->length, a, 8);
-  parser->rdata->length += 8;
-  return ZONE_ILNP64;
+  memcpy(rdata->octets, a, 8);
+  rdata->octets += 8;
+  return 0;
 }
 
 #endif // ILNP64_H

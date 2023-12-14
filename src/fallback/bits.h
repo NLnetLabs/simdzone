@@ -12,7 +12,7 @@
 #if _MSC_VER
 #include <intrin.h>
 
-static zone_really_inline uint64_t trailing_zeroes(uint64_t mask)
+static really_inline uint64_t trailing_zeroes(uint64_t mask)
 {
   unsigned long index;
   if (_BitScanForward64(&index, mask))
@@ -21,7 +21,7 @@ static zone_really_inline uint64_t trailing_zeroes(uint64_t mask)
     return 64;
 }
 
-static zone_really_inline uint64_t leading_zeroes(uint64_t mask)
+static really_inline uint64_t leading_zeroes(uint64_t mask)
 {
   unsigned long index;
   if (_BitScanReverse64(&index, mask))
@@ -30,12 +30,12 @@ static zone_really_inline uint64_t leading_zeroes(uint64_t mask)
     return 64;
 }
 #else
-static zone_really_inline uint64_t trailing_zeroes(uint64_t mask)
+static really_inline uint64_t trailing_zeroes(uint64_t mask)
 {
   return (uint64_t)__builtin_ctzll(mask);
 }
 
-static zone_really_inline uint64_t leading_zeroes(uint64_t mask)
+static really_inline uint64_t leading_zeroes(uint64_t mask)
 {
   return (uint64_t)__builtin_clzll(mask);
 }

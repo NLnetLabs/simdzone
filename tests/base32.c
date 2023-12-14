@@ -12,10 +12,10 @@
 #include <cmocka.h>
 
 #include "zone.h"
+#include "generic/endian.h"
 
 static int32_t add_rr(
   zone_parser_t *parser,
-  const zone_type_info_t *info,
   const zone_name_t *owner,
   uint16_t type,
   uint16_t class,
@@ -25,7 +25,6 @@ static int32_t add_rr(
   void *user_data)
 {
   (void)parser;
-  (void)info;
   (void)owner;
   (void)type;
   (void)class;
@@ -76,7 +75,9 @@ void base32_syntax(void **state)
 
     (void)snprintf(rr, sizeof(rr), rrfmt, tests[i].base32);
 
-    options.accept.add = add_rr;
+    fprintf(stderr, "INPUT: '%s'\n", rr);
+
+    options.accept.callback = add_rr;
     options.origin = "example.com.";
     options.default_ttl = 3600;
     options.default_class = ZONE_IN;

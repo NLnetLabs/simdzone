@@ -1,5 +1,5 @@
 /*
- * base32.h
+ * base32.h -- Fast Base32 decoder
  *
  * Copyright (c) 2023, Daniel Lemire and @aqrit.
  *
@@ -76,22 +76,23 @@ static size_t base32hex_avx(uint8_t *dst, const uint8_t *src) {
   return (size_t)(src - srcinit);
 }
 
-zone_nonnull_all
-static zone_really_inline int32_t parse_base32(
-  zone_parser_t *parser,
-  const zone_type_info_t *type,
-  const zone_field_info_t *field,
+nonnull_all
+static really_inline int32_t parse_base32(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
   const token_t *token)
 {
-  int32_t r;
+  size_t length = (token->length * 5) / 8;
+  if ((uintptr_t)rdata->limit - (uintptr_t)rdata->octets < length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  if ((r = have_contiguous(parser, type, field, token)) < 0)
-    return r;
-  size_t decoded = base32hex_avx(parser->rdata->octets+parser->rdata->length, (const uint8_t*)token->data);
-  if (is_contiguous((uint8_t)token->data[decoded]))
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), TNAME(type));
-  if (decoded)
-    parser->rdata->length += (decoded * 5) / 8;
-  return ZONE_STRING;
+  size_t decoded = base32hex_avx(rdata->octets, (const uint8_t*)token->data);
+  if (decoded != token->length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+  rdata->octets += length;
+  return 0;
 }
+
 #endif // BASE32_H
