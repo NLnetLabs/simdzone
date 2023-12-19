@@ -127,7 +127,7 @@ static const kernel_t *select_kernel(const char *name)
 
   if ((!name || !*name) && !(name = getenv("ZONE_KERNEL"))) {
     for (size_t i=0; !kernel && i < n; i++) {
-      if (kernel[i].instruction_set & supported)
+      if (kernels[i].instruction_set & supported)
         kernel = &kernels[i];
     }
     assert(kernel != NULL);
