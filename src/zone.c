@@ -127,7 +127,7 @@ static const kernel_t kernels[] = {
 #if HAVE_WESTMERE
   { "westmere", SSE42, &zone_westmere_parse },
 #endif
-  { "fallback", 0, &zone_fallback_parse }
+  { "fallback", DEFAULT, &zone_fallback_parse }
 };
 
 diagnostic_push()
@@ -150,7 +150,7 @@ select_kernel(void)
   }
 
   for (; count < length; count++)
-    if (!kernels[count].instruction_set || (kernels[count].instruction_set & supported))
+    if ((kernels[count].instruction_set & supported) == (kernels[count].instruction_set))
       return &kernels[count];
 
   return &kernels[length - 1];

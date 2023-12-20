@@ -58,7 +58,7 @@ static const kernel_t kernels[] = {
 #if HAVE_WESTMERE
   { "westmere", SSE42, &zone_bench_westmere_lex, &zone_westmere_parse },
 #endif
-  { "fallback", 0, &zone_bench_fallback_lex, &zone_fallback_parse }
+  { "fallback", DEFAULT, &zone_bench_fallback_lex, &zone_fallback_parse }
 };
 
 extern int32_t zone_open(
@@ -127,7 +127,7 @@ static const kernel_t *select_kernel(const char *name)
 
   if ((!name || !*name) && !(name = getenv("ZONE_KERNEL"))) {
     for (size_t i=0; !kernel && i < n; i++) {
-      if (kernels[i].instruction_set & supported)
+      if ((kernels[i].instruction_set & supported) == kernels[i].instruction_set)
         kernel = &kernels[i];
     }
     assert(kernel != NULL);
