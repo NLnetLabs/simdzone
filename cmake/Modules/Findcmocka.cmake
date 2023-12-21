@@ -33,17 +33,24 @@ else()
 
   if(CMOCKA_CMAKE_DIR MATCHES "[\\/]${_cmake}([\\/]+${_cmocka})?$")
     string(REGEX REPLACE "[\\/]+${_cmake}([\\/]+${_cmocka})?$" "" _dir "${CMOCKA_CMAKE_DIR}")
-    # cmocka-config.cmake on Windows initializes CMOCKA_INCLUDE_DIR and
-    # CMOCKA_LIBRARY with relative paths.
+    # cmocka-config.cmake on Windows sets CMOCKA_INCLUDE_DIR and
+    # CMOCKA_LIBRARY to relative paths.
     if(NOT IS_ABSOLUTE "${CMOCKA_INCLUDE_DIR}" AND
            EXISTS "${_dir}/${CMOCKA_INCLUDE_DIR}")
       get_filename_component(
         CMOCKA_INCLUDE_DIR "${_dir}/${CMOCKA_INCLUDE_DIR}" ABSOLUTE)
     endif()
+
     if(NOT IS_ABSOLUTE "${CMOCKA_LIBRARY}" AND
            EXISTS "${_dir}/${CMOCKA_LIBRARY}")
       get_filename_component(
         CMOCKA_LIBRARY "${_dir}/${CMOCKA_LIBRARY}" ABSOLUTE)
+    # cmocka-config.cmake on OpenBSD sets CMOCKA_LIBRARY to the non-existing
+    # path /usr/local/lib/libcmocka.so.
+    elseif (NOT EXISTS "${CMOCKA_LIBRARY}" AND
+		       "${CMOCKA_LIBRARY}" MATCHES "\.so$")
+      file(GLOB cmocka_so_files "${CMOCKA_LIBRARY}*")
+      list(GET cmocka_so_files 0 CMOCKA_LIBRARY)
     endif()
   endif()
 endif()
