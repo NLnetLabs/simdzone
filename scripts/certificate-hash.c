@@ -16,7 +16,7 @@ struct tuple {
   char name[8];
   uint8_t code;
 };
-i
+
 // https://www.iana.org/assignments/cert-rr-types/cert-rr-types.xhtml
 static const tuple_t algorithms[] = {
   { "PKIX", 1 },
