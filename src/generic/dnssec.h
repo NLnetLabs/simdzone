@@ -102,6 +102,7 @@ static const struct {
 // magic value generated using algorithm-hash.c
 static uint8_t algorithm_hash(uint64_t value)
 {
+  value = le64toh(value);
   uint32_t value32 = (uint32_t)((value >> 32) ^ value);
   return (uint8_t)((value32 * 29874llu) >> 32) & 0xf;
 }

@@ -105,6 +105,7 @@ static const int8_t zero_masks[48] = {
 
 static really_inline uint8_t hash(uint64_t prefix)
 {
+  prefix = le64toh(prefix);
   uint32_t value = (uint32_t)((prefix >> 32) ^ prefix);
   // magic value is generated using hash.c, rerun when adding types
   return (uint8_t)((value * 3523264710ull) >> 32);

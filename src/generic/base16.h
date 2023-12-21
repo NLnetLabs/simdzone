@@ -23,8 +23,6 @@ struct base16_state {
 
 #define BASE16_EOF 1
 
-#if BYTE_ORDER == LITTLE_ENDIAN
-
 static const uint32_t base16_table_dec_32bit_d0[256] = {
   256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256,
   256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256,
@@ -74,16 +72,6 @@ static const uint32_t base16_table_dec_32bit_d1[256] = {
   256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256,
   256, 256, 256, 256
 };
-
-#elif BYTE_ORDER == BIG_ENDIAN
-
-#error "generate table please!"
-
-#else
-
-#error "not implemented"
-
-#endif
 
 static really_inline int
 base16_dec_loop_generic_32_inner(

@@ -403,8 +403,8 @@ static int32_t parse_wks_rdata(
 
   take(parser, token);
   while (is_contiguous(token)) {
-    int32_t port = scan_service(token->data, token->length, protocol);
-    if (port == -1)
+    uint16_t port;
+    if (!scan_service(token->data, token->length, protocol, &port))
       SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&type->rdata.fields[2]), NAME(type));
 
     if (port > highest_port) {

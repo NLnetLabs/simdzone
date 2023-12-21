@@ -61,6 +61,7 @@ static const certificate_type_t *certificate_type_map[16] = {
 // magic value generated using certificate-hash.c
 static uint8_t certificate_hash(uint64_t value)
 {
+  value = le64toh(value);
   uint32_t value32 = (uint32_t)((value >> 32) ^ value);
   return (uint8_t)((value32 * 98112ull) >> 32) & 0xf;
 }
