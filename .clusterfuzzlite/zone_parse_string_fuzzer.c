@@ -20,11 +20,10 @@ static int32_t add_rr(zone_parser_t *parser, const zone_name_t *owner,
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-
   size_t size_of_input = size + ZONE_BLOCK_SIZE + 1;
   char *null_terminated = (char*)malloc(size_of_input);
   memcpy(null_terminated, data, size);
-  null_terminated[size_of_input-1] = '\0';
+  null_terminated[size] = '\0';
 
   zone_parser_t parser = {0};
   zone_name_buffer_t name;
