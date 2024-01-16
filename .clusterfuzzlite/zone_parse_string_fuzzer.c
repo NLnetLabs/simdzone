@@ -36,8 +36,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   options.default_ttl = 3600;
   options.default_class = 1;
 
-  zone_parse_string(&parser, &options, &buffers, null_terminated, size_of_input,
-                    NULL);
+  zone_parse_string(&parser, &options, &buffers, null_terminated, size, NULL);
 
   free(null_terminated);
   return 0;
