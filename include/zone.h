@@ -284,27 +284,6 @@ typedef void(*zone_log_t)(
   const char *, // message
   void *); // user data
 
-/**
- * @brief Write error message to active log handler.
- *
- * The zone parser operates on a per-record base and therefore cannot detect
- * errors that span records. e.g. SOA records being specified more than once.
- * The user may print a message using the active log handler, keeping the
- * error message format consistent.
- *
- * @param[in]  parser    Zone parser
- * @param[in]  category  Log category
- * @param[in]  format    Format string compatible with printf
- * @param[in]  ...       Variadic arguments corresponding to #format
- */
-ZONE_EXPORT void zone_log(
-  zone_parser_t *parser,
-  uint32_t category,
-  const char *format,
-  ...)
-zone_nonnull((1,3))
-zone_format_printf(3,4);
-
 typedef struct zone_name zone_name_t;
 struct zone_name {
   uint8_t length;
@@ -439,6 +418,82 @@ zone_parse_string(
   size_t length,
   void *user_data)
 zone_nonnull((1,2,3,4));
+
+/**
+ * @brief Write error message to active log handler.
+ *
+ * The zone parser operates on a per-record base and therefore cannot detect
+ * errors that span records. e.g. SOA records being specified more than once.
+ * The user may print a message using the active log handler, keeping the
+ * error message format consistent.
+ *
+ * @param[in]  parser    Zone parser
+ * @param[in]  category  Log category
+ * @param[in]  format    Format string compatible with printf
+ * @param[in]  ...       Variadic arguments corresponding to #format
+ */
+ZONE_EXPORT void zone_log(
+  zone_parser_t *parser,
+  uint32_t category,
+  const char *format,
+  ...)
+zone_nonnull((1,3))
+zone_format_printf(3,4);
+
+/**
+ * @brief Write error message to active log handler.
+ *
+ * @param[in]  parser     Zone parser
+ * @param[in]  category   Log category
+ * @param[in]  format     Format string compatible with printf
+ * @param[in]  arguments  Argument list
+ */
+ZONE_EXPORT void zone_vlog(
+  zone_parser_t *parser,
+  uint32_t category,
+  const char *format,
+  va_list arguments)
+zone_nonnull((1,3));
+
+ZONE_EXPORT inline void
+zone_nonnull((1,2))
+zone_format_printf(2,3)
+zone_error(zone_parser_t *parser, const char *format, ...)
+{
+  if (!(parser->options.log.categories & ZONE_ERROR))
+    return;
+  va_list arguments;
+  va_start(arguments, format);
+  zone_vlog(parser, ZONE_ERROR, format, arguments);
+  va_end(arguments);
+}
+
+ZONE_EXPORT inline void
+zone_nonnull((1,2))
+zone_format_printf(2,3)
+zone_warning(zone_parser_t *parser, const char *format, ...)
+{
+  if (!(parser->options.log.categories & ZONE_WARNING))
+    return;
+  va_list arguments;
+  va_start(arguments, format);
+  zone_vlog(parser, ZONE_WARNING, format, arguments);
+  va_end(arguments);
+}
+
+ZONE_EXPORT inline void
+zone_nonnull((1,2))
+zone_format_printf(2,3)
+zone_info(zone_parser_t *parser, const char *format, ...)
+{
+  if (!(parser->options.log.categories & ZONE_INFO))
+    return;
+  va_list arguments;
+  va_start(arguments, format);
+  zone_vlog(parser, ZONE_INFO, format, arguments);
+  va_end(arguments);
+}
+
 
 #if defined(__cplusplus)
 }
