@@ -421,9 +421,6 @@ static void print_message(
   fprintf(output, format, parser->file->name, parser->file->line, message);
 }
 
-diagnostic_push()
-clang_diagnostic_ignored(missing-prototypes)
-
 void zone_vlog(
   zone_parser_t *parser,
   uint32_t category,
@@ -444,8 +441,6 @@ void zone_vlog(
   callback(parser, category, message, parser->user_data);
 }
 
-diagnostic_pop()
-
 void zone_log(
   zone_parser_t *parser,
   uint32_t category,
@@ -461,3 +456,12 @@ void zone_log(
   zone_vlog(parser, category, format, arguments);
   va_end(arguments);
 }
+
+extern inline void
+zone_error(zone_parser_t *parser, const char *format, ...);
+
+extern inline void
+zone_warning(zone_parser_t *parser, const char *format, ...);
+
+extern inline void
+zone_info(zone_parser_t *parser, const char *format, ...);
