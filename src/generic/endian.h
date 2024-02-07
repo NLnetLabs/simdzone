@@ -1,5 +1,5 @@
 /*
- * endian.h
+ * endian.h -- byte order abstractions
  *
  * Copyright (c) 2023, NLnet Labs.
  *
@@ -12,9 +12,9 @@
 #if _MSC_VER
 #include <stdlib.h>
 
-#define BYTE_ORDER @CMAKE_C_BYTE_ORDER@
 #define LITTLE_ENDIAN 1234
 #define BIG_ENDIAN 4321
+#define BYTE_ORDER LITTLE_ENDIAN
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define htobe16(x) _byteswap_ushort(x)
