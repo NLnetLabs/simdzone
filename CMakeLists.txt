@@ -225,9 +225,6 @@ foreach(match ${matches})
 endforeach()
 
 file(GENERATE OUTPUT config.h CONTENT "${template}")
-# FIXME: we'll need to port this over to autoconf as well
-configure_file(src/generic/endian.h.in generic/endian.h @ONLY)
-
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
