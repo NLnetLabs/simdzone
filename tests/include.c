@@ -152,6 +152,9 @@ static int32_t add_rr(
   return ZONE_SUCCESS;
 }
 
+static uint8_t origin[] =
+  { 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0 };
+
 /*!cmocka setup:setup teardown:teardown */
 void include_from_string(void **state)
 {
@@ -164,7 +167,8 @@ void include_from_string(void **state)
   int32_t result;
 
   options.accept.callback = &add_rr;
-  options.origin = "example.com.";
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
   options.default_ttl = 3600;
   options.default_class = ZONE_IN;
 

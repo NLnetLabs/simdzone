@@ -36,6 +36,9 @@ static int32_t add_rr(
 
 static const uint8_t address_192_0_2_1[] = { 192, 0, 2, 1 };
 
+static uint8_t origin[] =
+  { 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0 };
+
 /*!cmocka */
 void ipv4_syntax(void **state)
 {
@@ -89,7 +92,8 @@ void ipv4_syntax(void **state)
     (void)snprintf(rr, sizeof(rr), " A %s", tests[i].address);
 
     options.accept.callback = add_rr;
-    options.origin = "example.com.";
+    options.origin.octets = origin;
+    options.origin.length = sizeof(origin);
     options.default_ttl = 3600;
     options.default_class = ZONE_IN;
 
