@@ -457,11 +457,11 @@ void zone_log(
   va_end(arguments);
 }
 
-extern inline void
+ZONE_EXPORT extern inline void
 zone_error(zone_parser_t *parser, const char *format, ...);
 
-extern inline void
+ZONE_EXPORT extern inline void
 zone_warning(zone_parser_t *parser, const char *format, ...);
 
-extern inline void
+ZONE_EXPORT extern inline void
 zone_info(zone_parser_t *parser, const char *format, ...);
