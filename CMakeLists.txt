@@ -132,7 +132,7 @@ endif()
 
 add_library(zone STATIC)
 if(WIN32)
-  target_link_libraries(zone INTERFACE ws2_32)
+  target_link_libraries(zone INTERFACE shlwapi)
 endif()
 
 generate_export_header(

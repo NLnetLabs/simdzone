@@ -16,6 +16,7 @@
 #include <limits.h>
 #if _WIN32
 # include <Windows.h>
+# include <shlwapi.h>
 #endif
 
 #include "zone.h"
@@ -143,29 +144,67 @@ nonnull_all
 static int32_t open_file(
   parser_t *parser, zone_file_t *file, const char *path, size_t length)
 {
+  char *abs = NULL;
+
   (void)parser;
 
   if (!(file->name = strndup(path, length)))
     return ZONE_OUT_OF_MEMORY;
 
+  const char *rel = file->name;
+
 #if _WIN32
   char buf[1];
-  DWORD size = GetFullPathName(file->name, sizeof(buf), buf, NULL);
+  // relative include paths are relative to including file
+  if (file != &parser->first && PathIsRelative(path)) {
+    assert(parser->file->path != not_a_file);
+    assert(parser->file->handle != NULL);
+    const char *dir = parser->file->path;
+    int dirlen = 0;
+    for (int i = 0; i < INT32_MAX && dir[i]; i++) {
+      if (dir[i] == '/' || dir[i] == '\\')
+        dirlen = i + 1;
+    }
+    int len;
+    len = snprintf(buf, sizeof(buf), "%.*s\\%s", dirlen, dir, file->name);
+    assert(len != -1);
+    if (!(abs = malloc(len + 1)))
+      return ZONE_READ_ERROR;
+    (void)snprintf(abs, len + 1, "%.*s\\%s", dirlen, dir, file->name);
+    rel = abs;
+  }
+  DWORD size = GetFullPathName(rel, sizeof(buf), buf, NULL);
   if (!size)
-    return ZONE_READ_ERROR;
+    goto read_error;
   if (!(file->path = malloc(size)))
-    return ZONE_OUT_OF_MEMORY;
-  if (!(length = GetFullPathName(file->name, size, file->path, NULL)))
-    return ZONE_READ_ERROR;
-  if (length != size - 1)
-    return ZONE_READ_ERROR;
+    goto out_of_memory;
+  (void)GetFullPathName(rel, size, file->path, NULL);
 #else
   char buf[PATH_MAX];
-  if (!realpath(file->name, buf))
-    return ZONE_READ_ERROR;
+  if (file != &parser->first && path[0] != '/') {
+    assert(parser->file->path != not_a_file);
+    assert(parser->file->handle != NULL);
+    const char *dir = parser->file->path;
+    int dirlen = 0;
+    for (int i = 0; i < INT32_MAX && dir[i]; i++) {
+      if (dir[i] == '/')
+        dirlen = i + 1;
+    }
+    int len;
+    len = snprintf(buf, sizeof(buf), "%.*s/%s", dirlen, dir, file->name);
+    if (!(abs = malloc((size_t)len + 1)))
+      return ZONE_OUT_OF_MEMORY;
+    (void)snprintf(abs, (size_t)len + 1, "%.*s/%s", dirlen, dir, file->name);
+    rel = abs;
+  }
+  if (!realpath(rel, buf))
+    goto read_error;
   if (!(file->path = strdup(buf)))
-    return ZONE_OUT_OF_MEMORY;
+    goto out_of_memory;
 #endif
+  if (abs)
+    free(abs);
+  abs = NULL;
 
   if (!(file->handle = fopen(file->path, "rb")))
     switch (errno) {
@@ -192,6 +231,12 @@ static int32_t open_file(
   file->lines.head = file->lines.tape;
   file->lines.tail = file->lines.tape;
   return 0;
+read_error:
+  if (abs) free(abs);
+  return ZONE_READ_ERROR;
+out_of_memory:
+  if (abs) free(abs);
+  return ZONE_OUT_OF_MEMORY;
 }
 
 diagnostic_pop()
