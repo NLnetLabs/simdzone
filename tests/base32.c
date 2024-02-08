@@ -35,9 +35,11 @@ static int32_t add_rr(
   return ZONE_SUCCESS;
 }
 
-static const uint8_t foobar[] = {
-  'f', 'o', 'o', 'b', 'a', 'r'
-};
+static const uint8_t foobar[] =
+  { 'f', 'o', 'o', 'b', 'a', 'r' };
+
+static uint8_t origin[] =
+  { 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0 };
 
 /*!cmocka */
 void base32_syntax(void **state)
@@ -78,7 +80,8 @@ void base32_syntax(void **state)
     fprintf(stderr, "INPUT: '%s'\n", rr);
 
     options.accept.callback = add_rr;
-    options.origin = "example.com.";
+    options.origin.octets = origin;
+    options.origin.length = sizeof(origin);
     options.default_ttl = 3600;
     options.default_class = ZONE_IN;
 

@@ -314,8 +314,8 @@ typedef struct {
   bool no_includes;
   /** Enable 1h2m3s notations for TTLS. */
   bool pretty_ttls;
-  // FIXME: require origin to be in wire format? (#115)
-  const char *origin;
+  /** Origin in wire format. */
+  zone_name_t origin;
   uint32_t default_ttl;
   uint16_t default_class;
   struct {

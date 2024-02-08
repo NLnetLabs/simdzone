@@ -47,56 +47,24 @@ static int32_t check_options(const zone_options_t *options)
 {
   if (!options->accept.callback)
     return ZONE_BAD_PARAMETER;
-  if (!options->origin)
-    return ZONE_BAD_PARAMETER;
   if (!options->default_ttl || options->default_ttl > INT32_MAX)
     return ZONE_BAD_PARAMETER;
+  if (!options->origin.octets || !options->origin.length)
+    return ZONE_BAD_PARAMETER;
 
-  // makes no sense?!?!
-  switch (options->default_class) {
-    case ZONE_IN:
-    case ZONE_CS:
-    case ZONE_CH:
-    case ZONE_HS:
-      break;
-    default:
+  const uint8_t *root = &options->origin.octets[options->origin.length - 1];
+  if (root[0] != 0)
+    return ZONE_BAD_PARAMETER;
+  const uint8_t *label = &options->origin.octets[0];
+  while (label < root) {
+    if (root - label < label[0])
       return ZONE_BAD_PARAMETER;
+    label += label[0] + 1;
   }
 
-  return 0;
-}
+  if (label != root)
+    return ZONE_BAD_PARAMETER;
 
-// FIXME: replace with parser from fallback
-static int parse_origin(const char *origin, uint8_t str[255], size_t *len)
-{
-  size_t lab = 0, oct = 1;
-
-  assert(origin);
-
-  for (size_t i=0; ; i++) {
-    char chr = origin[i];
-    if (oct >= 255)
-      return -1;
-
-    if (chr == '.' || chr == '\0') {
-      if (oct - 1 == lab && lab > 0 && chr != '\0')
-        return -1;
-      else if ((oct - lab) - 1 > 63)
-        return -1;
-      str[lab] = (uint8_t)((oct - lab) - 1);
-      if (chr != '.')
-        break;
-      lab = oct++;
-      str[lab] = 0;
-    } else {
-      str[oct++] = chr & 0xff;
-    }
-  }
-
-  if (str[lab] != 0)
-    return -1;
-
-  *len = oct;
   return 0;
 }
 
@@ -315,10 +283,8 @@ int32_t zone_open(
   file = parser->file = &parser->first;
   if ((result = open_file(parser, file, path, strlen(path))) < 0)
     goto error;
-  if (parse_origin(options->origin, file->origin.octets, &file->origin.length) < 0) {
-    result = ZONE_BAD_PARAMETER;
-    goto error;
-  }
+  memcpy(file->origin.octets, options->origin.octets, options->origin.length);
+  file->origin.length = options->origin.length;
   parser->buffers.size = buffers->size;
   parser->buffers.owner.serial = 0;
   parser->buffers.owner.blocks = buffers->owner;
@@ -372,9 +338,8 @@ int32_t zone_parse_string(
   parser->options = *options;
   parser->user_data = user_data;
   file = parser->file = &parser->first;
-  if ((result = parse_origin(options->origin, file->origin.octets, &file->origin.length)) < 0)
-    return result;
-
+  memcpy(file->origin.octets, options->origin.octets, options->origin.length);
+  file->origin.length = options->origin.length;
   file->name = (char *)not_a_file;
   file->path = (char *)not_a_file;
   file->handle = NULL;

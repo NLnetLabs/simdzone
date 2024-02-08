@@ -172,6 +172,8 @@ static void usage(const char *program)
   exit(EXIT_FAILURE);
 }
 
+static uint8_t root[] = { 0 };
+
 int main(int argc, char *argv[])
 {
   const char *name = NULL, *program = argv[0];
@@ -215,7 +217,8 @@ int main(int argc, char *argv[])
   zone_buffers_t buffers = { 1, &owner, &rdata };
 
   options.accept.callback = &bench_accept;
-  options.origin = ".";
+  options.origin.octets = root;
+  options.origin.length = 1;
   options.default_ttl = 3600;
   options.default_class = ZONE_IN;
 
