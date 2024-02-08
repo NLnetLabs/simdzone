@@ -11,17 +11,7 @@ HASWELL = @HAVE_HASWELL@
 CPPFLAGS = @CPPFLAGS@ -I./include -I./src -I.
 CFLAGS = @CFLAGS@
 
-SOURCES = src/zone.c \
-          src/types.c \
-          src/table.c \
-          src/log.c \
-          src/parser.c \
-          src/lexer.c \
-          src/heap.c \
-          src/generic/base16.c \
-          src/generic/base32.c \
-          src/generic/base64.c \
-          src/fallback/parser.c
+SOURCES = src/zone.c src/fallback/parser.c
 
 OBJECTS = $(SOURCES:.c=.o)
 NO_OBJECTS =
