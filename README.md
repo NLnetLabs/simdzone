@@ -16,8 +16,8 @@ The format is originally defined in [RFC1035 section 5][rfc1035-section-5] and
 intentionally extensible, the format has been extended over time too.
 
 This project provides a lightning fast presentation format deserializer (and
-serializer eventually) for other projects to leverage. e.g. [NSD][nsd], will
-use it to read zone files and serialized zone transfers.
+serializer eventually) for other projects to leverage. Learn more about
+simdzone bu reading the [documentation](https://nlnetlabs.github.io/simdzone/).
 
 ## Motivation
 Zone files can become quite large (.com ~24G, .se ~1.3G) and the parser in
