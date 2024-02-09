@@ -287,7 +287,7 @@ typedef void(*zone_log_t)(
 typedef struct zone_name zone_name_t;
 struct zone_name {
   uint8_t length;
-  uint8_t *octets;
+  const uint8_t *octets;
 };
 
 // invoked for each resource record (host order). header (owner, type, class and ttl)
