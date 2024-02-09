@@ -1,0 +1,34 @@
+name: deploy-manual
+
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  deploy-manual:
+    if: github.repository == 'NLnetLabs/simdzone'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          sudo apt-get install -y doxygen python3-sphinx python3-sphinx-rtd-theme python3-breathe python3-sphinx-tabs python3-sphinx-copybutton python3-sphinx-notfound-page
+      - run: |
+          set -e -x
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOCUMENTATION=on ..
+          cmake --build . --target manual
+          #mv manual _site
+          #tar -c -f github-pages _site
+          #mv github-pages ../
+          #- run: |
+          #ls -als
+      - uses: actions/upload-pages-artifact@v3.0.0
+        with:
+          path: build/manual
+      - uses: actions/deploy-pages@main
