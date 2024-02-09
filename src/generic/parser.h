@@ -935,9 +935,9 @@ static really_inline int32_t take_delimiter(
   token->code = (int32_t)classify[ (uint8_t)**parser->file->fields.head ];
   if (likely(token->code == LINE_FEED)) {
     if (unlikely(parser->file->grouped || token->data == line_feed))
-      parser->file->span += *parser->file->lines.head++;
+      return maybe_take_delimiter(parser, type, token);
     token->length = 1;
-    parser->file->line = 1 + parser->file->span;
+    parser->file->line += 1 + parser->file->span;
     parser->file->span = 0;
     parser->file->start_of_line = classify[ (uint8_t)*(*parser->file->fields.head+1) ] != BLANK;
     parser->file->fields.head++;
