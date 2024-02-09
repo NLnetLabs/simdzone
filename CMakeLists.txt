@@ -232,7 +232,7 @@ endif()
 
 if(BUILD_DOCUMENTATION)
   set(DOXYGEN_GENERATE_HTML YES)
-  set(DOXYGEN_GENERATE_XML NO)
+  set(DOXYGEN_GENERATE_XML YES)
   set(DOXYGEN_STRIP_FROM_PATH "include")
   set(DOXYGEN_MACRO_EXPANSION YES)
   set(DOXYGEN_PREDEFINED
@@ -246,5 +246,13 @@ if(BUILD_DOCUMENTATION)
     "experimental=<b>(EXPERIMENTAL)</b>")
   set(DOXYGEN_VERBATIM_VARS DOXYGEN_ALIASES)
   find_package(Doxygen REQUIRED)
-  doxygen_add_docs(doxygen include)
+  doxygen_add_docs(doxygen include) # doxygen_add_docs is available since 3.9
+
+  # Build target by issuing: cmake --build . --target manual
+  find_package(Sphinx REQUIRED breathe)
+  sphinx_add_docs(
+    manual
+    BREATHE_PROJECTS doxygen
+    BUILDER html
+    SOURCE_DIRECTORY doc/manual)
 endif()

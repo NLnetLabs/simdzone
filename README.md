@@ -60,6 +60,7 @@ Make sure the following tools are installed:
   * C toolchain (the set of tools to compile C code)
   * [cmocka](https://cmocka.org/) (if configured with `-DBUILD_TESTING=on`)
   * [Doxygen](https://www.doxygen.nl/) (if configured with `-DBUILD_DOCUMENTATION=on`)
+  * [Sphinx](https://www.sphinx-doc.org/en/master/) (if configured with `-DBUILD_DOCUMENTATION=on`)
 
 To compile in release mode:
 ```
@@ -77,15 +78,6 @@ $ mkdir build
 $ cd build
 $ cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=on ..
 $ cmake --build .
-```
-
-To build documentation:
-```
-$ cd zone-parser
-$ mkdir build
-$ cd build
-$ cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOCUMENTATION=on ..
-$ cmake --build . --target doxygen
 ```
 
 ## Contributing
