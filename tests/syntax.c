@@ -74,6 +74,8 @@ void newlines(void **state)
     PAD("1. TXT \"foo bar\"\n2. TXT \"foo baz\"");
   static const char control_lf_text[] =
     PAD("$TTL 3600\n1. TXT \"foo bar\"\n2. TXT \"foo baz\"");
+  static const char blank_lf_text[] =
+    PAD("\n1. TXT \"foo bar\"\n\n2. TXT \"foo baz\"");
 
   static const uint8_t origin[] = { 0 };
 
@@ -83,7 +85,8 @@ void newlines(void **state)
 #endif
     { grouped_lf_text, { 1, 5 } },
     { plain_lf_text, { 1, 2 } },
-    { control_lf_text, { 2, 3 } }
+    { control_lf_text, { 2, 3 } },
+    { blank_lf_text, { 2, 4 } }
   };
 
   (void)state;

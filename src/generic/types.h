@@ -204,6 +204,13 @@ static really_inline int32_t check(size_t *length, ssize_t count)
 }
 
 nonnull_all
+static really_inline void adjust_line_count(file_t *file)
+{
+  file->line += file->span;
+  file->span = 0;
+}
+
+nonnull_all
 static really_inline int32_t accept_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
@@ -230,9 +237,7 @@ static really_inline int32_t accept_rr(
   //  return result;
   //parser->rdata = &parser->buffers.rdata.blocks[result];
 
-  // increase line count after invoking callback only
-  parser->file->line += parser->file->span;
-  parser->file->span = 0;
+  adjust_line_count(parser->file);
   return code;
 }
 
