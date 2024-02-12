@@ -288,8 +288,7 @@ static really_inline int32_t parse_dollar_include(
     SYNTAX_ERROR(parser, "Circular include in %s", NAME(&include));
   } while ((includer = includer->includer));
 
-  parser->file->line += parser->file->span;
-  parser->file->span = 0;
+  adjust_line_count(parser->file);
   parser->file = file;
   return 0;
 }
@@ -311,8 +310,7 @@ static inline int32_t parse_dollar_origin(
   if ((code = take_delimiter(parser, &origin, token)) < 0)
     return code;
 
-  parser->file->line += parser->file->span;
-  parser->file->span = 0;
+  adjust_line_count(parser->file);
   return code;
 }
 
@@ -336,8 +334,7 @@ static really_inline int32_t parse_dollar_ttl(
     return code;
 
   parser->file->last_ttl = parser->file->default_ttl;
-  parser->file->line += parser->file->span;
-  parser->file->span = 0;
+  adjust_line_count(parser->file);
   return 0;
 }
 
@@ -364,6 +361,9 @@ static inline int32_t parse(parser_t *parser)
     } else if (is_end_of_file(&token)) {
       if (parser->file->end_of_file == ZONE_NO_MORE_DATA)
         break;
+    } else {
+      assert(token.code == LINE_FEED);
+      adjust_line_count(parser->file);
     }
   }
 
