@@ -288,6 +288,8 @@ static really_inline int32_t parse_dollar_include(
     SYNTAX_ERROR(parser, "Circular include in %s", NAME(&include));
   } while ((includer = includer->includer));
 
+  parser->file->line += parser->file->span;
+  parser->file->span = 0;
   parser->file = file;
   return 0;
 }
@@ -306,8 +308,12 @@ static inline int32_t parse_dollar_origin(
     return code;
   if (scan_name(token->data, token->length, parser->file->origin.octets, &parser->file->origin.length) != 0)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[0]), NAME(&origin));
+  if ((code = take_delimiter(parser, &origin, token)) < 0)
+    return code;
 
-  return take_delimiter(parser, &origin, token);
+  parser->file->line += parser->file->span;
+  parser->file->span = 0;
+  return code;
 }
 
 // RFC2308 section 4
@@ -326,10 +332,13 @@ static really_inline int32_t parse_dollar_ttl(
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[0]), NAME(&ttl));
   if (parser->file->default_ttl & (1u << 31))
     SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(&fields[0]), NAME(&ttl));
+  if ((code = take_delimiter(parser, &ttl, token)) < 0)
+    return code;
 
   parser->file->last_ttl = parser->file->default_ttl;
-
-  return take_delimiter(parser, &ttl, token);
+  parser->file->line += parser->file->span;
+  parser->file->span = 0;
+  return 0;
 }
 
 static inline int32_t parse(parser_t *parser)
