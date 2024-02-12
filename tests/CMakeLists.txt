@@ -1,5 +1,5 @@
 find_package(cmocka REQUIRED)
-cmocka_add_tests(zone-tests types.c include.c ip4.c time.c base32.c svcb.c)
+cmocka_add_tests(zone-tests types.c include.c ip4.c time.c base32.c svcb.c syntax.c)
 
 target_link_libraries(zone-tests PRIVATE zone)
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")

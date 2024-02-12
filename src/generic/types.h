@@ -229,6 +229,10 @@ static really_inline int32_t accept_rr(
   //if (result < 0)
   //  return result;
   //parser->rdata = &parser->buffers.rdata.blocks[result];
+
+  // increase line count after invoking callback only
+  parser->file->line += parser->file->span;
+  parser->file->span = 0;
   return code;
 }
 
