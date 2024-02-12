@@ -405,8 +405,6 @@ static never_inline void maybe_take(parser_t *parser, token_t *token)
       parser->file->fields.head++;
       if (unlikely(parser->file->grouped))
         continue;
-      parser->file->line += parser->file->span;
-      parser->file->span = 0;
       parser->file->start_of_line = classify[ (uint8_t)*(token->data+1) ] != BLANK;
       token->length = 1;
       return;
@@ -470,8 +468,6 @@ static really_inline void take(parser_t *parser, token_t *token)
       parser->file->fields.head++;
       if (unlikely(parser->file->grouped))
         continue;
-      parser->file->line += parser->file->span;
-      parser->file->span = 0;
       parser->file->start_of_line = classify[ (uint8_t)*(token->data+1) ] != BLANK;
       token->length = 1;
       return;
@@ -885,8 +881,7 @@ static never_inline int32_t maybe_take_delimiter(
         parser->file->fields.head++;
       } else {
         token->length = 1;
-        parser->file->line += 1 + parser->file->span;
-        parser->file->span = 0;
+        parser->file->span++;
         parser->file->start_of_line = classify[ (uint8_t)*(token->data+1) ] != BLANK;
         return 0;
       }
@@ -937,8 +932,7 @@ static really_inline int32_t take_delimiter(
     if (unlikely(parser->file->grouped || token->data == line_feed))
       return maybe_take_delimiter(parser, type, token);
     token->length = 1;
-    parser->file->line += 1 + parser->file->span;
-    parser->file->span = 0;
+    parser->file->span++;
     parser->file->start_of_line = classify[ (uint8_t)*(*parser->file->fields.head+1) ] != BLANK;
     parser->file->fields.head++;
     return 0;
