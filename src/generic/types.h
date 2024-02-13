@@ -292,7 +292,7 @@ static int32_t parse_ns_rdata(
   int32_t code;
   const rdata_info_t *fields = type->rdata.fields;
 
-  if ((code = have_contiguous_or_quoted(parser, type, &fields[0], token)) < 0)
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[0], rdata, token)) < 0)
     return code;
@@ -332,11 +332,11 @@ static int32_t parse_soa_rdata(
   int32_t code;
   const rdata_info_t *fields = type->rdata.fields;
 
-  if ((code = have_contiguous_or_quoted(parser, type, &fields[0], token)) < 0)
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[0], rdata, token)) < 0)
     return code;
-  if ((code = take_contiguous_or_quoted(parser, type, &fields[1], token)) < 0)
+  if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[1], rdata, token)) < 0)
     return code;
@@ -501,11 +501,11 @@ static int32_t parse_minfo_rdata(
   int32_t code;
   const rdata_info_t *fields = type->rdata.fields;
 
-  if ((code = have_contiguous_or_quoted(parser, type, &fields[0], token)) < 0)
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[0], rdata, token)) < 0)
     return code;
-  if ((code = take_contiguous_or_quoted(parser, type, &fields[1], token)) < 0)
+  if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[1], rdata, token)) < 0)
     return code;
@@ -703,7 +703,7 @@ static int32_t parse_rt_rdata(
     return code;
   if ((code = parse_int16(parser, type, &fields[0], rdata, token)) < 0)
     return code;
-  if ((code = take_contiguous_or_quoted(parser, type, &fields[1], token)) < 0)
+  if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[1], rdata, token)) < 0)
     return code;
@@ -790,7 +790,7 @@ static int32_t parse_nsap_ptr_rdata(
   int32_t code;
   const rdata_info_t *fields = type->rdata.fields;
 
-  if ((code = have_contiguous_or_quoted(parser, type, &fields[0], token)) < 0)
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[0], rdata, token)) < 0)
     return code;
@@ -882,11 +882,11 @@ static int32_t parse_px_rdata(
     return code;
   if ((code = parse_int16(parser, type, &fields[0], rdata, token)) < 0)
     return code;
-  if ((code = take_contiguous_or_quoted(parser, type, &fields[1], token)) < 0)
+  if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[1], rdata, token)) < 0)
     return code;
-  if ((code = take_contiguous_or_quoted(parser, type, &fields[2], token)) < 0)
+  if ((code = take_contiguous(parser, type, &fields[2], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[2], rdata, token)) < 0)
     return code;
@@ -1117,7 +1117,7 @@ static int32_t parse_nxt_rdata(
   int32_t code;
   const rdata_info_t *fields = type->rdata.fields;
 
-  if ((code = have_contiguous_or_quoted(parser, type, &fields[0], token)) < 0)
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[0], rdata, token)) < 0)
     return code;
@@ -1168,7 +1168,7 @@ static int32_t parse_srv_rdata(
     return code;
   if ((code = parse_int16(parser, type, &fields[2], rdata, token)) < 0)
     return code;
-  if ((code = take_contiguous_or_quoted(parser, type, &fields[3], token)) < 0)
+  if ((code = take_contiguous(parser, type, &fields[3], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[3], rdata, token)) < 0)
     return code;
@@ -1213,7 +1213,7 @@ static int32_t parse_naptr_rdata(
     return code;
   if ((code = parse_string(parser, type, &fields[4], rdata, token)) < 0)
     return code;
-  if ((code = take_contiguous_or_quoted(parser, type, &fields[5], token)) < 0)
+  if ((code = take_contiguous(parser, type, &fields[5], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[5], rdata, token)) < 0)
     return code;
@@ -1504,28 +1504,24 @@ static int32_t parse_ipseckey_rdata(
     return code;
   if ((code = parse_int8(parser, type, &fields[2], rdata, token)) < 0)
     return code;
+  if ((code = take_contiguous(parser, type, &fields[3], token)) < 0)
+    return code;
 
   switch (octets[1]) {
     case 1: /* IPv4 address */
       type = (const type_info_t *)ipseckey_ipv4;
       fields = type->rdata.fields;
-      if ((code = take_contiguous(parser, type, &fields[3], token)) < 0)
-        return code;
       if ((code = parse_ip4(parser, type, &fields[3], rdata, token)) < 0)
         return code;
       break;
     case 2: /* IPv6 address */
       type = (const type_info_t *)ipseckey_ipv6;
       fields = type->rdata.fields;
-      if ((code = take_contiguous(parser, type, &fields[3], token)) < 0)
-        return code;
       if ((code = parse_ip6(parser, type, &fields[3], rdata, token)) < 0)
         return code;
       break;
     case 0: /* no gateway */
     case 3: /* domain name */
-      if ((code = take_contiguous_or_quoted(parser, type, &fields[3], token)) < 0)
-        return code;
       if ((code = parse_name(parser, type, &fields[3], rdata, token)) < 0)
         return code;
       break;
@@ -1608,7 +1604,7 @@ static int32_t parse_rrsig_rdata(
     return code;
   if ((code = parse_int16(parser, type, &fields[6], rdata, token)) < 0)
     return code;
-  if ((code = take_contiguous_or_quoted(parser, type, &fields[7], token)) < 0)
+  if ((code = take_contiguous(parser, type, &fields[7], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[7], rdata, token)) < 0)
     return code;
@@ -1645,7 +1641,7 @@ static int32_t parse_nsec_rdata(
   int32_t code;
   const rdata_info_t *fields = type->rdata.fields;
 
-  if ((code = have_contiguous_or_quoted(parser, type, &fields[0], token)) < 0)
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[0], rdata, token)) < 0)
     return code;
@@ -1928,7 +1924,7 @@ static int32_t parse_hip_rdata(
   memcpy(&octets[2], &pk_length, sizeof(pk_length));
 
   take(parser, token);
-  while (is_contiguous_or_quoted(token)) {
+  while (is_contiguous(token)) {
     if ((code = parse_name(parser, type, &fields[5], rdata, token)) < 0)
       return code;
     take(parser, token);
@@ -2061,7 +2057,7 @@ static int32_t parse_svcb_rdata(
     return code;
   if ((code = parse_int16(parser, type, &fields[0], rdata, token)) < 0)
     return code;
-  if ((code = take_contiguous_or_quoted(parser, type, &fields[1], token)) < 0)
+  if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[1], rdata, token)) < 0)
     return code;
@@ -2090,7 +2086,7 @@ static int32_t parse_https_rdata(
     return code;
   if ((code = parse_int16(parser, type, &fields[0], rdata, token)) < 0)
     return code;
-  if ((code = take_contiguous_or_quoted(parser, type, &fields[1], token)) < 0)
+  if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
     return code;
   if ((code = parse_name(parser, type, &fields[1], rdata, token)) < 0)
     return code;
