@@ -147,7 +147,7 @@ escaped:
     octets[label] = (uint8_t)(length - label);
   } while (left && length < 255);
 
-  if (length > 255)
+  if (length >= 255)
     return -1;
 
   *lengthp = length + 1;
