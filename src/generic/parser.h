@@ -365,6 +365,13 @@ static really_inline bool is_delimiter(const token_t *token)
 
 nonnull_all
 warn_unused_result
+static really_inline bool is_line_feed(const token_t *token)
+{
+  return token->code == LINE_FEED;
+}
+
+nonnull_all
+warn_unused_result
 static really_inline bool is_end_of_file(const token_t *token)
 {
   return token->code == 0;

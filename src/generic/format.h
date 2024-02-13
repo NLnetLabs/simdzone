@@ -47,30 +47,19 @@ static really_inline int32_t parse_name(
 {
   size_t length = 0;
 
-  if (likely(is_contiguous(token))) {
-    // a freestanding "@" denotes the current origin
-    if (token->length == 1 && token->data[0] == '@')
+  assert(is_contiguous(token));
+
+  // a freestanding "@" denotes the current origin
+  if (unlikely(token->length == 1 && token->data[0] == '@'))
+    goto relative;
+  switch (scan_name(token->data, token->length, rdata->octets, &length)) {
+    case 0:
+      rdata->octets += length;
+      return 0;
+    case 1:
       goto relative;
-    switch (scan_name(token->data, token->length, rdata->octets, &length)) {
-      case 0:
-        rdata->octets += length;
-        return 0;
-      case 1:
-        goto relative;
-    }
-  } else if (is_quoted(token)) {
-    if (token->length == 0)
-      goto invalid;
-    switch (scan_name(token->data, token->length, rdata->octets, &length)) {
-      case 0:
-        rdata->octets += length;
-        return 0;
-      case 1:
-        goto relative;
-    }
   }
 
-invalid:
   SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
 relative:
@@ -91,33 +80,20 @@ static really_inline int32_t parse_owner(
   size_t length = 0;
   uint8_t *octets = parser->file->owner.octets;
 
-  if (likely(is_contiguous(token))) {
-    // a freestanding "@" denotes the origin
-    if (token->length == 1 && token->data[0] == '@')
+  assert(is_contiguous(token));
+
+  // a freestanding "@" denotes the origin
+  if (unlikely(token->length == 1 && token->data[0] == '@'))
+    goto relative;
+  switch (scan_name(token->data, token->length, octets, &length)) {
+    case 0:
+      parser->file->owner.length = length;
+      parser->owner = &parser->file->owner;
+      return 0;
+    case 1:
       goto relative;
-    switch (scan_name(token->data, token->length, octets, &length)) {
-      case 0:
-        parser->file->owner.length = length;
-        parser->owner = &parser->file->owner;
-        return 0;
-      case 1:
-        goto relative;
-    }
-  } else {
-    assert(is_quoted(token));
-    if (token->length == 0)
-      goto invalid;
-    switch (scan_name(token->data, token->length, octets, &length)) {
-      case 0:
-        parser->file->owner.length = length;
-        parser->owner = &parser->file->owner;
-        return 0;
-      case 1:
-        goto relative;
-    }
   }
 
-invalid:
   SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
 relative:
@@ -145,18 +121,6 @@ static really_inline int32_t parse_rr(
   int32_t code;
   const type_info_t *descriptor;
   rdata_t rdata = { parser->rdata->octets, parser->rdata->octets + 65535 };
-
-  if (parser->file->start_of_line) {
-    if ((code = have_contiguous_or_quoted(parser, &rr, &fields[0], token)) < 0)
-      return code;
-    if ((code = parse_owner(parser, &rr, &fields[0], token)) < 0)
-      return code;
-    if ((code = take_contiguous(parser, &rr, &fields[1], token)) < 0)
-      return code;
-  } else {
-    if ((code = have_contiguous(parser, &rr, &fields[1], token)) < 0)
-      return code;
-  }
 
   const mnemonic_t *mnemonic;
 
@@ -340,30 +304,44 @@ static really_inline int32_t parse_dollar_ttl(
 
 static inline int32_t parse(parser_t *parser)
 {
+  static const rdata_info_t fields[] = { FIELD("OWNER") };
+  static const type_info_t rr = ENTRY("RR", FIELDS(fields));
+
   int32_t code = 0;
   token_t token;
 
   while (code >= 0) {
     take(parser, &token);
     if (likely(is_contiguous(&token))) {
-      if (!parser->file->start_of_line || token.data[0] != '$')
-        code = parse_rr(parser, &token);
-      else if (token.length == 4 && memcmp(token.data, "$TTL", 4) == 0)
-        code = parse_dollar_ttl(parser, &token);
-      else if (token.length == 7 && memcmp(token.data, "$ORIGIN", 7) == 0)
-        code = parse_dollar_origin(parser, &token);
-      else if (token.length == 8 && memcmp(token.data, "$INCLUDE", 8) == 0)
-        code = parse_dollar_include(parser, &token);
-      else
-        code = parse_rr(parser, &token);
-    } else if (is_quoted(&token)) {
+      if (likely(parser->file->start_of_line)) {
+        // control entry
+        if (unlikely(token.data[0] == '$')) {
+          if (token.length == 4 && memcmp(token.data, "$TTL", 4) == 0)
+            code = parse_dollar_ttl(parser, &token);
+          else if (token.length == 7 && memcmp(token.data, "$ORIGIN", 7) == 0)
+            code = parse_dollar_origin(parser, &token);
+          else if (token.length == 8 && memcmp(token.data, "$INCLUDE", 8) == 0)
+            code = parse_dollar_include(parser, &token);
+          else
+            SYNTAX_ERROR(parser, "Invalid control entry");
+          continue;
+        }
+
+        if ((code = parse_owner(parser, &rr, &fields[0], &token)) < 0)
+          return code;
+        if ((code = take_contiguous(parser, &rr, &fields[0], &token)) < 0)
+          return code;
+      }
+
       code = parse_rr(parser, &token);
     } else if (is_end_of_file(&token)) {
       if (parser->file->end_of_file == ZONE_NO_MORE_DATA)
         break;
-    } else {
+    } else if (is_line_feed(&token)) {
       assert(token.code == LINE_FEED);
       adjust_line_count(parser->file);
+    } else {
+      code = have_contiguous(parser, &rr, &fields[0], &token);
     }
   }
 
