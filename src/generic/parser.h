@@ -883,6 +883,7 @@ static never_inline int32_t maybe_take_delimiter(
         token->length = 1;
         parser->file->span++;
         parser->file->start_of_line = classify[ (uint8_t)*(token->data+1) ] != BLANK;
+        parser->file->fields.head++;
         return 0;
       }
     } else if (token->code == END_OF_FILE) {
