@@ -106,6 +106,47 @@ relative:
 }
 
 nonnull_all
+static really_inline int32_t parse_string(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
+  const token_t *token)
+{
+  if (rdata->limit == rdata->octets)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(type), NAME(field));
+  assert(rdata->limit > rdata->octets);
+
+  int32_t length;
+  uint8_t *octets = rdata->octets + 1;
+  const uint8_t *limit = rdata->limit;
+
+  if (rdata->limit - rdata->octets > (1 + 255))
+    limit = rdata->octets + 1 + 255;
+  if ((length = scan_string(token->data, token->length, octets, limit)) == -1)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(type), NAME(field));
+  *rdata->octets = (uint8_t)length;
+  rdata->octets += 1u + (uint32_t)length;
+  return 0;
+}
+
+nonnull_all
+static really_inline int32_t parse_text(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
+  const token_t *token)
+{
+  int32_t length;
+
+  if ((length = scan_string(token->data, token->length, rdata->octets, rdata->limit)) == -1)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(type), NAME(field));
+  rdata->octets += (uint32_t)length;
+  return 0;
+}
+
+nonnull_all
 static really_inline int32_t parse_rr(
   parser_t *parser, token_t *token)
 {

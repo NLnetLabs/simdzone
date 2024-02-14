@@ -27,77 +27,52 @@ static really_inline uint32_t unescape(const char *text, uint8_t *wire)
 }
 
 nonnull_all
-static really_inline int32_t parse_text_inner(
-  parser_t *parser,
-  const type_info_t *type,
-  const rdata_info_t *field,
-  rdata_t *rdata,
-  const token_t *token)
+static really_inline int32_t scan_string(
+  const char *data,
+  size_t length,
+  uint8_t *octets,
+  const uint8_t *limit)
 {
-  uint32_t skip;
-  const char *data = token->data, *limit = token->data + token->length;
+  const char *text = data, *text_limit = data + length;
+  uint8_t *wire = octets;
 
-  if ((uintptr_t)rdata->limit - (uintptr_t)rdata->octets >= token->length) {
-    while (data < limit) {
-      *rdata->octets = (uint8_t)*data;
-      if (likely(*data != '\\'))
-        (void)(rdata->octets += 1), data += 1;
-      else if (!(skip = unescape(data, rdata->octets)))
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-      else
-        (void)(rdata->octets += 1), data += skip;
+  if (likely((uintptr_t)limit - (uintptr_t)wire >= length)) {
+    while (text < text_limit) {
+      *wire = (uint8_t)*text;
+      if (likely(*text != '\\')) {
+        text += 1;
+        wire += 1;
+      } else {
+        const uint32_t octet = unescape(text, wire);
+        if (!octet)
+          return -1;
+        text += octet;
+        wire += 1;
+      }
     }
 
-    if (data != limit)
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-    return 0;
+    if (text != text_limit)
+      return -1;
+    return (int32_t)(wire - octets);
   } else {
-    while (data < limit && rdata->octets < rdata->limit) {
-      *rdata->octets = (uint8_t)*data;
-      if (likely(*data != '\\'))
-        (void)(rdata->octets += 1), data += 1;
-      else if (!(skip = unescape(data, rdata->octets)))
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-      else
-        (void)(rdata->octets += 1), data += skip;
+    while (text < text_limit && wire < limit) {
+      *wire = (uint8_t)*text;
+      if (likely(*text != '\\')) {
+        text += 1;
+        wire += 1;
+      } else {
+        const uint32_t octet = unescape(text, wire);
+        if (!octet)
+          return -1;
+        text += octet;
+        wire += 1;
+      }
     }
 
-    if (data != limit || rdata->octets >= rdata->limit)
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-    return 0;
+    if (text != text_limit || wire > limit)
+      return -1;
+    return (int32_t)(wire - octets);
   }
-}
-
-nonnull_all
-static really_inline int32_t parse_string(
-  parser_t *parser,
-  const type_info_t *type,
-  const rdata_info_t *field,
-  rdata_t *rdata,
-  const token_t *token)
-{
-  int32_t code;
-  uint8_t *octets = rdata->octets;
-  uint8_t *limit = rdata->limit;
-  if ((uintptr_t)rdata->limit - (uintptr_t)rdata->octets > 1 + 255)
-    rdata->limit = rdata->octets + 1 + 255;
-  rdata->octets += 1;
-
-  code = parse_text_inner(parser, type, field, rdata, token);
-  *octets = (uint8_t)((uintptr_t)rdata->octets - (uintptr_t)octets) - 1;
-  rdata->limit = limit;
-  return code;
-}
-
-nonnull_all
-static really_inline int32_t parse_text(
-  parser_t *parser,
-  const type_info_t *type,
-  const rdata_info_t *field,
-  rdata_t *rdata,
-  const token_t *token)
-{
-  return parse_text_inner(parser, type, field, rdata, token);
 }
 
 #endif // TEXT_H
