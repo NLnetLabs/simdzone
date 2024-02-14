@@ -1,0 +1,16 @@
+*.o
+*.d
+/autom4te.cache
+/build
+/config.guess
+/config.h
+/config.log
+/config.status
+/config.sub
+/configure
+/configure~
+/libzone.a
+/make.dep
+/Makefile
+/include/zone/export.h
+/src/config.h.in~
