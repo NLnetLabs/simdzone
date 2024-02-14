@@ -131,7 +131,7 @@ Next we define a ``main`` function that's called on execution of the program.
        exit(EXIT_FAILURE);
      }
 
-     printf("parsed %zu records in %s", zone->record_count, argv[1]);
+     printf("parsed %zu records in %s", zone->count, argv[1]);
 
      return 0;
    }
