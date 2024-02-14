@@ -32,6 +32,22 @@ static really_inline int32_t parse_name(
   rdata_t *rdata,
   const token_t *token);
 
+nonnull_all
+static really_inline int32_t parse_string(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
+  const token_t *token);
+
+nonnull_all
+static really_inline int32_t parse_text(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
+  const token_t *token);
+
 #define FIELDS(fields) \
   { (sizeof(fields)/sizeof(fields[0])), fields }
 

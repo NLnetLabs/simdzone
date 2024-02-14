@@ -26,6 +26,8 @@
   "\0\0\0\0\0\0\0\0" /* 56 - 63 */ \
   ""
 
+// FIXME: test for unterminated string here too!!!!
+
 struct newline_test {
   const char *input;
   size_t line[2];
@@ -67,6 +69,7 @@ void newlines(void **state)
 #if 0
   static const char embedded_lf_text[] =
     PAD("1. TXT \"foo\nbar\n\"\n2. TXT \"foobar\"");
+  // >> do the same thing for contiguous
 #endif
   static const char grouped_lf_text[] =
     PAD("1. TXT (\nfoo\nbar\n)\"\n2. TXT \"foobar\"");
@@ -108,6 +111,149 @@ void newlines(void **state)
     result = zone_parse_string(
       &parser, &options, &buffers, tests[i].input, strlen(tests[i].input), (void*)&tests[i]);
     assert_int_equal(result, ZONE_SUCCESS);
+  }
+}
+
+struct strings_test {
+  const char *text;
+  int32_t code;
+  struct {
+    size_t length;
+    const uint8_t *octets;
+  } rdata;
+};
+
+static int32_t strings_callback(
+  zone_parser_t *parser,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
+  uint16_t rdlength,
+  const uint8_t *rdata,
+  void *user_data)
+{
+  struct strings_test *test = (struct strings_test *)user_data;
+
+  (void)parser;
+  (void)owner;
+  (void)type;
+  (void)class;
+  (void)ttl;
+  (void)rdlength;
+  (void)rdata;
+
+  if (rdlength != test->rdata.length)
+    return ZONE_SYNTAX_ERROR;
+  if (memcmp(rdata, test->rdata.octets, rdlength) != 0)
+    return ZONE_SYNTAX_ERROR;
+  return 0;
+}
+
+#define RDATA(...) (const uint8_t[]){ __VA_ARGS__ }
+
+#define TEXT16 \
+  "0123456789abcdef"
+
+#define TEXT256 \
+  TEXT16 TEXT16 TEXT16 TEXT16 \
+  TEXT16 TEXT16 TEXT16 TEXT16 \
+  TEXT16 TEXT16 TEXT16 TEXT16 \
+  TEXT16 TEXT16 TEXT16 TEXT16
+
+#define TEXT255 \
+  TEXT16 TEXT16 TEXT16 TEXT16 \
+  TEXT16 TEXT16 TEXT16 TEXT16 \
+  TEXT16 TEXT16 TEXT16 TEXT16 \
+  TEXT16 TEXT16 TEXT16        \
+  "0123456789abcde"
+
+#define RDATA16 \
+  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+
+#define RDATA255 \
+  RDATA16, RDATA16, RDATA16, RDATA16, \
+  RDATA16, RDATA16, RDATA16, RDATA16, \
+  RDATA16, RDATA16, RDATA16, RDATA16, \
+  RDATA16, RDATA16, RDATA16,          \
+  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e'
+
+/*!cmocka */
+void strings(void **state)
+{
+  (void)state;
+
+  static const uint8_t rdata_maximum[] = { 255, RDATA255 };
+
+  static const uint8_t rdata_empty[] = { 0 };
+
+  static const uint8_t rdata_0[] = { 1, 0 };
+
+  static const uint8_t rdata_0foo[] = { 4, 0, 'f', 'o', 'o' };
+
+  static const uint8_t rdata_foo0[] = { 4, 'f', 'o', 'o', 0 };
+
+  static const uint8_t rdata_0f0o[] = { 4, 0, 'f', 0, 'o' };
+
+  static const uint8_t rdata_foo_bar[] = { 7, 'f', 'o', 'o', ' ', 'b', 'a', 'r' };
+
+  static const struct strings_test tests[] = {
+    // contiguous too long
+    { TEXT256, ZONE_SYNTAX_ERROR, { 0, NULL } },
+    // quoted too long
+    { "\"" TEXT256 "\"", ZONE_SYNTAX_ERROR, { 0, NULL } },
+    // contiguous maximum length
+    { TEXT255, 0, { 256, rdata_maximum } },
+    // quoted maximum length
+    { TEXT255, 0, { 256, rdata_maximum } },
+    // quoted empty
+    { "\"\"", 0, { 1, rdata_empty } },
+    // contiguous null
+    { "\\000", 0, { 2, rdata_0 } },
+    // quoted null
+    { "\"\\000\"", 0, { 2, rdata_0 } },
+    // contiguous starting with null
+    { "\\000foo", 0, { 5, rdata_0foo } },
+    // quoted staring with null
+    { "\"\\000foo\"", 0, { 5, rdata_0foo } },
+    // contiguous ending with null
+    { "foo\\000", 0, { 5, rdata_foo0 } },
+    // quoted ending with null
+    { "\"foo\\000\"", 0, { 5, rdata_foo0 } },
+    // contiguous with multiple nulls
+    { "\\000f\\000o", 0, { 5, rdata_0f0o } },
+    // quoted with multiple nulls
+    { "\"\\000f\\000o\"", 0, { 5, rdata_0f0o } },
+    // contiguous with escaped space
+    { "foo\\ bar", 0, { 8, rdata_foo_bar } },
+    // quoted with space
+    { "\"foo bar\"", 0, { 8, rdata_foo_bar } }
+  };
+
+  static const uint8_t origin[] = { 3, 'f', 'o', 'o', 0 };
+
+  for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
+    zone_parser_t parser = { 0 };
+    zone_name_buffer_t name;
+    zone_rdata_buffer_t rdata;
+    zone_buffers_t buffers = { 1, &name, &rdata };
+    zone_options_t options = { 0 };
+    char input[512] = { 0 };
+    size_t length;
+    int32_t code;
+
+    (void)snprintf(input, sizeof(input), "foo. TXT %s", tests[i].text);
+    length = strlen(input);
+
+    options.accept.callback = strings_callback;
+    options.origin.octets = origin;
+    options.origin.length = sizeof(origin);
+    options.default_ttl = 3600;
+    options.default_class = ZONE_IN;
+
+    fprintf(stderr, "INPUT: '%s'\n", input);
+    code = zone_parse_string(&parser, &options, &buffers, input, length, (void *)&tests[i]);
+    assert_int_equal(code, tests[i].code);
   }
 }
 

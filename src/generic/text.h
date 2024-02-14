@@ -44,69 +44,64 @@ static really_inline void copy_string_block(
 }
 
 nonnull_all
-static really_inline int32_t parse_text_inner(
-  parser_t *parser,
-  const type_info_t *type,
-  const rdata_info_t *field,
-  rdata_t *rdata,
-  const token_t *token)
+static really_inline int32_t scan_string(
+  const char *data,
+  size_t length,
+  uint8_t *octets,
+  const uint8_t *limit)
 {
-  string_block_t b;
-  const char *t = token->data, *te = t + token->length;
-  uint64_t left = token->length;
+  const char *text = data;
+  uint8_t *wire = octets;
+  string_block_t block;
 
-  while ((t < te) & (rdata->octets < rdata->limit)) {
-    copy_string_block(&b, t, rdata->octets);
-    uint64_t n = 32;
-    if (left < 32)
-      n = left;
-    uint64_t mask = (1llu << n) - 1;
+  copy_string_block(&block, text, octets);
 
-    if (unlikely(b.backslashes & mask)) {
-      n = trailing_zeroes(b.backslashes);
-      rdata->octets += n; t += n;
-      if (!(n = unescape(t, rdata->octets)))
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-      rdata->octets += 1; t += n;
+  uint64_t count = 32;
+  if (length < 32)
+    count = length;
+  uint64_t mask = (1llu << count) - 1u;
+
+  // check for escape sequences
+  if (unlikely(block.backslashes & mask))
+    goto escaped;
+
+  if (length < 32)
+    return (int32_t)count;
+
+  text += count;
+  wire += count;
+  length -= count;
+
+  do {
+    copy_string_block(&block, text, wire);
+    count = 32;
+    if (length < 32)
+      count = length;
+    mask = (1llu << count) - 1u;
+
+    // check for escape sequences
+    if (unlikely(block.backslashes & mask)) {
+escaped:
+      block.backslashes &= -block.backslashes;
+      mask = block.backslashes - 1;
+      count = count_ones(mask);
+      const uint32_t octet = unescape(text+count, wire+count);
+      if (!octet)
+        return -1;
+      text += count + octet;
+      wire += count + 1;
+      length -= count + octet;
     } else {
-      rdata->octets += n; t += n;
+      text += count;
+      wire += count;
+      length -= count;
     }
-  }
+  } while (length && wire < limit);
 
-  if (rdata->octets >= rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-  return 0;
-}
-
-nonnull_all
-static really_inline int32_t parse_string(
-  parser_t *parser,
-  const type_info_t *type,
-  const rdata_info_t *field,
-  rdata_t *rdata,
-  const token_t *token)
-{
-  int32_t code;
-  uint8_t *octets = rdata->octets, *limit = rdata->limit;
-  if (rdata->limit - rdata->octets > 1 + 255)
-    rdata->limit = rdata->octets + 1 + 255;
-  rdata->octets += 1;
-
-  code = parse_text_inner(parser, type, field, rdata, token);
-  *octets = (uint8_t)((rdata->octets - octets) - 1);
-  rdata->limit = limit;
-  return code;
-}
-
-nonnull_all
-static really_inline int32_t parse_text(
-  zone_parser_t *parser,
-  const type_info_t *type,
-  const rdata_info_t *field,
-  rdata_t *rdata,
-  const token_t *token)
-{
-  return parse_text_inner(parser, type, field, rdata, token);
+  if (length || (wire > limit))
+    return -1;
+  assert(!length);
+  return (int32_t)(wire - octets);
 }
 
 #endif // TEXT_H
