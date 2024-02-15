@@ -224,7 +224,7 @@ static really_inline bool scan_service(
     const int8_t *zero_mask = &zero_masks[32 - (length & 0xf)];
     memcpy(&zero_mask0, zero_mask, 8);
     memcpy(&zero_mask1, zero_mask+8, 8);
-    uint8_t index = service_hash(key, length);
+    uint8_t index = service_hash(key & zero_mask0, length);
     assert(index < 64);
 
     input0 |= (input0 & letter_mask) >> 1;
