@@ -82,7 +82,7 @@ static really_inline int32_t scan_name(
 
   octets[label] = (uint8_t)(length - label);
 
-  if (length < 32)
+  if (tlength <= 32)
     return (void)(*lengthp = length + 1), carry == 0;
 
   text += length;
