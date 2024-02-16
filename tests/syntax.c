@@ -26,7 +26,7 @@
   "\0\0\0\0\0\0\0\0" /* 56 - 63 */ \
   ""
 
-// FIXME: test for unterminated string here too!!!!
+// FIXME: test for unterminated string here too!
 
 struct newline_test {
   const char *input;
@@ -392,6 +392,82 @@ void names(void **state)
 
     fprintf(stderr, "INPUT: '%s'\n", input);
     code = zone_parse_string(&parser, &options, &buffers, input, length, &tests[i]);
+    assert_int_equal(code, tests[i].code);
+  }
+}
+
+struct ttls_test {
+  const char *text;
+  bool non_strict;
+  bool pretty_ttls;
+  int32_t code;
+  uint32_t ttl;
+};
+
+static int32_t tests_callback(
+  zone_parser_t *parser,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
+  uint16_t rdlength,
+  const uint8_t *rdata,
+  void *user_data)
+{
+  const struct ttls_test *test = (const struct ttls_test *)user_data;
+
+  (void)parser;
+  (void)owner;
+  (void)type;
+  (void)class;
+  (void)ttl;
+  (void)rdlength;
+  (void)rdata;
+
+  if (ttl != test->ttl)
+    return ZONE_SYNTAX_ERROR;
+  return 0;
+}
+
+/*!cmocka */
+void ttls(void **state)
+{
+  (void)state;
+
+  static const struct ttls_test tests[] = {
+    { "foo. 0 A 192.168.0.1", false, false, ZONE_SUCCESS, 0 },
+    { "foo. 1 A 192.168.0.1", false, false, ZONE_SUCCESS, 1 },
+    { "foo. 2147483647 A 192.168.0.1", false, false, ZONE_SUCCESS, 2147483647 },
+    { "foo. 2147483648 A 192.168.0.1", false, false, ZONE_SEMANTIC_ERROR, 0 },
+    { "foo. 2147483648 A 192.168.0.1", true, false, ZONE_SUCCESS, 2147483648 },
+    { "foo. 4294967295 A 192.168.0.1", true, false, ZONE_SUCCESS, 4294967295 },
+    { "foo. 4294967296 A 192.168.0.1", true, false, ZONE_SYNTAX_ERROR, 0 },
+    { "foo. 1d A 192.168.0.1", false, false, ZONE_SYNTAX_ERROR, 0 },
+    { "foo. 1d A 192.168.0.1", false, true, ZONE_SUCCESS, 86400 }
+  };
+
+  static const uint8_t origin[] = { 3, 'f', 'o', 'o', 0 };
+
+  for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
+    zone_parser_t parser = { 0 };
+    zone_name_buffer_t name;
+    zone_rdata_buffer_t rdata;
+    zone_buffers_t buffers = { 1, &name, &rdata };
+    zone_options_t options = { 0 };
+    const char *str = tests[i].text;
+    size_t len = strlen(str);
+    int32_t code;
+
+    options.accept.callback = tests_callback;
+    options.origin.octets = origin;
+    options.origin.length = sizeof(origin);
+    options.default_ttl = 3600;
+    options.default_class = ZONE_IN;
+    options.non_strict = tests[i].non_strict;
+    options.pretty_ttls = tests[i].pretty_ttls;
+
+    fprintf(stderr, "INPUT: '%s'\n", str);
+    code = zone_parse_string(&parser, &options, &buffers, str, len, (void*)&tests[i]);
     assert_int_equal(code, tests[i].code);
   }
 }
