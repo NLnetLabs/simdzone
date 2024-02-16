@@ -62,8 +62,10 @@ static really_inline int32_t scan_generic_type(
 {
   if (scan_int16(data + 4, length - 4, code) == 0)
     return -1;
-  if (*code <= 4)
+  if (*code <= 258)
     *mnemonic = &types[*code].name;
+  else if (*code == 32769)
+    *mnemonic = &types[259].name;
   else
     *mnemonic = &types[0].name;
   return 1;
