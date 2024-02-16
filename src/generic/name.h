@@ -110,14 +110,14 @@ escaped:
       text += count + octet;
       wire += count + 1;
       length += count + 1;
+      left -= count + octet;
     } else {
       block.dots &= mask;
       text += count;
       wire += count;
       length += count;
+      left -= count;
     }
-
-    left -= count;
 
     // check for null labels, i.e. ".."
     if (unlikely(block.dots & ((block.dots >> 1) | carry)))
