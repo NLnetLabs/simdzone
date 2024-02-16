@@ -1580,7 +1580,7 @@ static int32_t check_rrsig_rr(
       (r = check(&c, check_name(parser, type, &f[7], o+c, n-c))))
     return r;
 
-  if (c != n)
+  if (c > n)
     SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
   return accept_rr(parser, type, rdata);
 }
