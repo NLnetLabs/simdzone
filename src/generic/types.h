@@ -1036,7 +1036,7 @@ static int32_t parse_loc_rdata(
 north_south:
   if (token->data[0] == 'N')
     latitude = htobe32((1u<<31) + degrees);
-  else if (token->data[1] == 'S')
+  else if (token->data[0] == 'S')
     latitude = htobe32((1u<<31) - degrees);
   else
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[4]), NAME(type));
