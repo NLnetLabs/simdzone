@@ -193,7 +193,7 @@ static really_inline ssize_t check_nsec(
 
   while ((count + 2) < length) {
     const size_t window = (size_t)data[0];
-    const size_t blocks = 1 + (size_t)data[1];
+    const size_t blocks = (size_t)data[1];
     if (window < last_window || !window != !last_window)
       SYNTAX_ERROR(parser, "Invalid %s in %s, windows are out-of-order",
                    NAME(field), NAME(type));
