@@ -257,7 +257,16 @@ void strings(void **state)
   }
 }
 
-static int32_t name_test_accept_rr(
+struct names_test {
+  const char *input;
+  int32_t code;
+  struct {
+    size_t length;
+    const uint8_t *octets;
+  } owner;
+};
+
+static int32_t names_callback(
   zone_parser_t *parser,
   const zone_name_t *owner,
   uint16_t type,
@@ -267,6 +276,8 @@ static int32_t name_test_accept_rr(
   const uint8_t *rdata,
   void *user_data)
 {
+  struct names_test *test = (struct names_test *)user_data;
+
   (void)parser;
   (void)owner;
   (void)type;
@@ -274,7 +285,11 @@ static int32_t name_test_accept_rr(
   (void)ttl;
   (void)rdlength;
   (void)rdata;
-  (void)user_data;
+
+  if (owner->length != test->owner.length)
+    return ZONE_SYNTAX_ERROR;
+  if (memcmp(owner->octets, test->owner.octets, owner->length) != 0)
+    return ZONE_SYNTAX_ERROR;
   return 0;
 }
 
@@ -322,20 +337,36 @@ void names(void **state)
   static const char last_label_is_null[] = "foo..";
   static const char first_label_is_null[] = "..foo";
 
-  static const struct {
-    const char *input;
-    int32_t code;
-  } tests[] = {
-    { only_rel_label_too_long,  ZONE_SYNTAX_ERROR },
-    { only_abs_label_too_long,  ZONE_SYNTAX_ERROR },
-    { first_label_too_long,     ZONE_SYNTAX_ERROR },
-    { last_rel_label_too_long,  ZONE_SYNTAX_ERROR },
-    { last_abs_label_too_long,  ZONE_SYNTAX_ERROR },
-    { rel_name_too_long,        ZONE_SYNTAX_ERROR },
-    { abs_name_too_long,        ZONE_SYNTAX_ERROR },
-    { only_null_labels,         ZONE_SYNTAX_ERROR },
-    { last_label_is_null,       ZONE_SYNTAX_ERROR },
-    { first_label_is_null,      ZONE_SYNTAX_ERROR }
+  static const uint8_t owner_abs_0[] = { 1, 0, 0 };
+  static const uint8_t owner_abs_spc[] = { 1, ' ', 0 };
+  static const uint8_t owner_abs_0foo[] = { 4, 0, 'f', 'o', 'o', 0 };
+  static const uint8_t owner_abs_00foo[] = { 5, 0, 0, 'f', 'o', 'o', 0 };
+  static const uint8_t owner_abs_foo0[] = { 4, 'f', 'o', 'o', 0, 0 };
+  static const uint8_t owner_abs_foo00[] = { 5, 'f', 'o', 'o', 0, 0, 0 };
+  static const uint8_t owner_abs_foodot[] = { 4, 'f', 'o', 'o', '.', 0 };
+  static const uint8_t owner_rel_foodot[] = { 4, 'f', 'o', 'o', '.', 3, 'f', 'o', 'o', 0 };
+
+  static struct names_test tests[] = {
+    { only_rel_label_too_long,  ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { only_abs_label_too_long,  ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { first_label_too_long,     ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { last_rel_label_too_long,  ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { last_abs_label_too_long,  ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { rel_name_too_long,        ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { abs_name_too_long,        ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { only_null_labels,         ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { last_label_is_null,       ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { first_label_is_null,      ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { "\\0.",                   ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { "\\00.",                  ZONE_SYNTAX_ERROR, { 0, NULL } },
+    { "\\000.",                 0, { 3, owner_abs_0 } },
+    { "\\ .",                   0, { 3, owner_abs_spc } },
+    { "\\000foo. ",             0, { 6, owner_abs_0foo } },
+    { "\\000\\000foo.",         0, { 7, owner_abs_00foo } },
+    { "foo\\000.",              0, { 6, owner_abs_foo0 } },
+    { "foo\\000\\000.",         0, { 7, owner_abs_foo00 } },
+    { "foo\\..",                0, { 6, owner_abs_foodot } },
+    { "foo\\.",                 0, { 10, owner_rel_foodot } }
   };
 
   static const uint8_t origin[] = { 3, 'f', 'o', 'o', 0 };
@@ -353,14 +384,14 @@ void names(void **state)
     (void)snprintf(input, sizeof(input), "%s A 192.168.0.1", tests[i].input);
     length = strlen(input);
 
-    options.accept.callback = name_test_accept_rr;
+    options.accept.callback = names_callback;
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
     options.default_ttl = 3600;
     options.default_class = ZONE_IN;
 
     fprintf(stderr, "INPUT: '%s'\n", input);
-    code = zone_parse_string(&parser, &options, &buffers, input, length, NULL);
+    code = zone_parse_string(&parser, &options, &buffers, input, length, &tests[i]);
     assert_int_equal(code, tests[i].code);
   }
 }
