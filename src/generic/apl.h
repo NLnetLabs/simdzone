@@ -47,7 +47,7 @@ static really_inline int32_t scan_apl(
       if (size < 20)
         return -1;
       memcpy(octets, af_inet6, sizeof(af_inet6));
-      if (scan_ip6(text, &octets[4], &count) == -1)
+      if (scan_ip6(&text[negate+2], &octets[4], &count) == -1)
         return -1;
       count += negate + 2;
       digits[0] = (uint8_t)text[count+1] - '0';
