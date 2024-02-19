@@ -1524,6 +1524,10 @@ static int32_t parse_ipseckey_rdata(
     return code;
 
   switch (octets[1]) {
+    case 0: /* no gateway */
+      if (token->length != 1 || token->data[0] != '.')
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[3]), NAME(type));
+      break;
     case 1: /* IPv4 address */
       type = (const type_info_t *)ipseckey_ipv4;
       fields = type->rdata.fields;
@@ -1536,7 +1540,6 @@ static int32_t parse_ipseckey_rdata(
       if ((code = parse_ip6(parser, type, &fields[3], rdata, token)) < 0)
         return code;
       break;
-    case 0: /* no gateway */
     case 3: /* domain name */
       if ((code = parse_name(parser, type, &fields[3], rdata, token)) < 0)
         return code;
