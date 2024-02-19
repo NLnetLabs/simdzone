@@ -2492,6 +2492,10 @@ static const rdata_info_t minfo_rdata_fields[] = {
   FIELD("emailbx")
 };
 
+static const rdata_info_t null_rdata_fields[] = {
+  FIELD("anything")
+};
+
 static const rdata_info_t wks_rdata_fields[] = {
   FIELD("address"),
   FIELD("protocol"),
@@ -2837,9 +2841,8 @@ static const type_info_t types[] = {
              check_ns_rr, parse_ns_rdata),
   TYPE("MR", ZONE_MR, ZONE_ANY, FIELDS(mr_rdata_fields), // experimental
              check_ns_rr, parse_ns_rdata),
-
-  UNKNOWN_TYPE(10),
-
+  TYPE("NULL", ZONE_NULL, ZONE_ANY, FIELDS(null_rdata_fields), // experimetal
+               check_generic_rr, parse_unknown_rdata),
   TYPE("WKS", ZONE_WKS, ZONE_IN, FIELDS(wks_rdata_fields),
               check_wks_rr, parse_wks_rdata),
   TYPE("PTR", ZONE_PTR, ZONE_ANY, FIELDS(ptr_rdata_fields),
