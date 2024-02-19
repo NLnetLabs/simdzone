@@ -16,7 +16,7 @@ static really_inline int32_t scan_apl(
   uint8_t digits[3];
   size_t count;
   uint32_t prefix;
-  const uint8_t af_inet[2] = { 0x01, 0x00 }, af_inet6[2] = { 0x02, 0x00 };
+  const uint8_t af_inet[2] = { 0x00, 0x01 }, af_inet6[2] = { 0x00, 0x02 };
 
   // address family is immediately followed by a colon ":"
   if (text[negate + 1] != ':')

@@ -368,9 +368,9 @@ static const char apl_text[] =
   PAD("foo.example. IN APL 1:192.168.32.0/21 !1:192.168.38.0/28");
 static const rdata_t apl_rdata =
   RDATA(/* 1:192.168.32.0/21 */
-        1, 0, 21, 0x04, 192, 168, 32, 0,
+        0, 1, 21, 0x04, 192, 168, 32, 0,
         /* !1:192.168.38.0/28 */
-        1, 0, 28, 0x84, 192, 168, 38, 0);
+        0, 1, 28, 0x84, 192, 168, 38, 0);
 
 static const char sshfp_text[] =
   PAD(" SSHFP 4 2 123456789abcdef67890123456789abcdef67890123456789abcdef123456789");
