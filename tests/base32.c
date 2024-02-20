@@ -36,7 +36,7 @@ static int32_t add_rr(
 }
 
 static const uint8_t foobar[] =
-  { 'f', 'o', 'o', 'b', 'a', 'r' };
+  { 6, 'f', 'o', 'o', 'b', 'a', 'r' };
 
 static uint8_t origin[] =
   { 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0 };

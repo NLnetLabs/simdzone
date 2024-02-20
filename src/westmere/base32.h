@@ -74,13 +74,14 @@ static really_inline int32_t parse_base32(
   const token_t *token)
 {
   size_t length = (token->length * 5) / 8;
-  if ((uintptr_t)rdata->limit - (uintptr_t)rdata->octets < length)
+  if (length > 255 || (uintptr_t)rdata->limit - (uintptr_t)rdata->octets < (length + 1))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  size_t decoded = base32hex_sse(rdata->octets, (const uint8_t*)token->data);
+  size_t decoded = base32hex_sse(rdata->octets+1, (const uint8_t*)token->data);
   if (decoded != token->length)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-  rdata->octets += length;
+  *rdata->octets = (uint8_t)length;
+  rdata->octets += 1 + length;
   return 0;
 }
 

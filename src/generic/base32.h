@@ -50,11 +50,17 @@ nonnull_all
 static really_inline int32_t parse_base32(
   parser_t *parser,
   const type_info_t *type,
-  const rdata_info_t *item,
+  const rdata_info_t *field,
   rdata_t *rdata,
   const token_t *token)
 {
   uint32_t state = 0;
+
+  size_t length = (token->length * 5) / 8;
+  if (length > 255 || (uintptr_t)rdata->limit - (uintptr_t)rdata->octets < (length + 1))
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+
+  *rdata->octets++ = (uint8_t)length;
 
   const char *p = token->data;
   for (;; p++) {
@@ -104,7 +110,7 @@ static really_inline int32_t parse_base32(
   }
 
   if (p != token->data + token->length)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
   return 0;
 }
 

@@ -286,7 +286,7 @@ static really_inline int32_t parse_salt(
   size_t length = token->length / 2;
   uint8_t *octets = rdata->octets++;
   // FIXME: not quite right yet! we must not exceed 255 octets!
-  if ((uintptr_t)rdata->limit - (uintptr_t)rdata->octets < length)
+  if ((uintptr_t)rdata->limit - (uintptr_t)rdata->octets < (length + 1))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
   if (!base16_decode(token->data, token->length, rdata->octets, &length))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
