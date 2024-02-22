@@ -748,11 +748,11 @@ static const rdata_t zonemd_rdata =
         0xf2, 0x2c, 0x6b, 0xd6, 0x47, 0xde);
 
 static const char svcb_text[] =
-  PAD("foo. 1 IN SVCB 0 foo. mandatory=mandatory,key16");
+  PAD("foo. 1 IN SVCB 0 foo. key16= mandatory=key16");
 static const rdata_t svcb_rdata =
   RDATA(0x00, 0x00,
         3, 'f', 'o', 'o', 0,
-        0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x10);
+        0x00, 0x00, 0x00, 0x02, 0x00, 0x10, 0x00, 0x10, 0x00, 0x00);
 
 static const char spf_text[] =
   PAD(" SPF \"v=spf1 +all\"");
