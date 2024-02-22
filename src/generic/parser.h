@@ -78,7 +78,7 @@ typedef int32_t (*parse_svc_param_t)(
 
 struct svc_param_info {
   mnemonic_t name;
-  bool has_value;
+  uint32_t has_value;
   parse_svc_param_t parse, parse_non_strict;
 };
 

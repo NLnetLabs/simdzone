@@ -72,6 +72,8 @@ static really_inline int32_t parse_text(
 typedef SSIZE_T ssize_t;
 #endif
 
+// FIXME: check functions can be simplified as int32_t is wide enough to
+//        represent errors and the maximum length of rdata.
 nonnull((1,2,3,4))
 static really_inline ssize_t check_bytes(
   parser_t *parser,
@@ -2061,7 +2063,17 @@ nonnull_all
 static int32_t check_svcb_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
+  //
   // FIXME: implement checking parameters etc
+  //
+  // - check if all keys in mandatory exist
+  // - check if at least keys and key lengths are valid
+  //
+  // FIXME: implement reordering parameters in strict (primary) mode
+  // FIXME: note that when reordering or checking, rdata may not actually
+  //        contain valid parameters
+  //
+
   return accept_rr(parser, type, rdata);
 }
 
@@ -2091,6 +2103,10 @@ nonnull_all
 static int32_t check_https_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
+  //
+  // FIXME: incorporate fixes mentioned in check_svcb_rr
+  //
+
   return accept_rr(parser, type, rdata);
 }
 

@@ -9,6 +9,8 @@
 #ifndef SVCB_H
 #define SVCB_H
 
+#include <inttypes.h>
+
 // RFC9460 section 7.1:
 //   The "alpn" and "no-default-alpn" SvcParamKeys together indicate the set
 //   of Application-Layer Protocol Negotiation (ALPN) protocol identifiers
@@ -388,26 +390,26 @@ static int32_t parse_mandatory(
   { { { name, sizeof(name) - 1 }, key }, value, parse, parse_non_strict }
 
 static const svc_param_info_t svc_params[] = {
-  SVC_PARAM("mandatory", 0u, true, parse_mandatory, parse_mandatory_non_strict),
-  SVC_PARAM("alpn", 1u, true, parse_alpn, parse_alpn),
+  SVC_PARAM("mandatory", 0u, 2u, parse_mandatory, parse_mandatory_non_strict),
+  SVC_PARAM("alpn", 1u, 2u, parse_alpn, parse_alpn),
   // RFC9460 section 7.1.1:
   //   For "no-default-alpn", the presentation and wire format values MUST be
   //   empty. When "no-default-alpn" is specified in an RR, "alpn" must also be
   //   specified in order for the RR to be "self-consistent" (Section 2.4.3).
-  SVC_PARAM("no-default-alpn", 2u, false, 0, 0),
-  SVC_PARAM("port", 3u, true, parse_port, parse_port),
-  SVC_PARAM("ipv4hint", 4u, true, parse_ipv4hint, parse_ipv4hint),
-  SVC_PARAM("ech", 5u, true, parse_ech, parse_ech),
-  SVC_PARAM("ipv6hint", 6u, true, parse_ipv6hint, parse_ipv6hint),
+  SVC_PARAM("no-default-alpn", 0u, 0u, 0, 0),
+  SVC_PARAM("port", 3u, 2u, parse_port, parse_port),
+  SVC_PARAM("ipv4hint", 4u, 2u, parse_ipv4hint, parse_ipv4hint),
+  SVC_PARAM("ech", 5u, 2u, parse_ech, parse_ech),
+  SVC_PARAM("ipv6hint", 6u, 2u, parse_ipv6hint, parse_ipv6hint),
   // RFC9461 section 5:
   //   If the "alpn" SvcParam indicates support for HTTP, "dohpath" MUST be
   //   present.
-  SVC_PARAM("dohpath", 7u, true, parse_dohpath, parse_dohpath_non_strict),
-  SVC_PARAM("ohttp", 8u, false, 0, 0),
+  SVC_PARAM("dohpath", 7u, 2u, parse_dohpath, parse_dohpath_non_strict),
+  SVC_PARAM("ohttp", 8u, 0u, 0, 0),
 };
 
 static const svc_param_info_t unknown_svc_param =
-  SVC_PARAM("unknown", 0u, true, parse_unknown, parse_unknown);
+  SVC_PARAM("unknown", 0u, 2u, parse_unknown, parse_unknown);
 
 #undef SVC_PARAM
 
@@ -498,6 +500,7 @@ static int32_t parse_mandatory(
   // RFC9460 section 8:
   //   The presentation value SHALL be a comma-seperatred list of one or more
   //   valid SvcParamKeys, ...
+  bool has_mandatory = false;
   int32_t highest_key = -1;
   const char *data = token->data;
   uint8_t *whence = rdata->octets;
@@ -506,6 +509,7 @@ static int32_t parse_mandatory(
   if (!(skip = scan_svc_param_key(data, &key)))
     SYNTAX_ERROR(parser, "Invalid mandatory in %s", NAME(type));
 
+  has_mandatory = (key == 0);
   highest_key = key;
   key = htobe16(key);
   memcpy(rdata->octets, &key, sizeof(key));
@@ -515,6 +519,10 @@ static int32_t parse_mandatory(
   while (*data == ',' && rdata->octets < rdata->limit) {
     if (!(skip = scan_svc_param_key(data + 1, &key)))
       SYNTAX_ERROR(parser, "Invalid mandatory of %s", NAME(type));
+
+    // check if mandatory appears in mandatory key list
+    has_mandatory |= (key == 0);
+
     data += skip + 1;
     if (key > highest_key) {
       highest_key = key;
@@ -534,11 +542,11 @@ static int32_t parse_mandatory(
           break;
         octets += 2;
       }
-      assert(octets < rdata->octets);
+      assert(octets <= rdata->octets);
       // RFC9460 section 8:
       //   Keys MAY appear in any order, but MUST NOT appear more than once.
       if (key == smaller_key)
-        SYNTAX_ERROR(parser, "Duplicate key in mandatory of %s", NAME(type));
+        SEMANTIC_ERROR(parser, "Duplicate key in mandatory of %s", NAME(type));
       assert(key < smaller_key);
       uint16_t length = (uint16_t)(rdata->octets - octets);
       memmove(octets + 2, octets, length);
@@ -548,10 +556,77 @@ static int32_t parse_mandatory(
     }
   }
 
+  if (has_mandatory)
+    SEMANTIC_ERROR(parser, "Mandatory in mandatory of %s", NAME(type));
   if (rdata->octets >= rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+    SYNTAX_ERROR(parser, "Invalid mandatory in %s", NAME(type));
   if (data != token->data + token->length)
     SYNTAX_ERROR(parser, "Invalid mandatory in %s", NAME(type));
+  return 0;
+}
+
+nonnull((1,2,3,4,6))
+static really_inline int32_t check_mandatory(
+  zone_parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  const rdata_t *rdata,
+  const uint8_t *mandatory,
+  const uint8_t *parameters)
+{
+  if (!mandatory)
+    return 0;
+  // parameters are guaranteed to be sorted in strict mode
+  assert(mandatory == parameters);
+  assert(!mandatory[0] && !mandatory[1]);
+
+  uint16_t length;
+  memcpy(&length, mandatory + 2, sizeof(length));
+  length = be16toh(length);
+  assert(rdata->octets - mandatory >= 4 + length);
+
+  bool missing_keys = false;
+  const uint8_t *limit = mandatory + 4 + length;
+  const uint8_t *keys = mandatory + 4;
+  parameters += 4 + length;
+
+  assert(parameters <= rdata->octets);
+
+  for (; keys < limit; keys += 2) {
+    uint16_t key;
+    memcpy(&key, keys, sizeof(key));
+    // no byteswap, compare big endian
+
+    assert(key != 0);
+
+    if ((missing_keys = (parameters == rdata->octets)))
+      break;
+    assert(rdata->octets - parameters >= 4);
+    memcpy(&length, parameters + 2, 2);
+    length = be16toh(length);
+    assert(rdata->octets - parameters >= 4 + length);
+    // parameters are guaranteed to be sorted
+    if (memcmp(parameters, &key, 2) == 0) {
+      parameters += 4 + length;
+    } else {
+      const uint8_t *parameter = parameters + 4 + length;
+      assert(rdata->octets - parameters >= 4);
+      while (parameter < rdata->octets) {
+        if (memcmp(parameter, &key, 2) == 0)
+          break;
+        memcpy(&length, parameter + 2, 2);
+        length = be16toh(length);
+        assert(rdata->octets - parameters >= 4 + length);
+        parameter += 4 + length;
+      }
+
+      if ((missing_keys = (parameter == rdata->octets)))
+        break;
+    }
+  }
+
+  if (missing_keys)
+    SEMANTIC_ERROR(parser, "Mandatory %s missing in %s", NAME(field), NAME(type));
   return 0;
 }
 
@@ -570,6 +645,12 @@ static int32_t parse_mandatory_non_strict(
   // RFC9460 section 8:
   //   The presentation value SHALL be a comma-seperatred list of one or more
   //   valid SvcParamKeys, ...
+  bool has_mandatory = false;
+  // RFC9460 section 8:
+  //   In wire format, the keys are represented by their numeric values in
+  //   network byte order, concatenated in strictly increasing numeric order.
+  //
+  // cannot reorder in secondary mode, print an error
   bool out_of_order = false;
   int32_t highest_key = -1;
   const uint8_t *whence = rdata->octets;
@@ -578,6 +659,8 @@ static int32_t parse_mandatory_non_strict(
 
   if (!(skip = scan_svc_param_key(data, &key)))
     SYNTAX_ERROR(parser, "Invalid key in %s of %s", NAME(param), NAME(type));
+  has_mandatory = (key == 0);
+  key = htobe16(key);
   memcpy(rdata->octets, &key, 2);
   rdata->octets += 2;
   data += skip;
@@ -585,6 +668,9 @@ static int32_t parse_mandatory_non_strict(
   while (*data == ',' && rdata->octets < rdata->limit) {
     if (!(skip = scan_svc_param_key(data + 1, &key)))
       SYNTAX_ERROR(parser, "Invalid key in %s of %s", NAME(param), NAME(type));
+
+    // check if mandatory appears in mandatory key list
+    has_mandatory |= (key == 0);
 
     if ((int32_t)key <= highest_key) {
       // RFC9460 section 8:
@@ -599,7 +685,7 @@ static int32_t parse_mandatory_non_strict(
           break;
         octets += 2;
       }
-      assert(octets < rdata->octets);
+      assert(octets <= rdata->octets);
       // RFC9460 section 8:
       //   Keys MAY appear in any order, but MUST NOT appear more than once.
       if (key == smaller_key)
@@ -614,12 +700,71 @@ static int32_t parse_mandatory_non_strict(
     rdata->octets += 2;
   }
 
+  if (has_mandatory)
+    SEMANTIC_ERROR(parser, "Mandatory in mandatory of %s", NAME(type));
   if (out_of_order)
     SEMANTIC_ERROR(parser, "Out of order keys in mandatory of %s", NAME(type));
   if (rdata->octets >= rdata->limit - 2)
     SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
   if (data != token->data + token->length)
     SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return 0;
+}
+
+nonnull((1,2,3,4,6))
+static really_inline int32_t check_mandatory_non_strict(
+  zone_parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  const rdata_t *rdata,
+  const uint8_t *mandatory,
+  const uint8_t *parameters)
+{
+  if (!mandatory || parameters == rdata->octets)
+    return 0;
+  assert(mandatory < rdata->octets);
+  assert(rdata->octets - mandatory >= 4);
+
+  uint16_t length;
+  memcpy(&length, mandatory + 2, sizeof(length));
+  length = be16toh(length);
+  assert(rdata->octets - mandatory >= 4 + length);
+
+  bool missing_keys = false;
+  const uint8_t *limit = mandatory + 4 + length;
+  const uint8_t *keys = mandatory + 4;
+
+  for (; !missing_keys && keys < limit; keys += 2) {
+    uint16_t key;
+    memcpy(&key, keys, sizeof(key));
+    // no byteswap, compare big endian
+
+    // mandatory is guaranteed to exist
+    if (!key)
+      continue;
+    // cannot shift parameters as parameters are not sorted and mandatory may
+    // contain duplicate keys in non-strict mode
+    assert(rdata->octets - parameters >= 4);
+    if (memcmp(parameters, &key, 2) == 0)
+      continue;
+    memcpy(&length, parameters + 2, 2);
+    length = be16toh(length);
+    assert(rdata->octets - parameters >= 4 + length);
+    const uint8_t *parameter = parameters + 4 + length;
+    while (parameter < rdata->octets) {
+      if (memcmp(parameter, &key, 2) == 0)
+        break;
+      memcpy(&length, parameter + 2, 2);
+      length = be16toh(length);
+      assert(rdata->octets - parameters >= 4 + length);
+      parameter += 4 + length;
+    }
+
+    missing_keys = (parameter == rdata->octets);
+  }
+
+  if (missing_keys)
+    SEMANTIC_ERROR(parser, "Mandatory %s missing in %s", NAME(field), NAME(type));
   return 0;
 }
 
@@ -635,6 +780,7 @@ static int32_t parse_svc_params_non_strict(
   int32_t code, highest_key = -1;
   const uint16_t zero = 0;
   const uint8_t *whence = rdata->octets;
+  const uint8_t *mandatory = NULL;
 
   while (is_contiguous(token)) {
     size_t skip;
@@ -666,18 +812,23 @@ static int32_t parse_svc_params_non_strict(
         SEMANTIC_ERROR(parser, "Duplicate key in %s", NAME(type));
     }
 
-    switch ((token->data[skip] == '=') + (param->has_value << 1)) {
-      case 1: // void parameter with value
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-      case 0: // void parameter without value
+    switch ((token->data[skip] == '=') | param->has_value) {
       case 2: // parameter without value
-        if (skip != token->length)
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        SEMANTIC_ERROR(parser, "%s without value in %s",
+                               NAME(field), NAME(type));
+        // fall through
+      case 0: // void parameter without value
         key = htobe16(key);
         memcpy(rdata->octets, &key, sizeof(key));
         memcpy(rdata->octets+2, &zero, sizeof(zero));
+        if (!key && !mandatory)
+          mandatory = rdata->octets;
         rdata->octets += 4;
         break;
+      case 1: // void parameter with value
+        SEMANTIC_ERROR(parser, "%s with value in %s",
+                               NAME(field), NAME(type));
+        // fall through
       case 3: // parameter with value
         skip += 1;
         // quoted value, separate token
@@ -688,15 +839,16 @@ static int32_t parse_svc_params_non_strict(
         {
           uint8_t *octets = rdata->octets;
           rdata->octets += 4;
-          code = param->parse_non_strict(
-            parser, type, field, key, param, rdata, token);
-          if (code)
+          if ((token->length) &&
+              (code = param->parse_non_strict(parser, type, field, key, param, rdata, token)))
             return code;
           uint16_t length = (uint16_t)(rdata->octets - octets) - 4;
           key = htobe16(key);
           length = htobe16(length);
           memcpy(octets, &key, sizeof(key));
           memcpy(octets+2, &length, sizeof(length));
+          if (!key && !mandatory)
+            mandatory = octets;
         }
         break;
     }
@@ -705,9 +857,12 @@ static int32_t parse_svc_params_non_strict(
   }
 
   if (out_of_order)
-    SEMANTIC_ERROR(parser, "Out of order parameters in %s", NAME(type));
-
-  return have_delimiter(parser, type, token);
+    SEMANTIC_ERROR(parser, "Out of order %s(s) in %s", NAME(field), NAME(type));
+  if ((code = have_delimiter(parser, type, token)))
+    return code;
+  if ((code = check_mandatory_non_strict(parser, type, field, rdata, mandatory, whence)))
+    return code;
+  return 0;
 }
 
 // https://www.iana.org/assignments/dns-svcb/dns-svcb.xhtml
@@ -739,18 +894,21 @@ static really_inline int32_t parse_svc_params(
     if (key > highest_key) {
       highest_key = key;
 
-      switch ((token->data[skip] == '=') | (param->has_value << 1)) {
-        case 1: // void parameter with value
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-        case 0: // void parameter without value
+      switch ((token->data[skip] == '=') | param->has_value) {
         case 2: // parameter without optional value
-          if (skip != token->length)
-            SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+          SEMANTIC_ERROR(parser, "%s without value in %s",
+                                 NAME(field), NAME(type));
+          // fall through
+        case 0: // void parameter without value
           key = htobe16(key);
           memcpy(rdata->octets, &key, sizeof(key));
           memcpy(rdata->octets+2, &zero, sizeof(zero));
           rdata->octets += 4;
           break;
+        case 1: // void parameter with value
+          SEMANTIC_ERROR(parser, "%s with value in %s",
+                                 NAME(field), NAME(type));
+          // fall through
         case 3: // parameter with value
           skip += 1;
           // quoted parameter, separate token
@@ -761,9 +919,8 @@ static really_inline int32_t parse_svc_params(
           {
             uint8_t *octets = rdata->octets;
             rdata->octets += 4;
-            code = param->parse(
-              parser, type, field, key, param, rdata, token);
-            if (code < 0)
+            if ((token->length) &&
+                (code = param->parse(parser, type, field, key, param, rdata, token)))
               return code;
             uint16_t length = (uint16_t)(rdata->octets - octets) - 4;
             key = htobe16(key);
@@ -790,19 +947,24 @@ static really_inline int32_t parse_svc_params(
 
       assert(octets < rdata->octets);
       if (key == smaller_key)
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
+        SEMANTIC_ERROR(parser, "Duplicate key in %s", NAME(type));
 
-      switch ((token->data[skip] == '=') + (param->has_value << 1)) {
-        case 1: // void parameter with value
-          SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-        case 0: // void parameter without value
+      switch ((token->data[skip] == '=') | param->has_value) {
         case 2: // parameter without value
+          SEMANTIC_ERROR(parser, "%s without value in %s",
+                                 NAME(field), NAME(type));
+          // fall through
+        case 0: // void parameter without value
           key = htobe16(key);
           memmove(octets + 4, octets, (uintptr_t)rdata->octets - (uintptr_t)octets);
           memcpy(octets, &key, sizeof(key));
           memcpy(octets+2, &zero, sizeof(zero));
           rdata->octets += 4;
           break;
+        case 1: // void parameter with value
+          SEMANTIC_ERROR(parser, "%s with value in %s",
+                                 NAME(field), NAME(type));
+          // fall through
         case 3: // parameter with value
           skip += 1;
           // quoted parameter, separate token
@@ -825,9 +987,8 @@ static really_inline int32_t parse_svc_params(
             // move data PADDING_SIZE past limit to ensure SIMD operatations
             // do not overwrite existing data
             memmove(param_rdata.limit + ZONE_PADDING_SIZE, octets, length);
-            code = param->parse(
-              parser, type, field, key, param, &param_rdata, token);
-            if (code)
+            if ((token->length) &&
+                (code = param->parse(parser, type, field, key, param, &param_rdata, token)))
               return code;
             assert(param_rdata.octets < param_rdata.limit);
             memmove(param_rdata.octets, param_rdata.limit + ZONE_PADDING_SIZE, length);
@@ -845,9 +1006,12 @@ static really_inline int32_t parse_svc_params(
     take(parser, token);
   }
 
-  // FIXME: check keys specified in mandatory are actually specified!
-
-  return have_delimiter(parser, type, token);
+  if ((code = have_delimiter(parser, type, token)))
+    return code;
+  if (whence == rdata->octets || memcmp(whence, &zero, sizeof(zero)) != 0)
+    return 0;
+  assert(whence);
+  return check_mandatory(parser, type, field, rdata, whence, whence);
 }
 
 #endif // SVCB_H
