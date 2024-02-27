@@ -376,10 +376,23 @@ static const rdata_t d2_f9_rdata = RDATA(
   0x00, 0x04,
   // param value
   0xc0, 0x00, 0x02, 0x01);
-#if 0
+
 // Figure 10: An "alpn" Value with an Escaped Comma and an Escaped Backslash in Two Presentation Formats
 // This last (two) vectors has an alpn value with an escaped comma and an
 // escaped backslash in two presentation formats.
+#if 0
+// RFC9460 section 7.1.1:
+//   For "alpn", the presentation value SHALL be a comma-separated list
+//   (Appendix A.1) of one or more alpn-ids. Zone-file implementations MAY
+//   disallow the "," and "\" characters in ALPN IDs instead of implementing
+//   the value-list escaping procedure, relying on the opaque key format
+//   (e.g., key1=\002h2) in the event that these characters are needed.
+//
+// RFC9460 appendix A.1:
+//   ... A value-list parser that splits on "," and prohibits items containing
+//   "\" is sufficient to comply with all requirements in this document. This
+//   corresponds to the simple-comma-separated syntax: ...
+//
 static const char d2_f10_1_svcb_text[] =
   PAD("v09     SVCB    16 foo.example.org. alpn=\"f\\\\oo\\,bar,h2\"");
 static const char d2_f10_1_svcb_generic_text[] =
@@ -585,71 +598,129 @@ static const char nsd_fc22_text[] =
 static const char nsd_fc23_text[] =
   PAD("f23     HTTPS   1 foo.example.com. dohpath");
 
+static const rdata_t nsd_fc23_secondary_rdata =
+  RDATA(0x00, 0x01, // priority
+        3, 'f', 'o', 'o', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0, // target,
+        0x00, 0x07, 0x00, 0x00); // dohpath
 
-#if 0
+
 // svcb.success-cases.zone (cut up into separate tests for debuggability)
 // A particular key does not need to have a value
 static const char nsd_s01_text[] =
   PAD("s01     SVCB   0 . key123");
 static const rdata_t nsd_s01_rdata =
-  RDATA();
+  RDATA(
+  0x00, 0x00,              // priority
+  0x00,                    // target
+  0x00, 0x7b, 0x00, 0x00); // key123
 
-// echconfig does not need to have a value
+// ech does not need to have a value
 static const char nsd_s02_text[] =
-  PAD("s02     SVCB   0 . echconfig");
+  PAD("s02     SVCB   0 . ech");
 static const rdata_t nsd_s02_rdata =
-  RDATA();
+  RDATA(
+    0x00, 0x00,              // priority
+    0x00,                    // target
+    0x00, 0x05, 0x00, 0x00); // ech
 
 // When "no-default-alpn" is specified in an RR, "alpn" must also be specified
 // in order for the RR to be "self-consistent"
 static const char nsd_s03_text[] =
-  PAD("s03     HTTPS   0 . alpn="h2,h3" no-default-alpn");
+  PAD("s03     HTTPS   0 . alpn=\"h2,h3\" no-default-alpn");
 static const rdata_t nsd_s03_rdata =
-  RDATA();
+  RDATA(
+    0x00, 0x00,              // priority
+    0x00,                    // target
+    0x00, 0x01, 0x00, 0x06,  // alpn
+    0x02, 'h', '2',          // h2
+    0x02, 'h', '3',          // h3
+    0x00, 0x02, 0x00, 0x00); // no-default-alpn
 
 // SHOULD is not MUST (so allowed)
 // Zone-file implementations SHOULD enforce self-consistency
+//
+// NSD allows this, simdzone only allows this in secondary mode.
 static const char nsd_s04_text[] =
   PAD("s04     HTTPS   0 . no-default-alpn");
-static const rdata_t nsd_s04_rdata =
-  RDATA();
+
+static const rdata_t nsd_s04_secondary_rdata =
+  RDATA(
+    0x00, 0x00,              // priority
+    0x00,                    // target
+    0x00, 0x02, 0x00, 0x00); // no-default-alpn
 
 // SHOULD is not MUST (so allowed)
 // (port and no-default-alpn are automatically mandatory keys with HTTPS)
-// Other automatically mandatory keys SHOULD NOT appear in the list either.
-static const char nsd_s05_text[] =
-  PAD("s05     HTTPS   0 . alpn="dot" no-default-alpn port=853 mandatory=port");
-static const rdata_t nsd_s05_rdata =
-  RDATA();
+//
+// NSD allows this, simdzone allows this in secondary mode.
+static const char nsd_s05_svcb_text[] =
+  PAD("s05     SVCB   0 . alpn=\"dot\" no-default-alpn port=853 mandatory=port");
+
+static const char nsd_s05_https_text[] =
+  PAD("s05     HTTPS   0 . alpn=\"dot\" no-default-alpn port=853 mandatory=port");
+
+static const rdata_t nsd_s05_svcb_rdata =
+  RDATA(
+    0x00, 0x00, // priority
+    0x00, // target
+    0x00, 0x00, 0x00, 0x02, 0x00, 0x03, // mandatory=port
+    0x00, 0x01, 0x00, 0x04, 3, 'd', 'o', 't', // alpn="dot"
+    0x00, 0x02, 0x00, 0x00, // no-default-alpn
+    0x00, 0x03, 0x00, 0x02, 0x03, 0x55); // port=853
+
+static const rdata_t nsd_s05_https_secondary_rdata =
+  RDATA(
+    0x00, 0x00, // priority
+    0x00, // target
+    0x00, 0x01, 0x00, 0x04, 3, 'd', 'o', 't', // alpn="dot"
+    0x00, 0x02, 0x00, 0x00, // no-default-alpn
+    0x00, 0x03, 0x00, 0x02, 0x03, 0x55, // port=853
+    0x00, 0x00, 0x00, 0x02, 0x00, 0x03); // mandatory=port
 
 // Any valid base64 is okay for ech
 static const char nsd_s06_text[] =
   PAD("s06     HTTPS   0 . ech=\"aGVsbG93b3JsZCE=\"");
 static const rdata_t nsd_s06_rdata =
-  RDATA();
+  RDATA(
+    0x00, 0x00, // priority
+    0x00, // target
+    0x00, 0x05, 0x00, 0x0b, 'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd', '!'); // helloworld!
 
+#if 0
 // echconfig is an alias for ech
+//
+// NSD implemented echconfig, simdzone does not as echconfig is not registered
+// by IANA (https://www.iana.org/assignments/dns-svcb/dns-svcb.xhtml).
 static const char nsd_s07_text[] =
   PAD("s07     HTTPS   0 . echconfig=\"aGVsbG93b3JsZCE=\"");
 static const rdata_t nsd_s07_rdata =
   RDATA();
+#endif
 
 // dohpath can be (non-)quoted
 static const char nsd_s08_text[] =
   PAD("s08     HTTPS   0 . alpn=h2 dohpath=\"/dns-query{?dns}\"");
 static const rdata_t nsd_s08_rdata =
-  RDATA();
+  RDATA(
+    0x00, 0x00, // priority
+    0x00, // target
+    0x00, 0x01, 0x00, 0x03, 2, 'h', '2', // alpn=h2
+    0x00, 0x07, 0x00, 0x10, '/', 'd', 'n', 's', '-', 'q', 'u', 'e', 'r', 'y', '{', '?', 'd', 'n', 's', '}');
 
 static const char nsd_s09_text[] =
   PAD("s09     HTTPS   0 . alpn=h2 dohpath=/dns-query{é?dns}");
 static const rdata_t nsd_s09_rdata =
-  RDATA();
-#endif
+  RDATA(
+    0x00, 0x00,
+    0x00,
+    0x00, 0x01, 0x00, 0x03, 2, 'h', '2',
+    0x00, 0x07, 0x00, 0x12, '/', 'd', 'n', 's', '-', 'q', 'u', 'e', 'r', 'y', '{', 0xc3, 0xa9, '?', 'd', 'n', 's', '}');
 
-
+// FIXME: make a test that verifies correct behavior for no-default-alpn="some value"
 
 typedef struct test test_t;
 struct test {
+  bool secondary;
   uint16_t type;
   int32_t code;
   const char *text;
@@ -657,38 +728,38 @@ struct test {
 };
 
 static const test_t tests[] = {
-  { ZONE_SVCB, 0, d1_svcb_text, &d1_rdata },
-  { ZONE_SVCB, 0, d1_svcb_generic_text, &d1_rdata },
-  { ZONE_HTTPS, 0, d1_https_text, &d1_rdata },
-  { ZONE_HTTPS, 0, d1_https_generic_text, &d1_rdata},
-  { ZONE_SVCB, 0, d2_f3_svcb_text, &d2_f3_rdata },
-  { ZONE_SVCB, 0, d2_f3_svcb_generic_text, &d2_f3_rdata },
-  { ZONE_HTTPS, 0, d2_f3_https_text, &d2_f3_rdata },
-  { ZONE_HTTPS, 0, d2_f3_https_generic_text, &d2_f3_rdata },
-  { ZONE_SVCB, 0, d2_f4_svcb_text, &d2_f4_rdata },
-  { ZONE_SVCB, 0, d2_f4_svcb_generic_text, &d2_f4_rdata },
-  { ZONE_HTTPS, 0, d2_f4_https_text, &d2_f4_rdata },
-  { ZONE_HTTPS, 0, d2_f4_https_generic_text, &d2_f4_rdata },
-  { ZONE_SVCB, 0, d2_f5_svcb_text, &d2_f5_rdata },
-  { ZONE_SVCB, 0, d2_f5_svcb_generic_text, &d2_f5_rdata },
-  { ZONE_HTTPS, 0, d2_f5_https_text, &d2_f5_rdata },
-  { ZONE_HTTPS, 0, d2_f5_https_generic_text, &d2_f5_rdata },
-  { ZONE_SVCB, 0, d2_f6_svcb_text, &d2_f6_rdata },
-  { ZONE_SVCB, 0, d2_f6_svcb_generic_text, &d2_f6_rdata },
-  { ZONE_HTTPS, 0, d2_f6_https_text, &d2_f6_rdata },
-  { ZONE_HTTPS, 0, d2_f6_https_generic_text, &d2_f6_rdata },
-  { ZONE_SVCB, 0, d2_f7_svcb_text, &d2_f7_rdata },
-  { ZONE_SVCB, 0, d2_f7_svcb_generic_text, &d2_f7_rdata },
-  { ZONE_HTTPS, 0, d2_f7_https_text, &d2_f7_rdata },
-  { ZONE_HTTPS, 0, d2_f7_https_generic_text, &d2_f7_rdata },
-  { ZONE_SVCB, 0, d2_f8_svcb_text, &d2_f8_rdata },
-  { ZONE_SVCB, 0, d2_f8_svcb_generic_text, &d2_f8_rdata },
-  { ZONE_HTTPS, 0, d2_f8_https_text, &d2_f8_rdata },
-  { ZONE_HTTPS, 0, d2_f8_https_generic_text, &d2_f8_rdata },
-  { ZONE_SVCB, 0, d2_f9_svcb_text, &d2_f9_rdata },
-  { ZONE_SVCB, 0, d2_f9_svcb_generic_text, &d2_f9_rdata },
-  { ZONE_HTTPS, 0, d2_f9_https_text, &d2_f9_rdata },
-  { ZONE_HTTPS, 0, d2_f9_https_generic_text, &d2_f9_rdata },
+  { false, ZONE_SVCB, 0, d1_svcb_text, &d1_rdata },
+  { false, ZONE_SVCB, 0, d1_svcb_generic_text, &d1_rdata },
+  { false, ZONE_HTTPS, 0, d1_https_text, &d1_rdata },
+  { false, ZONE_HTTPS, 0, d1_https_generic_text, &d1_rdata},
+  { false, ZONE_SVCB, 0, d2_f3_svcb_text, &d2_f3_rdata },
+  { false, ZONE_SVCB, 0, d2_f3_svcb_generic_text, &d2_f3_rdata },
+  { false, ZONE_HTTPS, 0, d2_f3_https_text, &d2_f3_rdata },
+  { false, ZONE_HTTPS, 0, d2_f3_https_generic_text, &d2_f3_rdata },
+  { false, ZONE_SVCB, 0, d2_f4_svcb_text, &d2_f4_rdata },
+  { false, ZONE_SVCB, 0, d2_f4_svcb_generic_text, &d2_f4_rdata },
+  { false, ZONE_HTTPS, 0, d2_f4_https_text, &d2_f4_rdata },
+  { false, ZONE_HTTPS, 0, d2_f4_https_generic_text, &d2_f4_rdata },
+  { false, ZONE_SVCB, 0, d2_f5_svcb_text, &d2_f5_rdata },
+  { false, ZONE_SVCB, 0, d2_f5_svcb_generic_text, &d2_f5_rdata },
+  { false, ZONE_HTTPS, 0, d2_f5_https_text, &d2_f5_rdata },
+  { false, ZONE_HTTPS, 0, d2_f5_https_generic_text, &d2_f5_rdata },
+  { false, ZONE_SVCB, 0, d2_f6_svcb_text, &d2_f6_rdata },
+  { false, ZONE_SVCB, 0, d2_f6_svcb_generic_text, &d2_f6_rdata },
+  { false, ZONE_HTTPS, 0, d2_f6_https_text, &d2_f6_rdata },
+  { false, ZONE_HTTPS, 0, d2_f6_https_generic_text, &d2_f6_rdata },
+  { false, ZONE_SVCB, 0, d2_f7_svcb_text, &d2_f7_rdata },
+  { false, ZONE_SVCB, 0, d2_f7_svcb_generic_text, &d2_f7_rdata },
+  { false, ZONE_HTTPS, 0, d2_f7_https_text, &d2_f7_rdata },
+  { false, ZONE_HTTPS, 0, d2_f7_https_generic_text, &d2_f7_rdata },
+  { false, ZONE_SVCB, 0, d2_f8_svcb_text, &d2_f8_rdata },
+  { false, ZONE_SVCB, 0, d2_f8_svcb_generic_text, &d2_f8_rdata },
+  { false, ZONE_HTTPS, 0, d2_f8_https_text, &d2_f8_rdata },
+  { false, ZONE_HTTPS, 0, d2_f8_https_generic_text, &d2_f8_rdata },
+  { false, ZONE_SVCB, 0, d2_f9_svcb_text, &d2_f9_rdata },
+  { false, ZONE_SVCB, 0, d2_f9_svcb_generic_text, &d2_f9_rdata },
+  { false, ZONE_HTTPS, 0, d2_f9_https_text, &d2_f9_rdata },
+  { false, ZONE_HTTPS, 0, d2_f9_https_generic_text, &d2_f9_rdata },
 #if 0
   { ZONE_SVCB, 0, d2_f10_1_svcb_text, &d2_f10_rdata },
   { ZONE_SVCB, 0, d2_f10_1_svcb_generic_text, &d2_f10_rdata },
@@ -699,28 +770,42 @@ static const test_t tests[] = {
   { ZONE_HTTPS, 0, d2_f10_2_https_text, &d2_f10_rdata },
   { ZONE_HTTPS, 0, d2_f10_2_https_generic_text, &d2_f10_rdata },
 #endif
-  { ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc01_text, NULL },
-  { ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc02_text, NULL },
-  { ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc03_text, NULL },
-  { ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc04_text, NULL },
-  { ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc05_text, NULL },
-  { ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc06_text, NULL },
-  { ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc07_text, NULL },
-  { ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc08_text, NULL },
-  { ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc09_text, NULL },
-  { ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc10_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc11_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc12_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc13_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc14_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc15_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc16_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc17_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc18_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc19_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc20_text, NULL },
-  { ZONE_HTTPS, ZONE_SYNTAX_ERROR, nsd_fc22_text, NULL },
-  { ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc23_text, NULL }
+  { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc01_text, NULL },
+  { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc02_text, NULL },
+  { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc03_text, NULL },
+  { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc04_text, NULL },
+  { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc05_text, NULL },
+  { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc06_text, NULL },
+  { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc07_text, NULL },
+  { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc08_text, NULL },
+  { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc09_text, NULL },
+  { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc10_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc11_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc12_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc13_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc14_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc15_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc16_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc17_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc18_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc19_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc20_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SYNTAX_ERROR, nsd_fc22_text, NULL },
+  { true, ZONE_HTTPS, ZONE_SYNTAX_ERROR, nsd_fc22_text, NULL },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_fc23_text, NULL },
+  { true, ZONE_HTTPS, 0, nsd_fc23_text, &nsd_fc23_secondary_rdata },
+  { false, ZONE_SVCB, 0, nsd_s01_text, &nsd_s01_rdata },
+  { false, ZONE_SVCB, 0, nsd_s02_text, &nsd_s02_rdata },
+  { false, ZONE_HTTPS, 0, nsd_s03_text, &nsd_s03_rdata },
+  { true, ZONE_HTTPS, 0, nsd_s03_text, &nsd_s03_rdata },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_s04_text, NULL },
+  { true, ZONE_HTTPS, 0, nsd_s04_text, &nsd_s04_secondary_rdata },
+  { false, ZONE_SVCB, 0, nsd_s05_svcb_text, &nsd_s05_svcb_rdata },
+  { false, ZONE_HTTPS, ZONE_SEMANTIC_ERROR, nsd_s05_https_text, NULL },
+  { true, ZONE_HTTPS, 0, nsd_s05_https_text, &nsd_s05_https_secondary_rdata },
+  { false, ZONE_HTTPS, 0, nsd_s06_text, &nsd_s06_rdata },
+  { false, ZONE_HTTPS, 0, nsd_s08_text, &nsd_s08_rdata },
+  { false, ZONE_HTTPS, 0, nsd_s09_text, &nsd_s09_rdata }
 };
 
 static int32_t add_rr(
@@ -742,7 +827,7 @@ static int32_t add_rr(
     return ZONE_SYNTAX_ERROR;
   if (test->code != ZONE_SUCCESS)
     return ZONE_SUCCESS;
-  if (rdlength != test->rdata->length)
+  if (rdlength != test->rdata->length || !test->rdata->octets)
     return ZONE_SYNTAX_ERROR;
   if (memcmp(rdata, test->rdata->octets, rdlength) != 0)
     return ZONE_SYNTAX_ERROR;
@@ -766,6 +851,7 @@ void rfc9460_test_vectors(void **state)
     zone_options_t options = { 0 };
     int32_t code;
 
+    options.non_strict = tests[i].secondary;
     options.accept.callback = add_rr;
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
