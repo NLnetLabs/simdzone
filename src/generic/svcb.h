@@ -370,7 +370,7 @@ static const svc_param_info_t svc_params[] = {
   //   For "no-default-alpn", the presentation and wire format values MUST be
   //   empty. When "no-default-alpn" is specified in an RR, "alpn" must also be
   //   specified in order for the RR to be "self-consistent" (Section 2.4.3).
-  SVC_PARAM("no-default-alpn", 2u, NO_VALUE, 0, 0),
+  SVC_PARAM("no-default-alpn", 2u, NO_VALUE, parse_unknown, parse_unknown),
   // RFC9460 section 7.2:
   //   The presentation value of the SvcParamValue is a single decimal integer
   //   between 0 and 65535 in ASCII. ...
@@ -688,8 +688,9 @@ static really_inline int32_t check_mandatory(
     memcpy(&key, keys, sizeof(key));
     // no byteswap, compare big endian
 
-    assert(key != 0);
-
+    // mandatory is guaranteed to exist
+    if (key == 0)
+      continue;
     if ((missing_keys = (parameters == rdata->octets)))
       break;
     assert(rdata->octets - parameters >= 4);
