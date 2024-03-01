@@ -22,18 +22,66 @@
 //   (alpn-id), which is a sequence of 1-255 octets. For "alpn", the
 //   presentation value SHALL be a comma-separated list (Appendix A.1) of
 //   one or more alpn-ids. Zone-file implementations MAY disallow the ","
-//   and "\\" characters in ALPN IDs instead of implementing the value-list
+//   and "\" characters in ALPN IDs instead of implementing the value-list
 //   escaping procedure, relying on the opaque key format (e.g., key=\002h2)
 //   in the event that these characters are needed.
 //
 // Application-Layer Protocol Negotiation (ALPN) protocol identifiers are
 // maintained by IANA:
+//
 // https://www.iana.org/assignments/tls-extensiontype-values#alpn-protocol-ids
 //
+// RFC9460 section 7.1.1:
+//   For "alpn", the presentation value SHALL be a comma-separated list
+//   (Appendix A.1) of one or more alpn-ids. Zone-file implementations MAY
+//   disallow the "," and "\" characters in ALPN IDs instead of implementing
+//   the value-list escaping procedure, relying on the opaque key format
+//   (e.g., key1=\002h2) in the event that these characters are needed.
+//
 // RFC9460 appendix A.1:
-//   ... A value-list parser that splits on "," and prohibits items
-//   containing "\"" is sufficient to comply with all requirements in
-//   this document. ...
+//   A value-list parser that splits on "," and prohibits items containing
+//   "\\" is sufficient to comply with all requirements in this document.
+//
+// RFC9460 appendix A.1:
+//   Decoding of value-lists happens after character-string decoding.
+//
+//
+//
+// RFC9460 (somewhat incorrectly) states that an SvcParamValue is a
+// character-string. An SvcParamValue is just that, an SvcParamValue. The
+// presentation format is not a context-free format like JSON. Tokens can be
+// identified, not classified, by syntax.
+//
+// Context-free languages (e.g. C, JSON) classify a token as a string if it is
+// quoted, an identifier or keyword if it is a contiguous set of characters,
+// etc. Unescaping is done by the scanner because the token is classified
+// during that stage. The presentation format defines basic syntax to identify
+// tokens, but as the format is NOT context-free and intentionally extensible,
+// the token is classified by the parser. Conversion of domain names from text
+// format to wire format is a prime example.
+//
+// Example:
+// "foo. NS bar\." defines "bar\." as a relative domain. The "\" (backslash)
+// is important because it signals that the trailing dot does not serve as a
+// label separator.
+//
+// Note that RFC9460 is contradicts itself by stating that the value-list
+// escaping procedure may rely on the opaque key format (e.g., key1=\002h2)
+// in the event that these characters are needed. Escaping using \DDD, if
+// SvcParamValue is indeed to be interpreted as a string, would produce
+// 0x03 0x02 0x68 0x32 in wire format.
+//
+// IETF mailing list discussion on this topic:
+// https://mailarchive.ietf.org/arch/msg/dnsop/SXnlsE1B8gmlDjn4HtOo1lwtqAI/
+//
+//
+// BIND disallows any escape sequences in port, ipv4hint, etc. Regular
+// (single stage) escaping rules are applied to dohpath. Special (two stage)
+// escaping rules apply for alpn.
+//
+// Knot disallows escape sequences in port, ipv4hint, etc. kzonecheck 3.3.4
+// does not to accept dohpath. Special (two stage) escaping rules apply for
+// alpn.
 nonnull_all
 static int32_t parse_alpn(
   parser_t *parser,
@@ -44,43 +92,58 @@ static int32_t parse_alpn(
   rdata_t *rdata,
   const token_t *token)
 {
-  // FIXME: easily optimized by applying vectorization
-  uint8_t *separator = rdata->octets;
-  uint8_t *octet = rdata->octets + 1;
-  uint8_t *limit = rdata->octets + 1 + token->length;
-  if (limit > rdata->limit)
-    SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
-
-  memcpy(octet, token->data, token->length);
+  assert(rdata->octets < rdata->limit);
 
   (void)field;
   (void)key;
   (void)param;
 
-  for (; octet < limit; octet++) {
-    // FIXME: SIMD and possibly SWAR can easily be used to improve
-    if (*octet == '\\')
-      SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
-    if (*octet != ',')
-      continue;
-    assert(separator < octet);
-    const size_t length = ((uintptr_t)octet - (uintptr_t)separator) - 1;
-    if (length == 0)
-      SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
-    if (length > 255)
-      SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
-    *separator = (uint8_t)length;
-    separator = octet;
+  uint8_t *comma = rdata->octets++;
+  const char *data = token->data, *limit = token->data + token->length;
+
+  while (data < limit && rdata->octets < rdata->limit) {
+    *rdata->octets = (uint8_t)*data;
+    if (unlikely(*rdata->octets == '\\')) {
+      uint32_t length;
+      if (!(length = unescape(data, rdata->octets)))
+        SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
+      data += length;
+      // second level escape processing
+      if (*rdata->octets == '\\') {
+        assert(length);
+        if (*data == '\\') {
+          if (!(length = unescape(data, rdata->octets)))
+            SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
+          data += length;
+        } else {
+          *rdata->octets = (uint8_t)*data;
+          data++;
+        }
+        rdata->octets++;
+        continue;
+      }
+    } else {
+      data++;
+    }
+
+    if (*rdata->octets == ',') {
+      assert(comma < rdata->octets);
+      const size_t length = ((uintptr_t)rdata->octets - (uintptr_t)comma) - 1;
+      if (!length || length > 255)
+        SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
+      *comma = (uint8_t)length;
+      comma = rdata->octets;
+    }
+
+    rdata->octets++;
   }
 
-  const size_t length = ((uintptr_t)octet - (uintptr_t)separator) - 1;
-  if (length == 0)
+  if (data != limit || rdata->octets > rdata->limit)
     SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
-  if (length > 255)
+  const size_t length = ((uintptr_t)rdata->octets - (uintptr_t)comma) - 1;
+  if (!length || length > 255)
     SYNTAX_ERROR(parser, "Invalid alpn in %s", NAME(type));
-  *separator = (uint8_t)length;
-
-  rdata->octets = limit;
+  *comma = (uint8_t)length;
   return 0;
 }
 
