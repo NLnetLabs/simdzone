@@ -380,21 +380,8 @@ static const rdata_t d2_f9_rdata = RDATA(
 // Figure 10: An "alpn" Value with an Escaped Comma and an Escaped Backslash in Two Presentation Formats
 // This last (two) vectors has an alpn value with an escaped comma and an
 // escaped backslash in two presentation formats.
-#if 0
-// RFC9460 section 7.1.1:
-//   For "alpn", the presentation value SHALL be a comma-separated list
-//   (Appendix A.1) of one or more alpn-ids. Zone-file implementations MAY
-//   disallow the "," and "\" characters in ALPN IDs instead of implementing
-//   the value-list escaping procedure, relying on the opaque key format
-//   (e.g., key1=\002h2) in the event that these characters are needed.
-//
-// RFC9460 appendix A.1:
-//   ... A value-list parser that splits on "," and prohibits items containing
-//   "\" is sufficient to comply with all requirements in this document. This
-//   corresponds to the simple-comma-separated syntax: ...
-//
 static const char d2_f10_1_svcb_text[] =
-  PAD("v09     SVCB    16 foo.example.org. alpn=\"f\\\\oo\\,bar,h2\"");
+  PAD("v09     SVCB    16 foo.example.org. alpn=\"f\\\\\\\\oo\\\\,bar,h2\"");
 static const char d2_f10_1_svcb_generic_text[] =
   PAD("v09     SVCB    \\# 35 (\n"
       "00 10                                              ; priority\n"
@@ -408,7 +395,7 @@ static const char d2_f10_1_svcb_generic_text[] =
       ")");
 
 static const char d2_f10_1_https_text[] =
-  PAD("v19     HTTPS   16 foo.example.org. alpn=\"f\\\\oo\\,bar,h2\"");
+  PAD("v19     HTTPS   16 foo.example.org. alpn=\"f\\\\\\\\oo\\\\,bar,h2\"");
 static const char d2_f10_1_https_generic_text[] =
   PAD("v19     HTTPS   \\# 35 (\n"
       "00 10                                              ; priority\n"
@@ -422,7 +409,7 @@ static const char d2_f10_1_https_generic_text[] =
       ")");
 
 static const char d2_f10_2_svcb_text[] =
-  PAD("v10     SVCB    16 foo.example.org. alpn=f\\\092oo\092,bar,h2");
+  PAD("v10     SVCB    16 foo.example.org. alpn=f\\\\\\092oo\\092,bar,h2");
 static const char d2_f10_2_svcb_generic_text[] =
   PAD("v10     SVCB    \\# 35 (\n"
       "00 10                                              ; priority\n"
@@ -436,7 +423,7 @@ static const char d2_f10_2_svcb_generic_text[] =
       ")");
 
 static const char d2_f10_2_https_text[] =
-  PAD("v20     HTTPS   16 foo.example.org. alpn=f\\\092oo\092,bar,h2");
+  PAD("v20     HTTPS   16 foo.example.org. alpn=f\\\\\\092oo\\092,bar,h2");
 static const char d2_f10_2_https_generic_text[] =
   PAD("v20     HTTPS   \\# 35 (\n"
       "00 10                                              ; priority\n"
@@ -449,26 +436,13 @@ static const char d2_f10_2_https_generic_text[] =
       "68 32                                              ; alpn value\n"
       ")");
 
-static const rdata_t d2_f10_rdata = RDATA(
-  // priority
-  0x00, 0x10,
-  // target
-  0x03, 0x66, 0x6f, 0x6f, 0x07, 0x65, 0x78, 0x61,
-  0x6d, 0x70, 0x6c, 0x65, 0x03, 0x6f, 0x72, 0x67,
-  0x00,
-  // key 1
-  0x00, 0x01,
-  // length 12
-  0x00, 0x0c,
-  // alpn length 8
-  0x08,
-  // alpn value
-  0x66, 0x5c, 0x6f, 0x6f, 0x2c, 0x62, 0x61, 0x72,
-  // alpn length 2
-  0x02,
-  // alpn value
-  0x68, 0x32);
-#endif
+static const rdata_t d2_f10_rdata =
+  RDATA(
+    0x00, 0x10,
+    3, 'f', 'o', 'o', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'o', 'r', 'g', 0,
+    0x00, 0x01, 0x00, 0x0c,
+    8, 'f', '\\', 'o', 'o', ',', 'b', 'a', 'r',
+    2, 'h', '2');
 
 // Failure cases copied from NSD
 // svcb.failure-cases-01
@@ -760,16 +734,14 @@ static const test_t tests[] = {
   { false, ZONE_SVCB, 0, d2_f9_svcb_generic_text, &d2_f9_rdata },
   { false, ZONE_HTTPS, 0, d2_f9_https_text, &d2_f9_rdata },
   { false, ZONE_HTTPS, 0, d2_f9_https_generic_text, &d2_f9_rdata },
-#if 0
-  { ZONE_SVCB, 0, d2_f10_1_svcb_text, &d2_f10_rdata },
-  { ZONE_SVCB, 0, d2_f10_1_svcb_generic_text, &d2_f10_rdata },
-  { ZONE_HTTPS, 0, d2_f10_1_https_text, &d2_f10_rdata },
-  { ZONE_HTTPS, 0, d2_f10_1_https_generic_text, &d2_f10_rdata },
-  { ZONE_SVCB, 0, d2_f10_2_svcb_text, &d2_f10_rdata },
-  { ZONE_SVCB, 0, d2_f10_2_svcb_generic_text, &d2_f10_rdata },
-  { ZONE_HTTPS, 0, d2_f10_2_https_text, &d2_f10_rdata },
-  { ZONE_HTTPS, 0, d2_f10_2_https_generic_text, &d2_f10_rdata },
-#endif
+  { false, ZONE_SVCB, 0, d2_f10_1_svcb_text, &d2_f10_rdata },
+  { false, ZONE_SVCB, 0, d2_f10_1_svcb_generic_text, &d2_f10_rdata },
+  { false, ZONE_HTTPS, 0, d2_f10_1_https_text, &d2_f10_rdata },
+  { false, ZONE_HTTPS, 0, d2_f10_1_https_generic_text, &d2_f10_rdata },
+  { false, ZONE_SVCB, 0, d2_f10_2_svcb_text, &d2_f10_rdata },
+  { false, ZONE_SVCB, 0, d2_f10_2_svcb_generic_text, &d2_f10_rdata },
+  { false, ZONE_HTTPS, 0, d2_f10_2_https_text, &d2_f10_rdata },
+  { false, ZONE_HTTPS, 0, d2_f10_2_https_generic_text, &d2_f10_rdata },
   { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc01_text, NULL },
   { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc02_text, NULL },
   { false, ZONE_SVCB, ZONE_SEMANTIC_ERROR, nsd_fc03_text, NULL },
