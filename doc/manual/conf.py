@@ -1,3 +1,4 @@
+import os
 import datetime
 
 # -- Project information -----------------------------------------------------
@@ -60,3 +61,8 @@ rst_epilog = f'''
 .. |project| replace:: {project}
 .. |author| replace:: {author}
 '''
+
+# Specify custom source directory when building for Read the Docs
+def setup(app):
+  if 'READTHEDOCS' in os.environ:
+    app.srcdir = '@PROJECT_SOURCE_DIR@' + '/doc/manual'
