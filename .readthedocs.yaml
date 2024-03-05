@@ -1,0 +1,26 @@
+version: 2
+
+build:
+  os: ubuntu-22.04
+  apt_packages:
+    - cmake
+    - doxygen
+  tools:
+    python: "3.12"
+  jobs:
+    pre_build:
+      # Generate doxygen XML output (api documentation) and conf.py
+      - |
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOCUMENTATION=on ..
+        cmake --build . --target doxygen
+
+sphinx:
+  configuration: build/manual.cache/conf.py
+
+# Declare the Python requirements required to build your documentation
+# See https://docs.readthedocs.io/en/stable/guides/reproducible-builds.html
+python:
+  install:
+    - requirements: doc/manual/requirements.txt
