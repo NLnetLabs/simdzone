@@ -615,3 +615,53 @@ void no_famous_last_words(void **state)
   assert_int_equal(code, ZONE_SUCCESS);
   assert_true(count == 0);
 }
+
+/*!cmocka */
+void the_include_that_wasnt(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t count = 0;
+
+  char *path = generate_include(" ");
+  assert_non_null(path);
+  char dummy[16];
+  int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"\n", path);
+  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(include);
+  (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"\n", path);
+  remove_include(path);
+  free(path);
+  code = parse(include, &count);
+  free(include);
+  assert_int_equal(code, ZONE_READ_ERROR);
+}
+
+/*!cmocka */
+void been_there_done_that(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t count = 0;
+
+  char *path = generate_include(" ");
+  assert_non_null(path);
+  FILE* handle = fopen(path, "wb");
+  assert_non_null(handle);
+  char dummy[16];
+  int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"\n", path);
+  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(include);
+  (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"\n", path);
+  int result = fputs(include, handle);
+  assert_true(result >= 0);
+  (void)fclose(handle);
+  free(path);
+  code = parse(include, &count);
+  free(include);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+}
