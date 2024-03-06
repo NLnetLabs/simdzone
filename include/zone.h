@@ -240,7 +240,7 @@ struct zone_file {
   FILE *handle;
   bool grouped;
   bool start_of_line;
-  enum { ZONE_HAVE_DATA, ZONE_READ_ALL_DATA, ZONE_NO_MORE_DATA } end_of_file;
+  uint8_t end_of_file;
   struct {
     size_t index, length, size;
     char *data;

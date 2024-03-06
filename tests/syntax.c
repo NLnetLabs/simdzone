@@ -7,12 +7,17 @@
  *
  */
 #include <assert.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <setjmp.h>
 #include <string.h>
 #include <cmocka.h>
+#if !_WIN32
+#include <unistd.h>
+#endif
 
 #include "zone.h"
+#include "diagnostic.h"
 
 #define PAD(literal) \
   literal \
@@ -72,7 +77,7 @@ void newlines(void **state)
   // >> do the same thing for contiguous
 #endif
   static const char grouped_lf_text[] =
-    PAD("1. TXT (\nfoo\nbar\n)\"\n2. TXT \"foobar\"");
+    PAD("1. TXT (\nfoo\nbar\n)\n2. TXT \"foobar\"");
   static const char plain_lf_text[] =
     PAD("1. TXT \"foo bar\"\n2. TXT \"foo baz\"");
   static const char control_lf_text[] =
@@ -108,6 +113,7 @@ void newlines(void **state)
     options.default_ttl = 3600;
     options.default_class = ZONE_IN;
 
+    fprintf(stderr, "INPUT: \"%s\"\n", tests[i].input);
     result = zone_parse_string(
       &parser, &options, &buffers, tests[i].input, strlen(tests[i].input), (void*)&tests[i]);
     assert_int_equal(result, ZONE_SUCCESS);
@@ -471,3 +477,92 @@ void ttls(void **state)
     assert_int_equal(code, tests[i].code);
   }
 }
+
+static int32_t dummy_callback(
+  zone_parser_t *parser,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
+  uint16_t rdlength,
+  const uint8_t *rdata,
+  void *user_data)
+{
+  (void)parser;
+  (void)owner;
+  (void)type;
+  (void)class;
+  (void)ttl;
+  (void)rdlength;
+  (void)rdata;
+  (void)user_data;
+  return 0;
+}
+
+static int32_t parse_text(const char *text)
+{
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options = { 0 };
+  const uint8_t origin[] = { 0 };
+
+  options.accept.callback = &dummy_callback;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+
+  fprintf(stderr, "INPUT: '%s'\n", text);
+  return zone_parse_string(&parser, &options, &buffers, text, strlen(text), NULL);
+}
+
+static char *generate_include(const char *text)
+{
+  char *path = tempnam(NULL, "zone");
+  if (path) {
+    FILE *handle = fopen(path, "wbx");
+    if (handle) {
+      int result = fputs(text, handle);
+      (void)fclose(handle);
+      if (result != EOF)
+        return path;
+    }
+    free(path);
+  }
+  return NULL;
+}
+
+diagnostic_push()
+msvc_diagnostic_ignored(4996)
+
+/*!cmocka */
+void quote_no_unquote(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  static const char *no_unquote = PAD("foo. TXT \"unterminated string");
+
+  // verify unterminated strings are caught
+  code = parse_text(no_unquote);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+
+  // verify unterminated strings are caught in included file
+  char *path = generate_include(no_unquote);
+  assert_non_null(path);
+  char dummy[16];
+  int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"\n", path);
+  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(include);
+  (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"\n", path);
+  code = parse_text(include);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+  free(include);
+  unlink(path);
+  free(path);
+}
+
+diagnostic_pop()

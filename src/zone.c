@@ -222,9 +222,8 @@ static int32_t open_file(
   file->buffer.length = 0;
   file->buffer.index = 0;
   file->start_of_line = true;
-  file->end_of_file = ZONE_HAVE_DATA;
-  file->fields.tape[0] = file->buffer.data;
-  file->fields.tape[1] = NULL;
+  file->end_of_file = 0;
+  file->fields.tape[0] = file->fields.tape[1] = file->buffer.data;
   file->fields.head = file->fields.tape;
   file->fields.tail = file->fields.tape;
   file->lines.tape[0] = 0;
@@ -376,6 +375,8 @@ int32_t zone_parse_string(
   zone_file_t *file;
   int32_t result;
 
+  if (!length || string[length] != '\0')
+    return ZONE_BAD_PARAMETER;
   if ((result = check_options(options)) < 0)
     return result;
 
@@ -393,9 +394,8 @@ int32_t zone_parse_string(
   file->buffer.size = length;
   file->buffer.data = (char *)string;
   file->start_of_line = true;
-  file->end_of_file = ZONE_READ_ALL_DATA;
-  file->fields.tape[0] = "\0";
-  file->fields.tape[1] = NULL;
+  file->end_of_file = 1;
+  file->fields.tape[0] = file->fields.tape[1] = &string[length];
   file->fields.head = file->fields.tape;
   file->fields.tail = file->fields.tape;
   file->lines.tape[0] = 0;

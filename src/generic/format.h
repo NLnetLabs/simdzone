@@ -376,7 +376,7 @@ static inline int32_t parse(parser_t *parser)
 
       code = parse_rr(parser, &token);
     } else if (is_end_of_file(&token)) {
-      if (parser->file->end_of_file == ZONE_NO_MORE_DATA)
+      if (parser->file->end_of_file == NO_MORE_DATA)
         break;
     } else if (is_line_feed(&token)) {
       assert(token.code == LINE_FEED);

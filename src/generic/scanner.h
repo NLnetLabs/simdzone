@@ -312,7 +312,7 @@ static really_inline int32_t reindex(parser_t *parser)
   if (parser->file->end_of_file) {
     assert(left < ZONE_BLOCK_SIZE);
     if (!left) {
-      parser->file->end_of_file = ZONE_NO_MORE_DATA;
+      parser->file->end_of_file = NO_MORE_DATA;
     } else if (((uintptr_t)tape_limit - (uintptr_t)tape) >= left) {
       // input is required to be padded, but may contain garbage
       uint8_t buffer[ZONE_BLOCK_SIZE] = { 0 };
@@ -322,7 +322,7 @@ static really_inline int32_t reindex(parser_t *parser)
       scan(parser, &block);
       block.contiguous &= ~clear;
       write_indexes(parser, &block, clear);
-      parser->file->end_of_file = ZONE_NO_MORE_DATA;
+      parser->file->end_of_file = NO_MORE_DATA;
       parser->file->buffer.index += left;
     }
   }

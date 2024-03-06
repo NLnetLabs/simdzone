@@ -153,10 +153,10 @@ static really_inline int32_t reindex(parser_t *parser)
   if (parser->file->end_of_file) {
     assert(left < ZONE_BLOCK_SIZE);
     if (!left) {
-      parser->file->end_of_file = ZONE_NO_MORE_DATA;
+      parser->file->end_of_file = NO_MORE_DATA;
     } else if (((uintptr_t)tape_limit - (uintptr_t)tape) >= left) {
       scan(parser, data, data + left);
-      parser->file->end_of_file = ZONE_NO_MORE_DATA;
+      parser->file->end_of_file = NO_MORE_DATA;
       parser->file->buffer.index += left;
       parser->file->state.follows_contiguous = 0;
     }
