@@ -175,6 +175,10 @@ static const char line_feed[ZONE_BLOCK_SIZE] = { '\n', '\0' };
 // special constant used as data on errors
 static const char end_of_file[ZONE_BLOCK_SIZE] = { '\0' };
 
+#define READ_ALL_DATA (1)
+#define NO_MORE_DATA (2)
+#define MISSING_QUOTE (3)
+
 extern int32_t zone_open_file(
   parser_t *, const char *path, size_t length, zone_file_t **);
 
@@ -213,6 +217,8 @@ static never_inline int32_t raise_error(
     return raise_error((parser), (code), __VA_ARGS__); \
   } while (0)
 
+#define SYNTAX_ERROR(parser, ...) \
+  RAISE_ERROR((parser), ZONE_SYNTAX_ERROR, __VA_ARGS__)
 #define OUT_OF_MEMORY(parser, ...) \
   RAISE_ERROR((parser), ZONE_OUT_OF_MEMORY, __VA_ARGS__)
 #define READ_ERROR(parser, ...) \
@@ -240,14 +246,14 @@ warn_unused_result
 static really_inline int32_t refill(parser_t *parser)
 {
   // refill if possible (i.e. not if string or if file is empty)
-  if (parser->file->end_of_file != ZONE_HAVE_DATA)
+  if (parser->file->end_of_file)
     return 0;
 
   // move unread data to start of buffer
   char *data = parser->file->buffer.data + parser->file->buffer.index;
   // account for non-terminated character-strings
-  if (*parser->file->fields.head)
-    data = (char *)*parser->file->fields.head;
+  if (*parser->file->fields.head[0] != '\0')
+    data = (char *)parser->file->fields.head[0];
 
   *parser->file->fields.head = parser->file->buffer.data;
   // account for unread data left in buffer
@@ -305,11 +311,14 @@ static really_inline int32_t advance(parser_t *parser)
   parser->file->fields.tape[0] = parser->file->fields.tail[1];
   parser->file->fields.head = parser->file->fields.tape;
   parser->file->fields.tail =
-    parser->file->fields.tape + (!!parser->file->fields.tape[0]);
+    parser->file->fields.tape + (*parser->file->fields.tape[0] != '\0');
   // reset delimiters
   parser->file->delimiters.head = parser->file->delimiters.tape;
   parser->file->delimiters.tail = parser->file->delimiters.tape;
 
+  // delayed syntax error
+  if (parser->file->end_of_file == MISSING_QUOTE)
+    SYNTAX_ERROR(parser, "Missing closing quote");
   if ((code = refill(parser)) < 0)
     return code;
 
@@ -317,8 +326,12 @@ static really_inline int32_t advance(parser_t *parser)
     // save non-terminated token
     parser->file->fields.tail[0] = parser->file->fields.tail[-1];
     parser->file->fields.tail--;
+    // delay syntax error so correct line number is available
+    if (parser->file->end_of_file == NO_MORE_DATA &&
+       *parser->file->fields.tail[1] == '"')
+      parser->file->end_of_file = MISSING_QUOTE;
   } else {
-    parser->file->fields.tail[1] = NULL;
+    parser->file->fields.tail[1] = end_of_file;
   }
 
   // FIXME: if tail is still equal to tape, refill immediately?!
@@ -331,7 +344,6 @@ static really_inline int32_t advance(parser_t *parser)
   // start-of-line must be false if start of tape is not start of buffer
   if (*parser->file->fields.head != parser->file->buffer.data)
     parser->file->start_of_line = false;
-  //parser->file->start_of_line = start_of_line;
   return 0;
 }
 
@@ -378,6 +390,7 @@ static really_inline bool is_end_of_file(const token_t *token)
 }
 
 
+#undef SYNTAX_ERROR
 #define SYNTAX_ERROR(parser, token, ...) \
   do { \
     zone_log((parser), ZONE_ERROR, __VA_ARGS__); \
@@ -425,7 +438,7 @@ static never_inline void maybe_take(parser_t *parser, token_t *token)
       return;
     } else if (token->code == END_OF_FILE) {
       int32_t code;
-      if (parser->file->end_of_file == ZONE_NO_MORE_DATA) {
+      if (parser->file->end_of_file == NO_MORE_DATA) {
         if (parser->file->grouped)
           SYNTAX_ERROR(parser, token, "Missing closing brace");
         token->data = end_of_file;
@@ -565,7 +578,7 @@ static never_inline int32_t maybe_take_contiguous(
       parser->file->delimiters.head++;
       return 0;
     } else if (token->code == END_OF_FILE) {
-      if (parser->file->end_of_file == ZONE_NO_MORE_DATA)
+      if (parser->file->end_of_file == NO_MORE_DATA)
         SYNTAX_ERROR(parser, token, "Missing %s in %s", NAME(field), NAME(type));
       if ((code = advance(parser)) < 0)
         ERROR(parser, token, code);
@@ -666,7 +679,7 @@ static never_inline int32_t maybe_take_quoted(
       parser->file->delimiters.head++;
       return 0;
     } else if (token->code == END_OF_FILE) {
-      if (parser->file->end_of_file == ZONE_NO_MORE_DATA)
+      if (parser->file->end_of_file == NO_MORE_DATA)
         SYNTAX_ERROR(parser, token, "Missing %s in %s", NAME(field), NAME(type));
       if ((code = advance(parser)) < 0)
         ERROR(parser, token, code);
@@ -773,7 +786,7 @@ static never_inline int32_t maybe_take_contiguous_or_quoted(
       parser->file->delimiters.head++;
       return 0;
     } else if (token->code == END_OF_FILE) {
-      if (parser->file->end_of_file == ZONE_NO_MORE_DATA)
+      if (parser->file->end_of_file == NO_MORE_DATA)
         SYNTAX_ERROR(parser, token, "Missing %s in %s", NAME(field), NAME(type));
       if ((code = advance(parser)) < 0)
         ERROR(parser, token, code);
@@ -894,7 +907,7 @@ static never_inline int32_t maybe_take_delimiter(
         return 0;
       }
     } else if (token->code == END_OF_FILE) {
-      if (parser->file->end_of_file == ZONE_NO_MORE_DATA) {
+      if (parser->file->end_of_file == NO_MORE_DATA) {
         if (parser->file->grouped)
           SYNTAX_ERROR(parser, token, "Missing closing brace");
         token->data = end_of_file;
