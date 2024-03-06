@@ -488,6 +488,8 @@ static int32_t dummy_callback(
   const uint8_t *rdata,
   void *user_data)
 {
+  size_t *count = (size_t *)user_data;
+
   (void)parser;
   (void)owner;
   (void)type;
@@ -495,11 +497,13 @@ static int32_t dummy_callback(
   (void)ttl;
   (void)rdlength;
   (void)rdata;
-  (void)user_data;
+
+  (*count)++;
+
   return 0;
 }
 
-static int32_t parse_text(const char *text)
+static int32_t parse(const char *text, size_t *count)
 {
   zone_parser_t parser;
   zone_name_buffer_t name;
@@ -515,7 +519,7 @@ static int32_t parse_text(const char *text)
   options.default_class = 1;
 
   fprintf(stderr, "INPUT: '%s'\n", text);
-  return zone_parse_string(&parser, &options, &buffers, text, strlen(text), NULL);
+  return zone_parse_string(&parser, &options, &buffers, text, strlen(text), count);
 }
 
 static char *generate_include(const char *text)
@@ -536,21 +540,16 @@ static char *generate_include(const char *text)
 
 diagnostic_push()
 msvc_diagnostic_ignored(4996)
-
-/*!cmocka */
-void quote_no_unquote(void **state)
+static void remove_include(const char *path)
 {
-  (void)state;
+  unlink(path);
+}
+diagnostic_pop()
 
+static int32_t parse_as_include(const char *text, size_t *count)
+{
   int32_t code;
-  static const char *no_unquote = PAD("foo. TXT \"unterminated string");
-
-  // verify unterminated strings are caught
-  code = parse_text(no_unquote);
-  assert_int_equal(code, ZONE_SYNTAX_ERROR);
-
-  // verify unterminated strings are caught in included file
-  char *path = generate_include(no_unquote);
+  char *path = generate_include(text);
   assert_non_null(path);
   char dummy[16];
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"\n", path);
@@ -558,11 +557,61 @@ void quote_no_unquote(void **state)
   char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"\n", path);
-  code = parse_text(include);
-  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+  code = parse(include, count);
   free(include);
-  unlink(path);
+  remove_include(path);
   free(path);
+  return code;
 }
 
-diagnostic_pop()
+/*!cmocka */
+void quote_no_unquote(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t count = 0;
+  static const char *no_unquote = PAD("foo. TXT \"unterminated string");
+
+  code = parse(no_unquote, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+
+  code = parse_as_include(no_unquote, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+}
+
+/*!cmocka */
+void not_so_famous_last_words(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t count = 0;
+  static const char *last_words = PAD("; not so famous last words");
+
+  code = parse(last_words, &count);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_true(count == 0);
+
+  code = parse_as_include(last_words, &count);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_true(count == 0);
+}
+
+/*!cmocka */
+void no_famous_last_words(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t count = 0;
+  static const char *empty = PAD(" ");
+
+  code = parse(empty, &count);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_true(count == 0);
+
+  code = parse_as_include(empty, &count);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_true(count == 0);
+}
