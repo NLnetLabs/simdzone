@@ -665,3 +665,91 @@ void been_there_done_that(void **state)
   free(include);
   assert_int_equal(code, ZONE_SYNTAX_ERROR);
 }
+
+/*!cmocka */
+void bad_a_rrs(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t count = 0;
+  static const char *no_a = PAD("foo. A ; no-address");
+  static const char *double_a = PAD("foo. A 192.168.0.1 192.168.0.2");
+  static const char *bad_a = PAD("foo. A 192.168.0.256");
+
+  code = parse(no_a, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+  code = parse(double_a, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+  code = parse(bad_a, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+}
+
+/*!cmocka */
+void bad_ttls(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t count = 0;
+
+  static const char *too_little = PAD("$TTL ; no time");
+  static const char *too_late = PAD("$TTL 2147483648"); // one second too much
+  static const char *too_much = PAD("$TTL 1 2"); // trailing data
+
+  code = parse(too_little, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+  code = parse(too_late, &count);
+  assert_int_equal(code, ZONE_SEMANTIC_ERROR);
+  code = parse(too_much, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+}
+
+/*!cmocka */
+void bad_origins(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t count = 0;
+
+  static const char *no_origin = PAD("$ORIGIN ; no origin");
+  static const char *extra_origin = PAD("$ORIGIN a. b.");
+
+  code = parse(no_origin, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+  code = parse(extra_origin, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+}
+
+/*!cmocka */
+void bad_includes(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t count = 0;
+
+  static const char *no_include = PAD("$INCLUDE ; no include");
+
+  code = parse(no_include, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+
+  char *path = generate_include(" ");
+  assert_non_null(path);
+  FILE* handle = fopen(path, "wb");
+  assert_non_null(handle);
+  char dummy[32];
+  int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\" foo. bar\n", path);
+  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(include);
+  (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\" foo. bar.\n", path);
+  int result = fputs(include, handle);
+  assert_true(result >= 0);
+  (void)fclose(handle);
+  free(path);
+  code = parse(include, &count);
+  free(include);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+}
