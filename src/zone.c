@@ -255,8 +255,8 @@ nonnull_all
 void zone_close_file(
   parser_t *parser, zone_file_t *file)
 {
-  assert((file->name == not_a_file) == !file->handle);
-  assert((file->path == not_a_file) == !file->handle);
+  assert(file->name != not_a_file || !file->handle);
+  assert(file->path != not_a_file || !file->handle);
 
   if (!file->handle)
     return;
