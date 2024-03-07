@@ -443,12 +443,6 @@ static never_inline void maybe_take(parser_t *parser, token_t *token)
           SYNTAX_ERROR(parser, token, "Missing closing brace");
         token->data = end_of_file;
         token->length = 1;
-        if (!parser->file->includer)
-          return;
-        file_t *file = parser->file;
-        parser->file = parser->file->includer;
-        parser->owner = &parser->file->owner;
-        zone_close_file(parser, file);
         return;
       } else if (unlikely((code = advance(parser)) < 0)) {
         ERROR(parser, token, code);
@@ -912,12 +906,6 @@ static never_inline int32_t maybe_take_delimiter(
           SYNTAX_ERROR(parser, token, "Missing closing brace");
         token->data = end_of_file;
         token->length = 1;
-        if (!parser->file->includer)
-          return 0;
-        file_t *file = parser->file;
-        parser->file = parser->file->includer;
-        parser->owner = &parser->file->owner;
-        zone_close_file(parser, file);
         return 0;
       }
 

@@ -715,10 +715,13 @@ void bad_origins(void **state)
 
   static const char *no_origin = PAD("$ORIGIN ; no origin");
   static const char *extra_origin = PAD("$ORIGIN a. b.");
+  static const char *relative_origin = PAD("$ORIGIN foo");
 
   code = parse(no_origin, &count);
   assert_int_equal(code, ZONE_SYNTAX_ERROR);
   code = parse(extra_origin, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+  code = parse(relative_origin, &count);
   assert_int_equal(code, ZONE_SYNTAX_ERROR);
 }
 
@@ -752,4 +755,257 @@ void bad_includes(void **state)
   code = parse(include, &count);
   free(include);
   assert_int_equal(code, ZONE_SYNTAX_ERROR);
+}
+
+static int32_t include_origin_callback(
+  zone_parser_t *parser,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
+  uint16_t rdlength,
+  const uint8_t *rdata,
+  void *user_data)
+{
+  (void)parser;
+  (void)type;
+  (void)class;
+  (void)ttl;
+  (void)rdlength;
+  (void)rdata;
+  (void)user_data;
+
+  static const uint8_t foobaz[] = { 3, 'f', 'o', 'o', 3, 'b', 'a', 'z', 0 };
+
+  assert(owner);
+  if (owner->length != 9 || memcmp(owner->octets, foobaz, 9) != 0)
+    return ZONE_SEMANTIC_ERROR;
+
+  return 0;
+}
+
+/*!cmocka */
+void include_with_origin(void **state)
+{
+  (void)state;
+
+  char *path = generate_include("foo TXT bar");
+  assert_non_null(path);
+  char dummy[32];
+  int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\" baz.", path);
+  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(include);
+  (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\" baz.", path);
+
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options = { 0 };
+  static const uint8_t origin[] = { 3, 'b', 'a', 'r',  0 };
+
+  options.accept.callback = &include_origin_callback;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+
+  int32_t code = zone_parse_string(&parser, &options, &buffers, include, strlen(include), NULL);
+
+  remove_include(path);
+  free(path);
+  free(include);
+
+  assert_int_equal(code, ZONE_SUCCESS);
+}
+
+static int32_t no_origin_callback(
+  zone_parser_t *parser,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
+  uint16_t rdlength,
+  const uint8_t *rdata,
+  void *user_data)
+{
+  (void)parser;
+  (void)type;
+  (void)class;
+  (void)ttl;
+  (void)rdlength;
+  (void)rdata;
+  (void)user_data;
+
+  static const uint8_t foobar[] = { 3, 'f', 'o', 'o', 3, 'b', 'a', 'r', 0 };
+
+  assert(owner);
+  if (owner->length != 9 || memcmp(owner->octets, foobar, 9) != 0)
+    return ZONE_SEMANTIC_ERROR;
+
+  return 0;
+}
+
+/*!cmocka */
+void include_without_origin(void **state)
+{
+  (void)state;
+
+  char *path = generate_include("foo TXT bar");
+  assert_non_null(path);
+  char dummy[32];
+#define FMT "$INCLUDE \"%s\""
+  int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"", path);
+  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(include);
+  (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"", path);
+#undef FMT
+
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options = { 0 };
+  static const uint8_t origin[] = { 3, 'b', 'a', 'r',  0 };
+
+  options.accept.callback = &no_origin_callback;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+
+  int32_t code = zone_parse_string(&parser, &options, &buffers, include, strlen(include), NULL);
+
+  remove_include(path);
+  free(path);
+  free(include);
+
+  assert_int_equal(code, ZONE_SUCCESS);
+}
+
+static int32_t reinstate_callback(
+  zone_parser_t *parser,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
+  uint16_t rdlength,
+  const uint8_t *rdata,
+  void *user_data)
+{
+  size_t *count = (size_t *)user_data;
+
+  static const uint8_t foobar[] = { 3, 'f', 'o', 'o', 3, 'b', 'a', 'r', 0 };
+  static const uint8_t foobaz[] = { 3, 'f', 'o', 'o', 3, 'b', 'a', 'z', 0 };
+
+  (void)parser;
+  (void)type;
+  (void)class;
+  (void)ttl;
+  (void)rdlength;
+  (void)rdata;
+
+  switch (*count) {
+    case 0:
+      if (owner->length != 9 || memcmp(owner->octets, foobar, 9) != 0)
+        return ZONE_SYNTAX_ERROR;
+      break;
+    case 1: // include
+      if (owner->length != 9 || memcmp(owner->octets, foobaz, 9) != 0)
+        return ZONE_SYNTAX_ERROR;
+      break;
+    case 2:
+      if (owner->length != 9 || memcmp(owner->octets, foobar, 9) != 0)
+        return ZONE_SYNTAX_ERROR;
+      break;
+  }
+
+  (*count)++;
+  return 0;
+}
+
+/*!cmocka */
+void owner_is_reinstated(void **state)
+{
+  // check closing of include reinstates owner
+
+  (void)state;
+  char *path = generate_include("foo.baz. TXT foobar");
+  assert_non_null(path);
+  char dummy[64];
+#define FMT \
+  "foo.bar. TXT foobar\n" \
+  "$INCLUDE \"%s\" baz.\n" \
+  " TXT foobar"
+  int length = snprintf(dummy, sizeof(dummy), FMT, path);
+  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(include);
+  (void)snprintf(include, (size_t)length + 1, FMT, path);
+#undef FMT
+
+  size_t count = 0;
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options = { 0 };
+  static const uint8_t origin[] = { 3, 'b', 'a', 'r',  0 };
+
+  options.accept.callback = &reinstate_callback;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+
+  int32_t code = zone_parse_string(&parser, &options, &buffers, include, strlen(include), &count);
+  remove_include(path);
+  free(path);
+  free(include);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_true(count == 3);
+}
+
+/*!cmocka */
+void origin_is_reinstated(void **state)
+{
+  // check closing of include reinstates origin
+
+  (void)state;
+  char *path = generate_include("foo.baz. TXT foobar");
+  assert_non_null(path);
+  char dummy[64];
+#define FMT \
+  "foo.bar. TXT foobar\n" \
+  "$INCLUDE \"%s\" baz.\n" \
+  "foo TXT foobar"
+  int length = snprintf(dummy, sizeof(dummy), FMT, path);
+  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(include);
+  (void)snprintf(include, (size_t)length + 1, FMT, path);
+#undef FMT
+
+  size_t count = 0;
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options = { 0 };
+  static const uint8_t origin[] = { 3, 'b', 'a', 'r',  0 };
+
+  options.accept.callback = &reinstate_callback;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+
+  int32_t code = zone_parse_string(&parser, &options, &buffers, include, strlen(include), &count);
+  remove_include(path);
+  free(path);
+  free(include);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_true(count == 3);
 }

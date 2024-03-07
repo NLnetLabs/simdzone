@@ -259,7 +259,7 @@ static really_inline int32_t parse_dollar_include(
 
   // $INCLUDE directive MAY specify an origin
   take(parser, token);
-  if (is_contiguous_or_quoted(token)) {
+  if (is_contiguous(token)) {
     if (scan_name(token->data, token->length, name.octets, &name.length) != 0) {
       zone_close_file(parser, file);
       SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[1]), NAME(&include));
@@ -376,8 +376,14 @@ static inline int32_t parse(parser_t *parser)
 
       code = parse_rr(parser, &token);
     } else if (is_end_of_file(&token)) {
-      if (parser->file->end_of_file == NO_MORE_DATA)
-        break;
+      if (parser->file->end_of_file == NO_MORE_DATA) {
+        if (!parser->file->includer)
+          break;
+        file_t *file = parser->file;
+        parser->file = parser->file->includer;
+        parser->owner = &parser->file->owner;
+        zone_close_file(parser, file);
+      }
     } else if (is_line_feed(&token)) {
       assert(token.code == LINE_FEED);
       adjust_line_count(parser->file);
