@@ -255,13 +255,11 @@ nonnull_all
 void zone_close_file(
   parser_t *parser, zone_file_t *file)
 {
-  assert(file->name != not_a_file || !file->handle);
-  assert(file->path != not_a_file || !file->handle);
+  const bool is_string = file->name == not_a_file || file->path == not_a_file;
 
-  if (!file->handle)
-    return;
+  assert(!is_string || !file->handle);
 
-  if (file->buffer.data)
+  if (file->buffer.data && !is_string)
     free(file->buffer.data);
   file->buffer.data = NULL;
   if (file->name && file->name != not_a_file)
@@ -270,7 +268,8 @@ void zone_close_file(
   if (file->path && file->name != not_a_file)
     free((char *)file->path);
   file->path = NULL;
-  (void)fclose(file->handle);
+  if (file->handle)
+    (void)fclose(file->handle);
   file->handle = NULL;
   if (file != &parser->first)
     free(file);
