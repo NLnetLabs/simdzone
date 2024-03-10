@@ -18,6 +18,7 @@ jobs:
             build_type: Debug
             build_tool_options: -j 4
             analyzer: off
+            sanitizer: address
           - os: macos-12
             build_type: Debug
             build_tool_options: -j 4
@@ -62,6 +63,7 @@ jobs:
         env:
           CC: ${{matrix.cc}}
           ANALYZER: ${{matrix.analyzer}}
+          SANITIZER: ${{matrix.sanitizer}}
           GENERATOR: ${{matrix.generator}}
           BUILD_TYPE: ${{matrix.build_type}}
           BUILD_TOOL_OPTIONS: ${{matrix.build_tool_options}}
@@ -76,6 +78,7 @@ jobs:
                 -DCMAKE_PREFIX_PATH=$(pwd) \
                 -DBUILD_TESTING=on \
                 -DANALYZER=${ANALYZER:-off} \
+                -DSANITIZER=${SANITIZER:-off} \
                 ${GENERATOR:+-G} ${GENERATOR:+"${GENERATOR}"} ..
           cmake --build . --config ${BUILD_TYPE:-RelWithDebInfo} -- ${BUILD_TOOL_OPTIONS}
       - name: 'Run simdzone tests'
