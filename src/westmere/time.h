@@ -125,9 +125,9 @@ static really_inline int32_t parse_time(
 {
   uint32_t time;
 
-  // FIXME: once support for specifying as an unsigned number of seconds is
-  //        implemented, update this check too
-  if (token->length != 14 || !sse_parse_time(token->data, &time))
+  if (unlikely(token->length != 14))
+    return parse_int32(parser, type, field, rdata, token);
+  if (!sse_parse_time(token->data, &time))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
   time = htobe32(time);

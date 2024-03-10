@@ -46,6 +46,13 @@ void time_stamp_syntax(void **state)
     uint32_t seconds;
     int32_t result;
   } tests[] = {
+    // Time specified in seconds since epoch
+    { "4294967295", 4294967295, ZONE_SUCCESS },
+    // one second over maximum value
+    { "4294967296", 0, ZONE_SYNTAX_ERROR },
+    // starts with zero
+    { "01", 0, ZONE_SYNTAX_ERROR },
+    // Time specified as YYYYMMDDHHmmSS
     // bad number of digits
     { "202301010101", 0, ZONE_SYNTAX_ERROR },
     { "202301010101010", 0, ZONE_SYNTAX_ERROR },
@@ -91,6 +98,7 @@ void time_stamp_syntax(void **state)
     char *rr = malloc((size_t)size + 1);
     (void)snprintf(rr, size, FORMAT, tests[i].timestamp);
 
+    fprintf(stderr, "INPUT: %s\n", rr);
     options.accept.callback = add_rr;
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
