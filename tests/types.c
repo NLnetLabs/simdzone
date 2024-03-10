@@ -474,6 +474,32 @@ static const rdata_t ipseckey_name_rdata =
         0x81, 0xba, 0x3a, 0x05, 0x21, 0xaf, 0x82, 0xab,
         0x78, 0x01);
 
+// https://datatracker.ietf.org/doc/html/rfc4034#section-4.3
+static const char nsec_text[] =
+  PAD("alfa.example.com. 86400 IN NSEC host.example.com. ( \n"
+      "                                A MX RRSIG NSEC TYPE1234 )");
+
+static const rdata_t nsec_rdata =
+  RDATA(0x04, 'h',  'o',  's',  't',
+        0x07, 'e',  'x',  'a',  'm',  'p',  'l',  'e',
+        0x03, 'c',  'o',  'm',  0x00,
+        0x00, 0x06, 0x40, 0x01, 0x00, 0x00, 0x00, 0x03,
+        0x04, 0x1b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x20);
+
+// https://datatracker.ietf.org/doc/html/rfc5155#appendix-B.2.1
+static const char nsec3_no_data_text[] =
+  PAD("ji6neoaepv8b5o6k4ev33abha8ht9fgc.example. NSEC3 1 1 12 aabbccdd (\n"
+      "                       k8udemvp1j2f7eg6jebps17vp3n8i58h )");
+
+static const rdata_t nsec3_no_data_rdata =
+  RDATA(0x01, 0x01, 0x00, 0x0c, 0x04, 0xaa, 0xbb, 0xcc, 0xdd,
+        0x14, 0xa2, 0x3c, 0xd7, 0x5b, 0xf9, 0x0c, 0xc4, 0xf3,
+        0xba, 0x06, 0x9b, 0x97, 0x9e, 0x04, 0xff, 0xc8, 0xee,
+        0x89, 0x15, 0x11);
+
 // https://www.rfc-editor.org/rfc/rfc4701.html#section-3.6.1
 static const char dhcid_text[] =
   PAD(" DHCID   ( AAIBY2/AuCccgoJbsaxcQc9TUapptP69l"
@@ -915,6 +941,8 @@ static const test_t tests[] = {
   { ZONE_IPSECKEY, ipseckey_ipv4_text, &ipseckey_ipv4_rdata },
   { ZONE_IPSECKEY, ipseckey_ipv6_text, &ipseckey_ipv6_rdata },
   { ZONE_IPSECKEY, ipseckey_name_text, &ipseckey_name_rdata },
+  { ZONE_NSEC, nsec_text, &nsec_rdata },
+  { ZONE_NSEC3, nsec3_no_data_text, &nsec3_no_data_rdata },
   { ZONE_DHCID, dhcid_text, &dhcid_rdata },
   { ZONE_DHCID, dhcid_generic_text, &dhcid_rdata },
   { ZONE_TLSA, tlsa_text, &tlsa_rdata },
