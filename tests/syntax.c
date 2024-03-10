@@ -441,15 +441,15 @@ void ttls(void **state)
   (void)state;
 
   static const struct ttls_test tests[] = {
-    { "foo. 0 A 192.168.0.1", false, false, ZONE_SUCCESS, 0 },
-    { "foo. 1 A 192.168.0.1", false, false, ZONE_SUCCESS, 1 },
-    { "foo. 2147483647 A 192.168.0.1", false, false, ZONE_SUCCESS, 2147483647 },
-    { "foo. 2147483648 A 192.168.0.1", false, false, ZONE_SEMANTIC_ERROR, 0 },
-    { "foo. 2147483648 A 192.168.0.1", true, false, ZONE_SUCCESS, 2147483648 },
-    { "foo. 4294967295 A 192.168.0.1", true, false, ZONE_SUCCESS, 4294967295 },
-    { "foo. 4294967296 A 192.168.0.1", true, false, ZONE_SYNTAX_ERROR, 0 },
-    { "foo. 1d A 192.168.0.1", false, false, ZONE_SYNTAX_ERROR, 0 },
-    { "foo. 1d A 192.168.0.1", false, true, ZONE_SUCCESS, 86400 }
+    { PAD("foo. 0 A 192.168.0.1"), false, false, ZONE_SUCCESS, 0 },
+    { PAD("foo. 1 A 192.168.0.1"), false, false, ZONE_SUCCESS, 1 },
+    { PAD("foo. 2147483647 A 192.168.0.1"), false, false, ZONE_SUCCESS, 2147483647 },
+    { PAD("foo. 2147483648 A 192.168.0.1"), false, false, ZONE_SEMANTIC_ERROR, 0 },
+    { PAD("foo. 2147483648 A 192.168.0.1"), true, false, ZONE_SUCCESS, 2147483648 },
+    { PAD("foo. 4294967295 A 192.168.0.1"), true, false, ZONE_SUCCESS, 4294967295 },
+    { PAD("foo. 4294967296 A 192.168.0.1"), true, false, ZONE_SYNTAX_ERROR, 0 },
+    { PAD("foo. 1d A 192.168.0.1"), false, false, ZONE_SYNTAX_ERROR, 0 },
+    { PAD("foo. 1d A 192.168.0.1"), false, true, ZONE_SUCCESS, 86400 }
   };
 
   static const uint8_t origin[] = { 3, 'f', 'o', 'o', 0 };
