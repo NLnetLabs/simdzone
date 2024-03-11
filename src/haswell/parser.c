@@ -36,7 +36,7 @@
 #include "generic/apl.h"
 #include "generic/svcb.h"
 #include "generic/cert.h"
-#include "generic/dnssec.h"
+#include "generic/algorithm.h"
 #include "generic/types.h"
 #include "westmere/type.h"
 #include "generic/format.h"

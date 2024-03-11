@@ -195,7 +195,7 @@ static really_inline uint8_t service_hash(uint64_t input, size_t length)
 }
 
 nonnull((1,4))
-static really_inline bool scan_service(
+static really_inline int32_t scan_service(
   const char *data, size_t length, int32_t protocol, uint16_t *port)
 {
   uint8_t digit = (uint8_t)*data - '0';
@@ -242,18 +242,7 @@ static really_inline bool scan_service(
 	   (services[index].key.length == length);
   }
 
-  size_t count = 1;
-  int32_t number = digit;
-
-  // FIXME: check for leading zero!
-  if (length > 5) // port numbers must be between 0 and 65535
-    return 0;
-  for (; ((digit = ((uint8_t)data[count] - '0')) <= 9); count++)
-    number = number * 10 + digit;
-  if (count != length || number > 65535)
-    return -1;
-  *port = (uint16_t)number;
-  return true;
+  return scan_int16(data, length, port);
 }
 
 #endif // WKS_H

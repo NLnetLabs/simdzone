@@ -61,6 +61,22 @@ therefore managed on a per file base.
 On-the-fly indexing is a good tradeoff, but does introduce some complexity
 with regards to handling partial tokens.
 
+Padded operation
+^^^^^^^^^^^^^^^^
+
+The AVX-512 instruction set offers masked load and store operations, earlier
+instruction sets, like SSE4.2 and AVX2 do not. |project| requires input
+buffers to be sufficiently large enough to ensure optimized operations can
+safely load blocks of input data without reading past the buffer limit. This
+requirement is of no concern to the user when parsing files as |project|
+manages input buffers. The requirement is of concern when the user provides
+the input directly as the buffer must be null-terminated and padded.
+
+.. note::
+   Future releases may lift this requirement by using fallback
+   implementations for the last set of tokens that are not sufficiently
+   padded.
+
 
 Comments
 --------

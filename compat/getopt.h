@@ -1,5 +1,5 @@
 /*
- * getopt.h -- some useful comment
+ * getopt.h -- getopt definitions for platform that are missing unistd.h
  *
  * Copyright (c) 2023, NLnet Labs. All rights reserved.
  *

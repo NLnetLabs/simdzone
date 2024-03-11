@@ -1270,7 +1270,7 @@ static int32_t parse_cert_rdata(
     return code;
   if ((code = take_contiguous(parser, type, &fields[2], token)) < 0)
     return code;
-  if ((code = parse_algorithm_type(parser, type, &fields[2], rdata, token)) < 0)
+  if ((code = parse_algorithm(parser, type, &fields[2], rdata, token)) < 0)
     return code;
   take(parser, token);
   if ((code = parse_base64_sequence(parser, type, &fields[3], rdata, token)) < 0)
@@ -1346,7 +1346,7 @@ static int32_t parse_ds_rdata(
     return code;
   if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
     return code;
-  if ((code = parse_algorithm_type(parser, type, &fields[1], rdata, token)) < 0)
+  if ((code = parse_algorithm(parser, type, &fields[1], rdata, token)) < 0)
     return code;
   if ((code = take_contiguous(parser, type, &fields[2], token)) < 0)
     return code;
@@ -1375,7 +1375,7 @@ static int32_t check_sshfp_rr(
 
   // https://www.iana.org/assignments/dns-sshfp-rr-parameters
 
-  if (c >= n)
+  if (c == n)
     SYNTAX_ERROR(parser, "Missing %s in %s", NAME((&f[0])), NAME(type));
   else if (o[1] == 1 && (n - c) != 20)
     SEMANTIC_ERROR(parser, "Wrong fingerprint size for type %s in %s",
@@ -1398,15 +1398,28 @@ static int32_t parse_sshfp_rdata(
     return code;
   if ((code = parse_int8(parser, type, &fields[0], rdata, token)) < 0)
     return code;
+
+  const uint8_t *fingerprint_type = rdata->octets;
   if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
     return code;
   if ((code = parse_int8(parser, type, &fields[1], rdata, token)) < 0)
     return code;
+
+  const uint8_t *fingerprint = rdata->octets;
   take(parser, token);
   if ((code = parse_base16_sequence(parser, type, &fields[2], rdata, token)) < 0)
     return code;
 
-  return check_sshfp_rr(parser, type, rdata);
+  // https://www.iana.org/assignments/dns-sshfp-rr-parameters
+  size_t fingerprint_size = (uintptr_t)rdata->octets - (uintptr_t)fingerprint;
+  if (unlikely(*fingerprint_type == 1 && fingerprint_size != 20))
+    SEMANTIC_ERROR(parser, "Wrong fingerprint size for type %s in %s",
+                           "SHA1", NAME(type));
+  if (unlikely(*fingerprint_type == 2 && fingerprint_size != 32))
+    SEMANTIC_ERROR(parser, "Wrong fingerprint size for type %s in %s",
+                           "SHA256", NAME(type));
+
+  return accept_rr(parser, type, rdata);
 }
 
 nonnull_all
@@ -1603,7 +1616,7 @@ static int32_t parse_rrsig_rdata(
     return code;
   if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
     return code;
-  if ((code = parse_algorithm_type(parser, type, &fields[1], rdata, token)) < 0)
+  if ((code = parse_algorithm(parser, type, &fields[1], rdata, token)) < 0)
     return code;
   if ((code = take_contiguous(parser, type, &fields[2], token)) < 0)
     return code;
@@ -1710,7 +1723,7 @@ static int32_t parse_dnskey_rdata(
     return code;
   if ((code = take_contiguous(parser, type, &fields[2], token)) < 0)
     return code;
-  if ((code = parse_algorithm_type(parser, type, &fields[2], rdata, token)) < 0)
+  if ((code = parse_algorithm(parser, type, &fields[2], rdata, token)) < 0)
     return code;
   take(parser, token);
   if ((code = parse_base64_sequence(parser, type, &fields[3], rdata, token)) < 0)
