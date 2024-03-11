@@ -14,7 +14,7 @@ The `simdjson paper`_ describes the technical details in great depth and is
 definitely worth reading first. A concise recap to understand where |project|
 is different.
 
-simdjson operates in two stages. simdjson first allocates enough memory to
+|project| operates in two stages. simdjson first allocates enough memory to
 store the document and the worst-case number of indexes. The first stage, or
 indexing stage, operates on 64-byte blocks and uses vectorized classification
 to identify structural characters. Relative indexes are stored in a bitmask
@@ -77,10 +77,10 @@ Delimiters
 The DNS presentation format is less strict. JSON requires strings to be
 quoted, the same is not true for the DNS presentation format. Strings in TXT
 records maybe written as a set of contiguous characters without interior
-spaces or as a string beginning with a " (quote) and ending with a ". RFC9460
-introduces SvcParams, the value of which may be quoted or not. To avoid
-writing more than one parser for types, store the length of the token so that
-the parser does not have to scan for the delimiter.
+spaces or as a string beginning with a ``"`` (quote) and ending with a ``".``
+:RFC:`9460` introduces SvcParams, the value of which may be quoted or not. To
+avoid writing more than one parser for types, store the length of the token
+so that the parser does not have to scan for the delimiter.
 
 Rather than storing the data once and determine by inspection of delimiting
 index if tape must be advanced again, use two separate tapes. Since the format

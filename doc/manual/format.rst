@@ -58,7 +58,7 @@ Three control entries are defined: $ORIGIN, $INCLUDE and $TTL (defined in
 current origin for relative domain names to the stated name. $INCLUDE inserts
 the named file into the current file, and may optionally specify a domain name
 that sets the relative domain name origin for the included file. $INCLUDE may
-also have a comment.  Note that a $INCLUDE entry never changes the relative
+also have a comment. Note that an $INCLUDE entry never changes the relative
 origin of the parent file, regardless of changes to the relative origin made
 within the included file. $TTL is followed by a decimal integer, and resets
 the default TTL for RRs which do not explicitly include a TTL value.
@@ -77,15 +77,15 @@ The RR begins with optional TTL and class fields, followed by a type and
 RDATA field appropriate to the type and class.  Class and type use the
 standard mnemonics, TTL is a decimal integer.  Omitted class and TTL
 values are default to the last explicitly stated values.  Since type and
-class mnemonics are disjoint, the parse is unique.  (Note that this
+class mnemonics are disjoint, the parse is unique. (Note that this
 order is different from wire format order; the given order allows easier
 parsing and defaulting.)
 
 <domain-name>s make up a large share of the data in the master file.
 The labels in the domain name are expressed as character strings and
-separated by dots.  Quoting conventions allow arbitrary characters to be
+separated by dots. Quoting conventions allow arbitrary characters to be
 stored in domain names.  Domain names that end in a dot are called
-absolute, and are taken as complete.  Domain names which do not end in a
+absolute, and are taken as complete. Domain names which do not end in a
 dot are called relative; the actual domain name is the concatenation of
 the relative part with an origin specified in a $ORIGIN, $INCLUDE, or as
 an argument to the master file loading routine.  A relative name is an
@@ -222,7 +222,7 @@ an identifier or keyword if it is a contiguous set of characters, etc.
 Unescaping is then typically done by the scanner because tokens can be
 classified during that stage. The presentation format defines basic syntax to
 identify tokens, but as the format is NOT context-free and intentionally
-existensible, the token can only be classified during the parser stage. Simply
+extensible, the token can only be classified during the parser stage. Simply
 put, ``char-string`` in the presentation format cannot be unescaped during the
 scanner stage as the scanner does not know the type of information the
 ``char-string`` presents. Domain names are a prime example.

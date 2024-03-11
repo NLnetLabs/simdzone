@@ -60,24 +60,22 @@ Make sure the following software is installed on your system:
 
     .. group-tab:: Linux
 
-      .. code-block:: console
+      Install dependencies.
 
-        Install dependencies.
+      .. code-block:: console
 
             dnf install git cmake gcc
             apt install git cmake gcc
 
     .. group-tab:: macOS
 
-      .. code-block:: console
-
         Install XCode from the App Store.
 
     .. group-tab:: Windows
 
-      .. code-block:: console
-
         Install Microsoft Visual Studio, then install |url::chocolatey|.
+
+      .. code-block:: console
 
             choco install git
             choco install cmake
@@ -133,8 +131,9 @@ skip installation.
         |project| can be built using for any of the supported platforms.
         Omitting ``-G "<generator>" -A <architecture>`` usually selects a
         sensible default (that of the host). Different platforms and toolkits
-        can be selected though. See the manual page ``man cmake-generators`` or
-        `https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html`
+        can be selected though. See the manual page ``man cmake-generators``
+        or the `cmake generators documentation
+        <https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html>`_
         for details.
 
 Build options
