@@ -28,17 +28,6 @@
 # define zone_attribute(params)
 #endif
 
-#if defined __has_attribute
-# define zone_has_attribute(params) __has_attribute(params)
-# define zone_attribute(params) __attribute__(params)
-#elif zone_gcc
-# define zone_has_attribute(params) __has_attribute(params)
-# define zone_attribute(params) __attribute__(params)
-#else
-# define zone_has_attribute(params)
-# define zone_attribute(params)
-#endif
-
 #define zone_nonnull(params) zone_attribute((__nonnull__ params))
 #define zone_nonnull_all zone_attribute((__nonnull__))
 

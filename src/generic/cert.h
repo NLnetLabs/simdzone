@@ -67,12 +67,8 @@ static uint8_t certificate_hash(uint64_t value)
 }
 
 nonnull_all
-static really_inline int32_t parse_certificate_type(
-  parser_t *parser,
-  const type_info_t *type,
-  const rdata_info_t *field,
-  rdata_t *rdata,
-  const token_t *token)
+static really_inline int32_t scan_certificate_type(
+  const char *data, size_t length, uint16_t *type)
 {
   static const int8_t zero_masks[48] = {
     -1, -1, -1, -1, -1, -1, -1, -1,
@@ -83,49 +79,43 @@ static really_inline int32_t parse_certificate_type(
      0,  0,  0,  0,  0,  0,  0,  0
   };
 
-  uint32_t number = (uint8_t)token->data[0] - '0';
-
-  if (number > 9) {
+  if ((uint8_t)*data - '0' > 9) {
     uint64_t input;
-    memcpy(&input, token->data, 8);
+    memcpy(&input, data, 8);
     static const uint64_t letter_mask = 0x4040404040404040llu;
-    const size_t length = token->length;
     // convert to upper case
-    input &= input & ~((input & letter_mask) >> 1);
+    input &= ~((input & letter_mask) >> 1);
     // zero out non-relevant bytes
     uint64_t zero_mask;
-    memcpy(&zero_mask, &zero_masks[32 - (token->length & 0xf)], 8);
+    memcpy(&zero_mask, &zero_masks[32 - (length & 0xf)], 8);
     input &= zero_mask;
     const uint8_t index = certificate_hash(input);
     assert(index < 16);
     const certificate_type_t *certificate_type = certificate_type_map[index];
     uint64_t name;
     memcpy(&name, certificate_type->key.name, 8);
-    uint16_t value = certificate_type->value;
-    if (unlikely((input != name) & (length != certificate_type->key.length) & (value != 0)))
+    *type = certificate_type->value;
+    return (input == name) &
+      (length == certificate_type->key.length) &
+      (*type != 0);
+  }
+
+  return scan_int16(data, length, type);
+}
+
+nonnull_all
+static really_inline int32_t parse_certificate_type(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
+  const token_t *token)
+{
+  uint16_t cert;
+  if (!scan_certificate_type(token->data, token->length, &cert))
       SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-    value = htobe16(value);
-    memcpy(rdata->octets, &value, 2);
-    rdata->octets += 2;
-    return 0;
-  }
-
-  bool leading_zero = (number == 0) & (token->length > 1);
-  size_t length = 1;
-
-  for (; length < token->length; length++) {
-    const uint8_t digit = (uint8_t)token->data[length] - '0';
-    if (digit > 9)
-      break;
-    number = number * 10 + digit;
-  }
-
-  if (number > 65535 || length > 5 || length != token->length || leading_zero)
-    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-
-  uint16_t value = (uint16_t)number;
-  value = htobe16(value);
-  memcpy(rdata->octets, &value, 2);
+  cert = htobe16(cert);
+  memcpy(rdata->octets, &cert, 2);
   rdata->octets += 2;
   return 0;
 }

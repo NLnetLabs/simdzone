@@ -34,8 +34,6 @@ static inline uint64_t leading_zeroes(uint64_t input_num) {
 }
 
 static inline uint64_t prefix_xor(const uint64_t bitmask) {
-  // There should be no such thing with a processor supporting avx2
-  // but not clmul.
   __m128i all_ones = _mm_set1_epi8('\xFF');
   __m128i result = _mm_clmulepi64_si128(_mm_set_epi64x(0ULL, (long long)bitmask), all_ones, 0);
   return (uint64_t)_mm_cvtsi128_si64(result);

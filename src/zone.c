@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #if _WIN32
-# include <Windows.h>
+# include <windows.h>
 # include <shlwapi.h>
 #endif
 

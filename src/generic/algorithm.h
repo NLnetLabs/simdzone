@@ -1,13 +1,13 @@
 /**
- * dnssec.h
+ * algorithm.h -- Algorithm RDATA parser
  *
  * Copyright (c) 2023, NLnet Labs. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
-#ifndef DNSSEC_H
-#define DNSSEC_H
+#ifndef ALGORITHM_H
+#define ALGORITHM_H
 
 // https://www.iana.org/assignments/dns-sec-alg-numbers/dns-sec-alg-numbers.xhtml
 
@@ -109,12 +109,8 @@ static uint8_t algorithm_hash(uint64_t value)
 
 nonnull_all
 warn_unused_result
-static really_inline int32_t parse_algorithm_type(
-  parser_t *parser,
-  const type_info_t *type,
-  const rdata_info_t *field,
-  rdata_t *rdata,
-  const token_t *token)
+static really_inline int32_t scan_algorithm(
+  const char *data, size_t length, uint8_t *number)
 {
   static const int8_t zero_masks[48] = {
     -1, -1, -1, -1, -1, -1, -1, -1,
@@ -125,17 +121,15 @@ static really_inline int32_t parse_algorithm_type(
      0,  0,  0,  0,  0,  0,  0,  0
   };
 
-  uint32_t number = (uint8_t)token->data[0] - '0';
-
-  if (unlikely(number > 9)) {
+  if ((uint8_t)*data - '0' > 9) {
     uint64_t input;
-    memcpy(&input, token->data, 8);
+    memcpy(&input, data, 8);
     const uint64_t letter_mask = 0x4040404040404040llu;
     // convert to upper case
-    input &= input & ~((input & letter_mask) >> 1);
+    input &= ~((input & letter_mask) >> 1);
     // zero out non-relevant bytes
     uint64_t zero_mask;
-    memcpy(&zero_mask, &zero_masks[32 - (token->length & 0x1f)], 8);
+    memcpy(&zero_mask, &zero_masks[32 - (length & 0x1f)], 8);
     input &= zero_mask;
     const uint8_t index = algorithm_hash(input);
     assert(index < 16);
@@ -145,36 +139,35 @@ static really_inline int32_t parse_algorithm_type(
     memcpy(&name, algorithm->key.name, 8);
     matches = input == name;
     // compare bytes 8-15
-    memcpy(&input, token->data + 8, 8);
+    memcpy(&input, data + 8, 8);
     memcpy(&mask, algorithm_hash_map[index].mask + 8, 8);
     memcpy(&name, algorithm->key.name + 8, 8);
     matches &= (input & mask) == name;
     // compare bytes 16-23
-    memcpy(&input, token->data + 16, 8);
+    memcpy(&input, data + 16, 8);
     memcpy(&mask, algorithm_hash_map[index].mask + 16, 8);
     memcpy(&name, algorithm->key.name + 16, 8);
     matches &= (input & mask) == name;
-    if (!(matches && (token->length == algorithm->key.length) && number > 0))
-      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-    *rdata->octets++ = (uint8_t)algorithm->value;
-    return 0;
+    *number = algorithm->value;
+    return matches & (length == algorithm->key.length) & (*number > 0);
   }
 
-  bool leading_zero = (number == 0) & (token->length > 1);
-  size_t length = 1;
+  return scan_int8(data, length, number);
+}
 
-  for (; length < token->length; length++) {
-    const uint8_t digit = (uint8_t)token->data[length] - '0';
-    if (digit > 9)
-      break;
-    number = number * 10 + digit;
-  }
-
-  *rdata->octets++ = (uint8_t)number;
-  if (number > 255 || length > 3 || length != token->length || leading_zero)
+nonnull_all
+warn_unused_result
+static really_inline int32_t parse_algorithm(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  rdata_t *rdata,
+  const token_t *token)
+{
+  if (!scan_algorithm(token->data, token->length, rdata->octets))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-
+  rdata->octets++;
   return 0;
 }
 
-#endif // DNSSEC_H
+#endif // ALGORITHM_H
