@@ -14,7 +14,7 @@ The `simdjson paper`_ describes the technical details in great depth and is
 definitely worth reading first. A concise recap to understand where |project|
 is different.
 
-|project| operates in two stages. simdjson first allocates enough memory to
+simdjson operates in two stages. simdjson first allocates enough memory to
 store the document and the worst-case number of indexes. The first stage, or
 indexing stage, operates on 64-byte blocks and uses vectorized classification
 to identify structural characters. Relative indexes are stored in a bitmask
