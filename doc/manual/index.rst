@@ -10,9 +10,9 @@ presentation format. The format is most frequently used to define a zone in
 master files, more commonly known as zone files, and is best considered a
 concise tabular serialization format with provisions for convenient editing.
 
-The format is originally defined in RFC1035 section 5 and
-RFC1034 section 3.6.1, but as the DNS is intentionally extensible, the format
-has been extended over time.
+The format is originally defined in :RFC:`1035#section-5` and
+:RFC:`1034#section-3.6.1`, but as the DNS is intentionally extensible, the 
+format  has been extended over time.
 
 .. toctree::
    :maxdepth: 2

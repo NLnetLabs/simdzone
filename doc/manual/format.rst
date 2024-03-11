@@ -6,10 +6,10 @@ Presentation format
 
 DNS resource records (RRs) can be expressed in text form using the DNS
 presentation format. The format is originally defined in
-|url::rfc1035_section_5_1| and |url::rfc1034_section_3_6_1| and is most
+:rfc:`1035#section-5.1` and :rfc:`1034#section-3.6.1` and is most
 frequently used to define a zone in master files, more commonly known as
 zone files. The term "presentation format" is officially established in
-|url::rfc8499_section_5|.
+:rfc:`8499#section-5`.
 
 The presentation format is a concise tabular serialization format with
 provisions for convenient editing. The DNS is intentionally extensible and
@@ -28,11 +28,11 @@ specification(s) is rather dependent on extensive knowledge of the DNS.
 Format
 ======
 
-.. note:: Modified text from |url::rfc1035_section_5_1|
+.. note:: Modified text from :rfc:`1035#section-5.1`
 
 The presentation format defines a number of entries. Entries are predominantly
 line-oriented, though parentheses can be use to continue a list of items
-across a line boundrary, and text literals can contain CRLF within the text.
+across a line boundary, and text literals can contain CRLF within the text.
 Any combination of tabs and spaces act as a delimiter between the separate
 items that make up an entry. The end of any line can end with a comment.
 Comments start with a ``;`` (semicolon).
@@ -54,7 +54,7 @@ The following entries are defined:
 Blank lines, with or without comments, are allowed anywhere in the file.
 
 Three control entries are defined: $ORIGIN, $INCLUDE and $TTL (defined in
-|url::rfc2308_section_4|). $ORIGIN is followed by a domain name, and resets the
+:rfc:`2308#section-4`). $ORIGIN is followed by a domain name, and resets the
 current origin for relative domain names to the stated name. $INCLUDE inserts
 the named file into the current file, and may optionally specify a domain name
 that sets the relative domain name origin for the included file. $INCLUDE may
@@ -126,11 +126,11 @@ Handling of Unknown DNS Resource Record (RR) Types
 --------------------------------------------------
 
 The intentional extensibility in the DNS may lead to software implementations
-lagging behind in support. |url::rfc3597_section_5| introduces generic
+lagging behind in support. :rfc:`3597#section-5` introduces generic
 notations to represent unknown types, classes and the corresponding RDATA in
 text form.
 
-.. note:: Modified text from |url::rfc3597_section_5|.
+.. note:: Modified text from :rfc:`3597#section-5`.
 
 The type field for an unknown RR type is represented by the word ``TYPE``
 immediately followed by the decimal RR type code, with no intervening
@@ -170,12 +170,12 @@ compression, canonicalization, etc.
 Service Binding and Parameter Specification via the DNS
 -------------------------------------------------------
 
-|url::rfc9460| introduces a key-value syntax to the presentation format for
+:rfc:`9460` introduces a key-value syntax to the presentation format for
 the ``SVCB`` and ``HTTPS`` type (initially). The addition is a major change
 for implementors of presentation format parsers.
 
 .. note::
-   Write (or copy) a section on the format from |url::rfc9460_section_2_1|.
+   Write (or copy) a section on the format from :rfc:`9460#section-2.1`.
 
 The RFC specifies a number of initial Service Parameter Keys (SvcParamKeys).
 IANA maintains these and additional keys in the Service Parameter Keys
@@ -184,14 +184,14 @@ IANA maintains these and additional keys in the Service Parameter Keys
 alpn and no-default-alpn
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-|url::rfc9460_section_7_1_1| specifies the ``alpn`` and ``no-default-alpn``
+:rfc:`9460#section-7.1.1` specifies the ``alpn`` and ``no-default-alpn``
 SvcParamKeys. The ``alpn`` SvcParamKey takes a comma-separated list of
 Application-Layer Protocol Negotiation (ALPN) Protocol IDs (maintained
 by IANA in the |url::tls-extensiontype-values| category), the syntax for which
-is defined in |url::rfc9460_appendix_a_1|.
+is defined in :rfc:`9460#appendix-A.1`.
 
 A problem arises when items in the comma-separated list may contain a ``,``
-(comma) or ``\\`` (backslash). |url::rfc9460_section_2_1| specifies
+(comma) or ``\\`` (backslash). :rfc:`9460#section-2.1` specifies
 SvcParamValue to be a ``char-string`` and some implementations (incorrectly)
 unescape ``char-string`` during the scanner stage. Consequently, the fact that
 a character is ``escaped`` (``\000`` or ``\X``) is lost to the comma-separated
@@ -199,7 +199,7 @@ list parser. None of the registered protocol identifiers (currently) contains
 a ``,`` (comma) and the specification dismisses the issue in the interest of
 progress.
 
-|url::rfc9460_appendix_a_1| specifies ``simple-comma-separated``, for lists of
+:rfc:`9460#appendix-A.1` specifies ``simple-comma-separated``, for lists of
 items that cannot contain either of the aforementioned characters, and
 ``comma-separated`` for lists of items that can. The specification overlooks
 that ``alpn``, or comma-separated lists, are encoded on the wire as a sequence
@@ -207,7 +207,7 @@ of strings, or a sequence of length octet followed by a maximum of 255 data
 octets. A name server writing a transfer to disk in plain text can therefore
 not encode data using the ``simple-comma-separated`` scheme.
 
-The specification contradicts itself in |url::rfc9460_section_7_1_1| by
+The specification contradicts itself in :rfc:`9460#section-7.1.1` by
 stating that presentation format parsers MAY simply disallow the ``,`` and
 ``\\`` characters in ALPN IDs instead of implementing the value-list escaping
 procedure by relying on the opaque key format (e.g., ``key1=\002h2``) in the
@@ -216,7 +216,7 @@ event that these characters are needed. Since SvcParamValue is defined to be
 the scanner stage, the escape sequence is still lost and implementations that
 unescape during the parser stage did not have the problem to start with.
 
-|url::rfc9460| incorrectly assumes that ``char-string`` presents text.
+:rfc:`9460` incorrectly assumes that ``char-string`` presents text.
 Programming languages typically classify a token as string if it is quoted,
 an identifier or keyword if it is a contiguous set of characters, etc.
 Unescaping is then typically done by the scanner because tokens can be
@@ -234,6 +234,6 @@ serve as a label separator.
 .. note::
    This issue has been `discussed <https://mailarchive.ietf.org/arch/msg/dnsop/SXnlsE1B8gmlDjn4HtOo1lwtqAI/>` on the DNSOP IETF mailing list.
 
-As BIND, Knot and NSD implement double escaping, so does simdzone even though
+As BIND, Knot and NSD implement double escaping, so does |project| even though
 the behavior is incorrect.
 
