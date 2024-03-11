@@ -800,6 +800,7 @@ static really_inline int32_t parse_svc_param(
     case 0: // void parameter without value
       return 0;
     case 1: // void parameter with value
+      assert(token);
       SEMANTIC_ERROR(parser, "%s with value in %s", NAME(field), NAME(type));
       if (unlikely(!token->length))
         return 0;
@@ -807,6 +808,7 @@ static really_inline int32_t parse_svc_param(
     case 2: // parameter without optional value
       return 0;
     case 3: // parameter with optional value
+      assert(token);
       if (unlikely(!token->length))
         return 0;
       break;
@@ -814,6 +816,7 @@ static really_inline int32_t parse_svc_param(
       SEMANTIC_ERROR(parser, "%s without value in %s", NAME(field), NAME(type));
       return 0;
     case 5: // parameter with value
+      assert(token);
       if (unlikely(!token->length))
         SEMANTIC_ERROR(parser, "%s without value in %s", NAME(field), NAME(type));
       break;
