@@ -232,7 +232,9 @@ The RR ``foo. NS \.`` defines ``bar\.`` as a relative domain name. The ``\\``
 serve as a label separator.
 
 .. note::
-   This issue has been `discussed <https://mailarchive.ietf.org/arch/msg/dnsop/SXnlsE1B8gmlDjn4HtOo1lwtqAI/>` on the DNSOP IETF mailing list.
+   This issue has been `discussed 
+   <https://mailarchive.ietf.org/arch/msg/dnsop/SXnlsE1B8gmlDjn4HtOo1lwtqAI/>`_ 
+   on the DNSOP IETF mailing list.
 
 As BIND, Knot and NSD implement double escaping, so does |project| even though
 the behavior is incorrect.
