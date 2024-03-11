@@ -28,8 +28,10 @@ typedef zone_parser_t parser_t; // convenience
 #include "isadetection.h"
 
 #if _WIN32
-#define strcasecmp(s1, s2) _stricmp(s1, s2)
-#define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+# if _MSC_VER
+#   define strcasecmp(s1, s2) _stricmp(s1, s2)
+#   define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+# endif
 
 static char *strndup(const char *s, size_t n)
 {
@@ -154,7 +156,7 @@ static int32_t open_file(
   const char *rel = file->name;
 
 #if _WIN32
-  char buf[1];
+  char buf[4];
   // relative include paths are relative to including file
   if (file != &parser->first && PathIsRelative(path)) {
     assert(parser->file->path != not_a_file);

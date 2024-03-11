@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#if _WIN32
+#if _MSC_VER
 # define strncasecmp(s1, s2, n) _strnicmp((s1), (s2), (n))
 #else
 # include <strings.h>
