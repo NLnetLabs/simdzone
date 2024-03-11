@@ -267,7 +267,7 @@ void zone_close_file(
   if (file->name && file->name != not_a_file)
     free((char *)file->name);
   file->name = NULL;
-  if (file->path && file->name != not_a_file)
+  if (file->path && file->path != not_a_file)
     free((char *)file->path);
   file->path = NULL;
   if (file->handle)
