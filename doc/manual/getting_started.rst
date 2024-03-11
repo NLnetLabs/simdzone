@@ -9,7 +9,7 @@ delegated to the application to allow for wider applicability and better
 performance.
 
 For example, zone files must contain exactly one SOA RR at the top of the zone
-and all RRs must be of the same class (see RFC1035 section 5.2). The
+and all RRs must be of the same class (see :RFC:`1035#section-5.2`). The
 application is responsible for enforcing these restrictions so that the
 parser itself is equally well suited to parse serialized zone transfers, etc.
 
