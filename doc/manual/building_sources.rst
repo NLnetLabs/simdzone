@@ -73,7 +73,7 @@ Make sure the following software is installed on your system:
 
     .. group-tab:: Windows
 
-        Install Microsoft Visual Studio, then install |url::chocolatey|.
+      Install Microsoft Visual Studio, then install |url::chocolatey|.
 
       .. code-block:: console
 
