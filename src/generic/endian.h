@@ -9,7 +9,7 @@
 #ifndef ENDIAN_H
 #define ENDIAN_H
 
-#if _MSC_VER
+#if _WIN32
 #include <stdlib.h>
 
 #define LITTLE_ENDIAN 1234

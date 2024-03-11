@@ -23,7 +23,7 @@
 #include "attributes.h"
 #include "diagnostic.h"
 
-#if _WIN32
+#if _MSC_VER
 #define strcasecmp(s1, s2) _stricmp(s1, s2)
 #define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
 #endif

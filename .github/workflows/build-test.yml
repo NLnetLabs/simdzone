@@ -27,6 +27,10 @@ jobs:
             generator: "Visual Studio 17 2022"
             build_type: Debug
             build_tool_options: "-nologo -verbosity:minimal -maxcpucount:4 -p:CL_MPCount=4"
+          - os: windows-2022
+            cc: 'C:/mingw64/bin/gcc.exe'
+            generator: 'MinGW Makefiles'
+            build_type: Debug
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
@@ -43,9 +47,19 @@ jobs:
         run: |
           $python_base = python -m site --user-base
           Write-Output "$python_base\\bin" >> $GITHUB_PATH
+      - uses: msys2/setup-msys2@v2
+        if: runner.os == 'Windows' && matrix.generator == 'MinGW Makefiles'
+        with:
+          update: false
+          release: false
+          install: make gcc
       - name: 'Install Conan C/C++ package manager'
         id: install_conan
         shell: bash
+        env:
+          CC: ${{matrix.cc}}
+          # Set CONAN_BASH_PATH to avoid having to build msys2 for Conan packages.
+          CONAN_BASH_PATH: "C:\\msys64\\usr\\bin\\bash.exe"
         run: |
           pip install conan --user --upgrade
           conan profile detect
@@ -68,6 +82,7 @@ jobs:
           BUILD_TYPE: ${{matrix.build_type}}
           BUILD_TOOL_OPTIONS: ${{matrix.build_tool_options}}
           WARNINGS_AS_ERRORS: ${{matrix.warnings_as_errors}}
+          CONAN_BASH_PATH: "C:\\msys64\\usr\\bin\\bash.exe"
         run: |
           set -e -x
           mkdir build
