@@ -32,8 +32,12 @@ jobs:
             generator: 'MinGW Makefiles'
             build_type: Debug
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      # Use for SSH access
+      #- uses: mxschmitt/action-tmate@v3
+      #  with:
+      #    detached: true
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.x' # use latest Python 3.x
       - name: 'Add user site-packages to PATH'
@@ -67,7 +71,7 @@ jobs:
           echo "conan_data=${conan_home}/p" >> $GITHUB_OUTPUT
       - name: 'Restore Conan cache'
         id: cache_conan
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           key: conan | 1 | ${{runner.os}} | ${{matrix.cc}} | ${{matrix.build_type}}
           path: ${{ steps.install_conan.outputs.conan_data }}
