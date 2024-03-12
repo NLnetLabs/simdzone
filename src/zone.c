@@ -75,20 +75,20 @@ static int32_t check_options(const zone_options_t *options)
 #include "isadetection.h"
 
 #if HAVE_HASWELL
-extern int32_t zone_haswell_parse(parser_t *, void *);
+extern int32_t zone_haswell_parse(parser_t *);
 #endif
 
 #if HAVE_WESTMERE
-extern int32_t zone_westmere_parse(parser_t *, void *);
+extern int32_t zone_westmere_parse(parser_t *);
 #endif
 
-extern int32_t zone_fallback_parse(parser_t *, void *);
+extern int32_t zone_fallback_parse(parser_t *);
 
 typedef struct kernel kernel_t;
 struct kernel {
   const char *name;
   uint32_t instruction_set;
-  int32_t (*parse)(parser_t *, void *);
+  int32_t (*parse)(parser_t *);
 };
 
 static const kernel_t kernels[] = {
@@ -136,7 +136,7 @@ static int32_t parse(parser_t *parser, void *user_data)
   kernel = select_kernel();
   assert(kernel);
   parser->user_data = user_data;
-  return kernel->parse(parser, user_data);
+  return kernel->parse(parser);
 }
 
 diagnostic_push()
