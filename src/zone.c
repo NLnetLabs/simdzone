@@ -257,8 +257,10 @@ nonnull_all
 void zone_close_file(
   parser_t *parser, zone_file_t *file)
 {
+  assert(file);
   const bool is_string = file->name == not_a_file || file->path == not_a_file;
 
+  (void)parser;
   assert(!is_string || !file->handle);
 
   if (file->buffer.data && !is_string)
@@ -286,7 +288,7 @@ int32_t zone_open_file(
 
   if (!(file = malloc(sizeof(*file))))
     return ZONE_OUT_OF_MEMORY;
-  memset(file, 0, sizeof(*file));// - sizeof(file->fields.tape));
+  memset(file, 0, sizeof(*file));
   if ((result = open_file(parser, file, path, length)) < 0)
     goto err_open;
 
