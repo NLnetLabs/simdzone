@@ -57,6 +57,9 @@ jobs:
           update: false
           release: false
           install: make gcc
+      - name: 'Workaround for actions/runner-images#9491'
+        if: runner.os == 'Linux'
+        run: sudo sysctl vm.mmap_rnd_bits=28
       - name: 'Install Conan C/C++ package manager'
         id: install_conan
         shell: bash
