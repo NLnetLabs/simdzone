@@ -251,8 +251,18 @@ static really_inline int32_t parse_dollar_include(
   file_t *file;
   if ((code = take_quoted_or_contiguous(parser, &include, &fields[0], token)) < 0)
     return code;
-  if ((code = zone_open_file(parser, token->data, token->length, &file)) < 0)
-    return code;
+
+  switch ((code = zone_open_file(parser, token->data, token->length, &file))) {
+    case ZONE_OUT_OF_MEMORY:
+      OUT_OF_MEMORY(parser, "Cannot open %s (%.*s), out of memory",
+                    NAME(&include), (int)token->length, token->data);
+    case ZONE_NOT_PERMITTED:
+      NOT_PERMITTED(parser, "Cannot open %s (%.*s), access denied",
+                    NAME(&include), (int)token->length, token->data);
+    case ZONE_NOT_A_FILE:
+      NOT_A_FILE(parser, "Cannot open %s (%.*s), no such file",
+                 NAME(&include), (int)token->length, token->data);
+  }
 
   name_buffer_t name;
   const name_buffer_t *origin = &parser->file->origin;

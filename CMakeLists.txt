@@ -141,9 +141,6 @@ if(MINGW)
 endif()
 
 add_library(zone STATIC)
-if(WIN32)
-  target_link_libraries(zone INTERFACE shlwapi)
-endif()
 
 generate_export_header(
   zone BASE_NAME ZONE EXPORT_FILE_NAME include/zone/export.h)

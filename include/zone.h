@@ -235,8 +235,8 @@ struct zone_file {
   // in error reports
   size_t span; /**< number of lines spanned by record */
   size_t line; /**< starting line of record */
-  char *name;
-  char *path;
+  char *name; /**< filename in control directive */
+  char *path; /**< absolute path */
   FILE *handle;
   bool grouped;
   bool start_of_line;
@@ -357,10 +357,11 @@ struct zone_parser {
   struct {
     size_t size;
     struct {
-      size_t serial;
+      size_t active;
       zone_name_buffer_t *blocks;
     } owner;
     struct {
+      size_t active;
       zone_rdata_buffer_t *blocks;
     } rdata;
   } buffers;

@@ -227,6 +227,8 @@ static never_inline int32_t raise_error(
   RAISE_ERROR((parser), ZONE_NOT_IMPLEMENTED, __VA_ARGS__)
 #define NOT_PERMITTED(parser, ...) \
   RAISE_ERROR((parser), ZONE_NOT_PERMITTED, __VA_ARGS__)
+#define NOT_A_FILE(parser, ...) \
+  RAISE_ERROR((parser), ZONE_NOT_A_FILE, __VA_ARGS__)
 
 // semantic errors in zone files are special as a secondary may choose
 // to report, but otherwise ignore them. e.g. a TTL with the MSB set. cases
@@ -243,11 +245,25 @@ static never_inline int32_t raise_error(
 
 nonnull_all
 warn_unused_result
-static really_inline int32_t refill(parser_t *parser)
+static really_inline int32_t reindex(parser_t *parser);
+
+// limit maximum size of buffer to avoid malicious inputs claiming all memory.
+// the maximum size of the buffer is the worst-case size of rdata, or 65535
+// bytes, in presentation format. comma-separated value lists as introduced
+// by RFC 9460 allow for double escaping. a reasonable limit is therefore
+// 65535 (rdata) * 4 (\DDD) * 4 (\DDD) + 64 (sufficiently large enough to
+// cover longest key and ancillary characters) bytes.
+#define MAXIMUM_WINDOW_SIZE (65535u * 4u * 4u + 64u)
+
+nonnull_all
+warn_unused_result
+static int32_t refill(parser_t *parser)
 {
   // refill if possible (i.e. not if string or if file is empty)
   if (parser->file->end_of_file)
     return 0;
+
+  assert(parser->file->handle);
 
   // move unread data to start of buffer
   char *data = parser->file->buffer.data + parser->file->buffer.index;
@@ -270,17 +286,21 @@ static really_inline int32_t refill(parser_t *parser)
 
   // allocate extra space if required
   if (parser->file->buffer.length == parser->file->buffer.size) {
-    size_t size = parser->file->buffer.size + ZONE_WINDOW_SIZE;
-    if (!(data = realloc(data, size + 1)))
-      OUT_OF_MEMORY(parser, "Cannot increase buffer size to %zu", size);
+    size_t size = parser->file->buffer.size;
+    if (parser->file->buffer.size >= MAXIMUM_WINDOW_SIZE)
+      SYNTAX_ERROR(parser, "Impossibly large input, exceeds %zu bytes", size);
+    size += ZONE_WINDOW_SIZE;
+    if (!(data = realloc(parser->file->buffer.data, size + 1 + ZONE_PADDING_SIZE)))
+      OUT_OF_MEMORY(parser, "Not enough memory to allocate buffer of %zu", size);
     parser->file->buffer.size = size;
     parser->file->buffer.data = data;
   }
 
-  size_t count = fread(parser->file->buffer.data + parser->file->buffer.length,
-                       sizeof(parser->file->buffer.data[0]),
-                       parser->file->buffer.size - parser->file->buffer.length,
-                       parser->file->handle);
+  size_t count = fread(
+    parser->file->buffer.data + parser->file->buffer.length,
+    sizeof(parser->file->buffer.data[0]),
+    parser->file->buffer.size - parser->file->buffer.length,
+    parser->file->handle);
 
   if (!count && ferror(parser->file->handle))
     READ_ERROR(parser, "Cannot refill buffer");
@@ -291,10 +311,6 @@ static really_inline int32_t refill(parser_t *parser)
   parser->file->end_of_file = feof(parser->file->handle) != 0;
   return 0;
 }
-
-nonnull_all
-warn_unused_result
-static really_inline int32_t reindex(parser_t *parser);
 
 // do not invoke directly
 nonnull_all

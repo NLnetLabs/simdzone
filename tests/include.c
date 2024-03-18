@@ -186,8 +186,89 @@ void include_from_string(void **state)
   assert_int_equal(result, ZONE_NOT_PERMITTED);
 }
 
+
+typedef struct no_file_test no_file_test_t;
+struct no_file_test {
+  size_t accept_count, log_count;
+};
+
+static int32_t no_such_file_accept(
+  zone_parser_t *parser,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
+  uint16_t rdlength,
+  const uint8_t *rdata,
+  void *user_data)
+{
+  (void)parser;
+  (void)owner;
+  (void)type;
+  (void)class;
+  (void)ttl;
+  (void)rdlength;
+  (void)rdata;
+  no_file_test_t *test = (no_file_test_t *)user_data;
+  test->accept_count++;
+  return 0;
+}
+
+static void no_such_file_log(
+  zone_parser_t *parser,
+  uint32_t category,
+  const char *message,
+  void *user_data)
+{
+  (void)parser;
+  (void)category;
+  if (!strstr(message, "no such file"))
+    return;
+  no_file_test_t *test = (no_file_test_t*)user_data;
+  test->log_count++;
+}
+
+/*!cmocka */
+void the_include_that_wasnt(void **state)
+{
+  // test $INCLUDE of nonexistent file is handled gracefully
+  zone_parser_t parser = { 0 };
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options = { 0 };
+  no_file_test_t test = { 0 };
+  int32_t code;
+
+  options.accept.callback = &no_such_file_accept;
+  options.log.callback = &no_such_file_log;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = ZONE_IN;
+
+  (void)state;
+
+  char *non_include = tempnam(NULL, "zone");
+  assert_non_null(non_include);
+
+  char buffer[16];
+  int length = snprintf(buffer, sizeof(buffer), "$INCLUDE %s", non_include);
+  assert_true(length >= 0 && (size_t)length < SIZE_MAX - (ZONE_PADDING_SIZE + 1));
+
+  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(include);
+  (void)snprintf(include, (size_t)length + 1, "$INCLUDE %s", non_include);
+
+  code = zone_parse_string(&parser, &options, &buffers, include, (size_t)length, &test);
+  assert_int_equal(code, ZONE_NOT_A_FILE);
+  assert_true(test.log_count == 1);
+  assert_true(test.accept_count == 0);
+  free(include);
+  free(non_include);
+}
+
 //
-// x. test $INCLUDE of nonexistent file is handled gracefully
 // x. test $INCLUDE is denied for files if disabled all together
 //
 
