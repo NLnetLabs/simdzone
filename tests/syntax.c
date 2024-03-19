@@ -565,6 +565,24 @@ static int32_t parse_as_include(const char *text, size_t *count)
 }
 
 /*!cmocka */
+void who_dis(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t count = 0;
+  static const char *dat = PAD(" TXT \"dat\"");
+  static const char *dis_n_dat = PAD("dis. TXT \"dis\"\n"
+                                     "     TXT \"dat\"");
+
+  code = parse(dat, &count);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+  code = parse(dis_n_dat, &count);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_true(count == 2);
+}
+
+/*!cmocka */
 void quote_no_unquote(void **state)
 {
   (void)state;

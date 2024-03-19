@@ -374,7 +374,7 @@ static inline int32_t parse(parser_t *parser)
           else if (token.length == 8 && memcmp(token.data, "$INCLUDE", 8) == 0)
             code = parse_dollar_include(parser, &token);
           else
-            SYNTAX_ERROR(parser, "Invalid control entry");
+            SYNTAX_ERROR(parser, "Unknown control entry");
           continue;
         }
 
@@ -382,6 +382,8 @@ static inline int32_t parse(parser_t *parser)
           return code;
         if ((code = take_contiguous(parser, &rr, &fields[0], &token)) < 0)
           return code;
+      } else if (unlikely(!parser->owner->length)) {
+        SYNTAX_ERROR(parser, "No last stated owner");
       }
 
       code = parse_rr(parser, &token);

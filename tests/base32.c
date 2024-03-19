@@ -67,7 +67,7 @@ void base32_syntax(void **state)
 
   for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
     char rr[256];
-    const char rrfmt[] = " NSEC3 1 1 12 aabbccdd ( %s A NS )";
+    const char rrfmt[] = "foo. NSEC3 1 1 12 aabbccdd ( %s A NS )";
     zone_parser_t parser = { 0 };
     zone_name_buffer_t name;
     zone_rdata_buffer_t rdata;
