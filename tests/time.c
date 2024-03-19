@@ -94,7 +94,7 @@ void time_stamp_syntax(void **state)
                "                  GNazPwQKkRN20XPXV6nwwfoXmJQbsLNrLfkG\n" \
                "                  J5D6fwFm8nN+6pBzeDQfsS3Ap3o= )"
 
-    size_t size = strlen(FORMAT) + ZONE_BLOCK_SIZE + 1;
+    size_t size = strlen(FORMAT) + strlen(tests[i].timestamp) + ZONE_BLOCK_SIZE + 1;
     char *rr = malloc((size_t)size + 1);
     (void)snprintf(rr, size, FORMAT, tests[i].timestamp);
 
