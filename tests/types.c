@@ -47,42 +47,42 @@ struct rdata {
 };
 
 static const char a_text[] =
-  PAD(" A 192.0.2.1");
+  PAD("foo. A 192.0.2.1");
 static const char a_generic_text[] =
-  PAD(" A \\# 4 c0000201");
+  PAD("foo. A \\# 4 c0000201");
 static const rdata_t a_rdata =
   RDATA(0xc0, 0x00, 0x02, 0x01);
 
 static const char ns_text[] =
-  PAD(" NS host.example.com.");
+  PAD("foo. NS host.example.com.");
 static const char ns_generic_text[] =
-  PAD(" NS \\# 18 04686f7374076578616d706c6503636f6d00");
+  PAD("foo. NS \\# 18 04686f7374076578616d706c6503636f6d00");
 static const rdata_t ns_rdata =
   RDATA(HOST_EXAMPLE_COM);
 
 static const char md_text[] =
-  PAD(" MD host.example.com.");
+  PAD("foo. MD host.example.com.");
 static const char md_generic_text[] =
-  PAD(" MD \\# 18 04686f7374076578616d706c6503636f6d00");
+  PAD("foo. MD \\# 18 04686f7374076578616d706c6503636f6d00");
 static const char mf_text[] =
-  PAD(" MF host.example.com.");
+  PAD("foo. MF host.example.com.");
 static const char mf_generic_text[] =
-  PAD(" MF \\# 18 04686f7374076578616d706c6503636f6d00");
+  PAD("foo. MF \\# 18 04686f7374076578616d706c6503636f6d00");
 static const char cname_text[] =
-  PAD(" CNAME host.example.com.");
+  PAD("foo. CNAME host.example.com.");
 static const char cname_generic_text[] =
-  PAD(" CNAME \\# 18 04686f7374076578616d706c6503636f6d00");
+  PAD("foo. CNAME \\# 18 04686f7374076578616d706c6503636f6d00");
 
 static const char soa_text[] =
-  PAD(" SOA host.example.com. hostmaster.example.com. 2023063001 1 2 3 4");
+  PAD("foo. SOA host.example.com. hostmaster.example.com. 2023063001 1 2 3 4");
 static const char soa_generic_text[] =
-  PAD(" SOA \\# 62 04686f7374076578616d706c6503636f6d00"
-      "            0a686f73746d6173746572076578616d706c6503636f6d00"
-      "            78957dd9"
-      "            00000001"
-      "            00000002"
-      "            00000003"
-      "            00000004");
+  PAD("foo. SOA \\# 62 04686f7374076578616d706c6503636f6d00"
+      "                0a686f73746d6173746572076578616d706c6503636f6d00"
+      "                78957dd9"
+      "                00000001"
+      "                00000002"
+      "                00000003"
+      "                00000004");
 static const rdata_t soa_rdata =
   RDATA(/* host.example.com. */
         HOST_EXAMPLE_COM,
@@ -101,29 +101,29 @@ static const rdata_t soa_rdata =
       );
 
 static const char mb_text[] =
-  PAD(" MB host.example.com.");
+  PAD("foo. MB host.example.com.");
 static const char mb_generic_text[] =
-  PAD(" MB \\# 18 04686f7374076578616d706c6503636f6d00");
+  PAD("foo. MB \\# 18 04686f7374076578616d706c6503636f6d00");
 
 static const char mg_text[] =
-  PAD(" MG hostmaster.example.com.");
+  PAD("foo. MG hostmaster.example.com.");
 static const char mg_generic_text[] =
-  PAD(" MG \\# 24 0a686f73746d6173746572076578616d706c6503636f6d00");
+  PAD("foo. MG \\# 24 0a686f73746d6173746572076578616d706c6503636f6d00");
 static const rdata_t mg_rdata = RDATA(HOSTMASTER_EXAMPLE_COM);
 
 static const char mr_text[] =
-  PAD(" MR hostmaster.example.com.");
+  PAD("foo. MR hostmaster.example.com.");
 static const char mr_generic_text[] =
-  PAD(" MR \\# 24 0a686f73746d6173746572076578616d706c6503636f6d00");
+  PAD("foo. MR \\# 24 0a686f73746d6173746572076578616d706c6503636f6d00");
 static const char ptr_text[] =
-  PAD(" PTR host.example.com.");
+  PAD("foo. PTR host.example.com.");
 static const char ptr_generic_text[] =
-  PAD(" PTR \\# 18 04686f7374076578616d706c6503636f6d00");
+  PAD("foo. PTR \\# 18 04686f7374076578616d706c6503636f6d00");
 
 static const char wks_text[] =
-  PAD(" WKS 192.0.2.1 tcp 0 tcpmux");
+  PAD("foo. WKS 192.0.2.1 tcp 0 tcpmux");
 static const char wks_generic_text[] =
-  PAD(" TYPE11 \\# 6 c0000201 06 c0");
+  PAD("foo. TYPE11 \\# 6 c0000201 06 c0");
 static const rdata_t wks_rdata =
   RDATA(/* address */
         0xc0, 0x00, 0x02, 0x01,
@@ -133,9 +133,9 @@ static const rdata_t wks_rdata =
         0xc0);
 
 static const char hinfo_text[] =
-  PAD(" HINFO amd64 linux");
+  PAD("foo. HINFO amd64 linux");
 static const char hinfo_generic_text[] =
-  PAD(" HINFO \\# 12 05616d643634 056c696e7578");
+  PAD("foo. HINFO \\# 12 05616d643634 056c696e7578");
 static const rdata_t hinfo_rdata =
   RDATA(/* amd64 */
         5, 'a', 'm', 'd', '6', '4',
@@ -143,17 +143,17 @@ static const rdata_t hinfo_rdata =
         5, 'l', 'i', 'n', 'u', 'x');
 
 static const char minfo_text[] =
-  PAD(" MINFO hostmaster.example.com. hostmaster.example.com.");
+  PAD("foo. MINFO hostmaster.example.com. hostmaster.example.com.");
 static const char minfo_generic_text[] =
-  PAD(" MINFO \\# 48 0a686f73746d6173746572076578616d706c6503636f6d00"
-      "              0a686f73746d6173746572076578616d706c6503636f6d00");
+  PAD("foo. MINFO \\# 48 0a686f73746d6173746572076578616d706c6503636f6d00"
+      "                  0a686f73746d6173746572076578616d706c6503636f6d00");
 static const rdata_t minfo_rdata =
   RDATA(HOSTMASTER_EXAMPLE_COM, HOSTMASTER_EXAMPLE_COM);
 
 static const char mx_text[] =
-  PAD(" MX 10 host.example.com.");
+  PAD("foo. MX 10 host.example.com.");
 static const char mx_generic_text[] =
-  PAD(" MX \\# 20 000a 04686f7374076578616d706c6503636f6d00");
+  PAD("foo. MX \\# 20 000a 04686f7374076578616d706c6503636f6d00");
 static const rdata_t mx_rdata =
   RDATA(/* 10 */
         0x00, 0x0a,
@@ -161,9 +161,9 @@ static const rdata_t mx_rdata =
         HOST_EXAMPLE_COM);
 
 static const char txt_text[] =
-  PAD(" TXT example of TXT rdata");
+  PAD("foo. TXT example of TXT rdata");
 static const char txt_generic_text[] =
-  PAD(" TXT \\# 21 076578616d706c65 026f66 03545854 057264617461");
+  PAD("foo. TXT \\# 21 076578616d706c65 026f66 03545854 057264617461");
 static const rdata_t txt_rdata =
   RDATA(/* example */
         0x07, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65,
@@ -175,17 +175,17 @@ static const rdata_t txt_rdata =
         0x05, 0x72, 0x64, 0x61, 0x74, 0x61);
 
 static const char rp_text[] =
-  PAD(" RP hostmaster.example.com. host.example.com.");
+  PAD("foo. RP hostmaster.example.com. host.example.com.");
 static const char rp_generic_text[] =
-  PAD(" RP \\# 42 0a686f73746d6173746572076578616d706c6503636f6d00"
-      "           04686f7374076578616d706c6503636f6d00");
+  PAD("foo. RP \\# 42 0a686f73746d6173746572076578616d706c6503636f6d00"
+      "               04686f7374076578616d706c6503636f6d00");
 static const rdata_t rp_rdata =
   RDATA(HOSTMASTER_EXAMPLE_COM, HOST_EXAMPLE_COM);
 
 static const char afsdb_text[] =
-  PAD(" AFSDB 1 host.example.com.");
+  PAD("foo. AFSDB 1 host.example.com.");
 static const char afsdb_generic_text[] =
-  PAD(" AFSDB \\# 20 0001 04686f7374076578616d706c6503636f6d00");
+  PAD("foo. AFSDB \\# 20 0001 04686f7374076578616d706c6503636f6d00");
 static const rdata_t afsdb_rdata =
   RDATA(/* 1 */
         0x00, 0x01,
@@ -193,26 +193,26 @@ static const rdata_t afsdb_rdata =
         HOST_EXAMPLE_COM);
 
 static const char x25_text[] =
-  PAD(" X25 311061700956");
+  PAD("foo. X25 311061700956");
 static const char x25_generic_text[] =
-  PAD(" X25 \\# 13 0c333131303631373030393536");
+  PAD("foo. X25 \\# 13 0c333131303631373030393536");
 static const rdata_t x25_rdata =
   RDATA(0x0c, 0x33, 0x31, 0x31, 0x30, 0x36, 0x31, 0x37,
         0x30, 0x30, 0x39, 0x35, 0x36);
 
 static const char isdn_text[] =
-  PAD(" ISDN 150862028003217 004");
+  PAD("foo. ISDN 150862028003217 004");
 static const char isdn_generic_text[] =
-  PAD(" ISDN \\# 20 0f313530383632303238303033323137 03303034");
+  PAD("foo. ISDN \\# 20 0f313530383632303238303033323137 03303034");
 static const rdata_t isdn_rdata =
   RDATA(0x0f, 0x31, 0x35, 0x30, 0x38, 0x36, 0x32, 0x30,
         0x32, 0x38, 0x30, 0x30, 0x33, 0x32, 0x31, 0x37,
         0x03, 0x30, 0x30, 0x34);
 
 static const char rt_text[] =
-  PAD(" RT 10 relay.example.com.");
+  PAD("foo. RT 10 relay.example.com.");
 static const char rt_generic_text[] =
-  PAD(" RT \\# 21 000a 0572656c6179076578616d706c6503636f6d00");
+  PAD("foo. RT \\# 21 000a 0572656c6179076578616d706c6503636f6d00");
 static const rdata_t rt_rdata =
   RDATA(/* 10 */
         0x00, 0x0a,
@@ -222,9 +222,9 @@ static const rdata_t rt_rdata =
         0x6f, 0x6d, 0x00);
 
 static const char nsap_text[] =
-  PAD(" NSAP 0x47.0005.80.005a00.0000.0001.e133.aaaaaa000111.00");
+  PAD("foo. NSAP 0x47.0005.80.005a00.0000.0001.e133.aaaaaa000111.00");
 static const char nsap_generic_text[] =
-  PAD(" TYPE22 \\# 20 47 0005 80 005a00 0000 0001 e133 aaaaaa000111 00");
+  PAD("foo. TYPE22 \\# 20 47 0005 80 005a00 0000 0001 e133 aaaaaa000111 00");
 static const rdata_t nsap_rdata =
   RDATA(0x47, 0x00, 0x05, 0x80, 0x00, 0x5a, 0x00, 0x00,
         0x00, 0x00, 0x01, 0xe1, 0x33, 0xaa, 0xaa, 0xaa,
@@ -265,14 +265,14 @@ static const rdata_t sig_rdata =
         0xe0, 0xbc, 0x69, 0x3a, 0xce, 0xf8, 0xa2, 0xa6, 0x09, 0xa6);
 
 static const char key_text[] =
-  PAD(" KEY 0 0 0 Zm9vYmFy");
+  PAD("foo. KEY 0 0 0 Zm9vYmFy");
 static const char key_generic_text[] =
-  PAD(" KEY \\# 10 00000000666f6f626172");
+  PAD("foo. KEY \\# 10 00000000666f6f626172");
 static const rdata_t key_rdata =
   RDATA(0x00, 0x00, 0x00, 0x00, 0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72);
 
 static const char gpos_text[] =
-  PAD(" GPOS -32.6882 116.8652 10.0");
+  PAD("foo. GPOS -32.6882 116.8652 10.0");
 static const rdata_t gpos_rdata =
   RDATA(/* latitude */
         8, '-', '3', '2', '.', '6', '8', '8', '2',
@@ -314,14 +314,14 @@ static const rdata_t nxt_rdata =
         0x40, 0x01, 0x00, 0x82);
 
 static const char naptr_text[] =
-  PAD(" NAPTR 100 50 \"s\" \"http+I2L+I2C+I2R\" \"\"  _http._tcp.gatech.edu.");
+  PAD("foo. NAPTR 100 50 \"s\" \"http+I2L+I2C+I2R\" \"\"  _http._tcp.gatech.edu.");
 static const char naptr_generic_text[] =
-  PAD(" NAPTR \\# 47 0064"
-      "              0032"
-      "              0173"
-      "              10687474702b49324c2b4932432b493252"
-      "              00"
-      "              055f68747470045f746370066761746563680365647500");
+  PAD("foo. NAPTR \\# 47 0064"
+      "                  0032"
+      "                  0173"
+      "                  10687474702b49324c2b4932432b493252"
+      "                  00"
+      "                  055f68747470045f746370066761746563680365647500");
 static const rdata_t naptr_rdata =
   RDATA(/* order */
         0x00, 0x64,
@@ -341,14 +341,14 @@ static const rdata_t naptr_rdata =
         0x63, 0x68, 0x03, 0x65, 0x64, 0x75, 0x00);
 
 static const char kx_text[] =
-  PAD(" KX 10 kx-host");
+  PAD("foo. KX 10 kx-host");
 static const char kx_generic_text[] =
-  PAD(" KX \\# 23 000a 076b782d686f7374076578616d706c6503636f6d00");
+  PAD("foo. KX \\# 23 000a 076b782d686f7374076578616d706c6503636f6d00");
 static const rdata_t kx_rdata =
   RDATA(0x00, 0x0a, 0x07, 0x6b, 0x78, 0x2d, 0x68, 0x6f, 0x73, 0x74, EXAMPLE_COM);
 
 static const char cert_text[] =
-  PAD(" CERT PKIX 65535 RSASHA256 Zm9vYmFy");
+  PAD("foo. CERT PKIX 65535 RSASHA256 Zm9vYmFy");
 static const rdata_t cert_rdata =
   RDATA(/* type */
         0x00, 0x01,
@@ -359,9 +359,9 @@ static const rdata_t cert_rdata =
         /* certificate */
         0x66, 0x6F, 0x6F, 0x62, 0x61, 0x72);
 
-static const char dname_text[] = PAD(" DNAME host.example.com.");
+static const char dname_text[] = PAD("foo. DNAME host.example.com.");
 static const char dname_generic_text[] =
-  PAD(" DNAME \\# 18 04686f7374076578616d706c6503636f6d00");
+  PAD("foo. DNAME \\# 18 04686f7374076578616d706c6503636f6d00");
 static const rdata_t dname_rdata = RDATA(HOST_EXAMPLE_COM);
 
 static const char apl_text[] =
@@ -373,13 +373,13 @@ static const rdata_t apl_rdata =
         0, 1, 28, 0x84, 192, 168, 38, 0);
 
 static const char sshfp_text[] =
-  PAD(" SSHFP 4 2 123456789abcdef67890123456789abcdef67890123456789abcdef123456789");
+  PAD("foo. SSHFP 4 2 123456789abcdef67890123456789abcdef67890123456789abcdef123456789");
 static const char sshfp_generic_text[] =
-  PAD(" SSHFP \\# 34 04 02"
-      "           123456789abcdef6"
-      "           7890123456789abc"
-      "           def6789012345678"
-      "           9abcdef123456789");
+  PAD("foo. SSHFP \\# 34 04 02"
+      "               123456789abcdef6"
+      "               7890123456789abc"
+      "               def6789012345678"
+      "               9abcdef123456789");
 static const rdata_t sshfp_rdata =
   RDATA(/* algorithm */
         0x04,
@@ -502,11 +502,11 @@ static const rdata_t nsec3_no_data_rdata =
 
 // https://www.rfc-editor.org/rfc/rfc4701.html#section-3.6.1
 static const char dhcid_text[] =
-  PAD(" DHCID   ( AAIBY2/AuCccgoJbsaxcQc9TUapptP69l"
-      "           OjxfNuVAA2kjEA= )");
+  PAD("foo. DHCID   ( AAIBY2/AuCccgoJbsaxcQc9TUapptP69l"
+      "               OjxfNuVAA2kjEA= )");
 static const char dhcid_generic_text[] =
-  PAD(" DHCID \\# 35 ( 000201636fc0b8271c82825bb1ac5c41cf5351aa69b4febd94e8f17cd"
-      "          b95000da48c40 )");
+  PAD("foo. DHCID \\# 35 ( 000201636fc0b8271c82825bb1ac5c41cf5351aa69b4febd94e8f17cd"
+      "                    b95000da48c40 )");
 static const rdata_t dhcid_rdata =
   RDATA(0x00, 0x02, 0x01, 0x63, 0x6f, 0xc0, 0xb8, 0x27,
         0x1c, 0x82, 0x82, 0x5b, 0xb1, 0xac, 0x5c, 0x41,
@@ -515,10 +515,10 @@ static const rdata_t dhcid_rdata =
         0xa4, 0x8c, 0x40);
 
 static const char tlsa_text[] =
-  PAD(" TLSA 0 0 1 d2abde240d7cd3ee6b4b28c54df034b97983a1d16e8a410e4561cb106618e971");
+  PAD("foo. TLSA 0 0 1 d2abde240d7cd3ee6b4b28c54df034b97983a1d16e8a410e4561cb106618e971");
 static const char tlsa_generic_text[] =
-  PAD(" TLSA \\# 35 00 00 01 ( d2abde240d7cd3ee6b4b28c54df034b9"
-      "                        7983a1d16e8a410e4561cb106618e971 )");
+  PAD("foo. TLSA \\# 35 00 00 01 ( d2abde240d7cd3ee6b4b28c54df034b9"
+      "                            7983a1d16e8a410e4561cb106618e971 )");
 static const rdata_t tlsa_rdata =
   RDATA(/* usage */
         0x00,
@@ -533,10 +533,10 @@ static const rdata_t tlsa_rdata =
         0x45, 0x61, 0xcb, 0x10, 0x66, 0x18, 0xe9, 0x71);
 
 static const char smimea_text[] =
-  PAD(" SMIMEA 0 0 1 d2abde240d7cd3ee6b4b28c54df034b97983a1d16e8a410e4561cb106618e971");
+  PAD("foo. SMIMEA 0 0 1 d2abde240d7cd3ee6b4b28c54df034b97983a1d16e8a410e4561cb106618e971");
 static const char smimea_generic_text[] =
-  PAD(" SMIMEA \\# 35 00 00 01 ( d2abde240d7cd3ee6b4b28c54df034b9"
-      "                          7983a1d16e8a410e4561cb106618e971 )");
+  PAD("foo. SMIMEA \\# 35 00 00 01 ( d2abde240d7cd3ee6b4b28c54df034b9"
+      "                              7983a1d16e8a410e4561cb106618e971 )");
 static const rdata_t smimea_rdata =
   RDATA(/* usage */
         0x00,
@@ -587,9 +587,9 @@ static const rdata_t hip_rdata =
         );
 
 static const char cds_text[] =
-  PAD(" CDS 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
+  PAD("foo. CDS 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
 static const char cds_generic_text[] =
-  PAD(" CDS \\# 24 e466 05 01 3079f1593ebad6dc121e202a8b766a6a4837206c");
+  PAD("foo. CDS \\# 24 e466 05 01 3079f1593ebad6dc121e202a8b766a6a4837206c");
 static const rdata_t cds_rdata =
   RDATA(0xe4, 0x66,
         0x05,
@@ -599,32 +599,32 @@ static const rdata_t cds_rdata =
         0x48, 0x37, 0x20, 0x6c);
 
 static const char cdnskey_text[] =
-  PAD(" CDNSKEY 256 3 5 ( AQPSKmynfzW4kyBv015MUG2DeIQ3"
-      "                   Cbl+BBZH4b/0PY1kxkmvHjcZc8no"
-      "                   kfzj31GajIQKY+5CptLr3buXA10h"
-      "                   WqTkF7H6RfoRqXQeogmMHfpftf6z"
-      "                   Mv1LyBUgia7za6ZEzOJBOztyvhjL"
-      "                   742iU/TpPSEDhm2SNKLijfUppn1U"
-      "                   aNvv4w== )");
+  PAD("foo. CDNSKEY 256 3 5 ( AQPSKmynfzW4kyBv015MUG2DeIQ3"
+      "                       Cbl+BBZH4b/0PY1kxkmvHjcZc8no"
+      "                       kfzj31GajIQKY+5CptLr3buXA10h"
+      "                       WqTkF7H6RfoRqXQeogmMHfpftf6z"
+      "                       Mv1LyBUgia7za6ZEzOJBOztyvhjL"
+      "                       742iU/TpPSEDhm2SNKLijfUppn1U"
+      "                       aNvv4w== )");
 static const char cdnskey_generic_text[] = PAD(
-  " CDNSKEY \\# 134 0100 03 05"
-  " 0103d22a6ca77f35"
-  " b893206fd35e4c50"
-  " 6d8378843709b97e"
-  " 041647e1bff43d8d"
-  " 64c649af1e371973"
-  " c9e891fce3df519a"
-  " 8c840a63ee42a6d2"
-  " ebddbb97035d215a"
-  " a4e417b1fa45fa11"
-  " a9741ea2098c1dfa"
-  " 5fb5feb332fd4bc8"
-  " 152089aef36ba644"
-  " cce2413b3b72be18"
-  " cbef8da253f4e93d"
-  " 2103866d9234a2e2"
-  " 8df529a67d5468db"
-  " efe3"
+  "foo. CDNSKEY \\# 134 0100 03 05"
+  "     0103d22a6ca77f35"
+  "     b893206fd35e4c50"
+  "     6d8378843709b97e"
+  "     041647e1bff43d8d"
+  "     64c649af1e371973"
+  "     c9e891fce3df519a"
+  "     8c840a63ee42a6d2"
+  "     ebddbb97035d215a"
+  "     a4e417b1fa45fa11"
+  "     a9741ea2098c1dfa"
+  "     5fb5feb332fd4bc8"
+  "     152089aef36ba644"
+  "     cce2413b3b72be18"
+  "     cbef8da253f4e93d"
+  "     2103866d9234a2e2"
+  "     8df529a67d5468db"
+  "     efe3"
 );
 static const rdata_t cdnskey_rdata =
   RDATA(/* flags */
@@ -781,58 +781,58 @@ static const rdata_t svcb_rdata =
         0x00, 0x00, 0x00, 0x02, 0x00, 0x10, 0x00, 0x10, 0x00, 0x00);
 
 static const char spf_text[] =
-  PAD(" SPF \"v=spf1 +all\"");
+  PAD("foo. SPF \"v=spf1 +all\"");
 static const char spf_generic_text[] =
-  PAD(" SPF \\# 12 0b763d73706631202b616c6c");
+  PAD("foo. SPF \\# 12 0b763d73706631202b616c6c");
 static const rdata_t spf_rdata =
   RDATA(0x0b, 'v', '=', 's', 'p', 'f', '1', ' ', '+', 'a', 'l', 'l');
 
 static const char nid_text[] =
-  PAD(" NID 10 0014:4fff:ff20:ee64");
+  PAD("foo. NID 10 0014:4fff:ff20:ee64");
 static const char nid_generic_text[] =
-  PAD(" TYPE104 \\# 10 000a 0014 4fff ff20 ee64");
+  PAD("foo. TYPE104 \\# 10 000a 0014 4fff ff20 ee64");
 static const rdata_t nid_rdata =
   RDATA(0x00, 0x0a, 0x00, 0x14, 0x4f, 0xff, 0xff, 0x20, 0xee, 0x64);
 
 static const char l32_text[] =
-  PAD(" L32 10 10.1.2.0");
+  PAD("foo. L32 10 10.1.2.0");
 static const char l32_generic_text[] =
-  PAD(" L32 \\# 6 000a 0a010200");
+  PAD("foo. L32 \\# 6 000a 0a010200");
 static const rdata_t l32_rdata =
   RDATA(0x00, 0x0a, 0x0a, 0x01, 0x02, 0x00);
 
 static const char l64_text[] =
-  PAD(" L64 10 2001:0DB8:1140:1000");
+  PAD("foo. L64 10 2001:0DB8:1140:1000");
 static const char l64_generic_text[] =
-  PAD(" L64 \\# 10 000a 20010db811401000");
+  PAD("foo. L64 \\# 10 000a 20010db811401000");
 static const rdata_t l64_rdata =
   RDATA(0x00, 0x0a, 0x20, 0x01, 0x0d, 0xb8, 0x11, 0x40, 0x10, 0x00);
 
 static const char lp_text[] =
-  PAD(" LP 10 l64-subnet1.example.com.");
+  PAD("foo. LP 10 l64-subnet1.example.com.");
 static const char lp_generic_text[] =
-  PAD(" LP \\# 27 000a 0b6c36342d7375626e657431076578616d706c6503636f6d00");
+  PAD("foo. LP \\# 27 000a 0b6c36342d7375626e657431076578616d706c6503636f6d00");
 static const rdata_t lp_rdata =
   RDATA(0x00, 0x0a, 11, 'l', '6', '4', '-', 's', 'u', 'b', 'n', 'e', 't', '1', EXAMPLE_COM);
 
 static const char eui48_text[] =
-  PAD(" EUI48 00-00-5e-00-53-2a");
+  PAD("foo. EUI48 00-00-5e-00-53-2a");
 static const char eui48_generic_text[] =
-  PAD(" EUI48 \\# 6 00005e00532a");
+  PAD("foo. EUI48 \\# 6 00005e00532a");
 static const rdata_t eui48_rdata =
   RDATA(0x00, 0x00, 0x5e, 0x00, 0x53, 0x2a);
 
 static const char eui64_text[] =
-  PAD(" EUI64 00-00-5e-ef-10-00-00-2a");
+  PAD("foo. EUI64 00-00-5e-ef-10-00-00-2a");
 static const char eui64_generic_text[] =
-  PAD(" EUI64 \\# 8 00005eef1000002a");
+  PAD("foo. EUI64 \\# 8 00005eef1000002a");
 static const rdata_t eui64_rdata =
   RDATA(0x00, 0x00, 0x5e, 0xef, 0x10, 0x00, 0x00, 0x2a);
 
 static const char uri_text[] =
-  PAD(" URI 10 1 \"ftp://ftp1.example.com/public\"");
+  PAD("foo. URI 10 1 \"ftp://ftp1.example.com/public\"");
 static const char uri_generic_text[] =
-  PAD(" URI \\# 33 000a 0001 6674703a2f2f667470312e6578616d706c652e636f6d2f7075626c6963");
+  PAD("foo. URI \\# 33 000a 0001 6674703a2f2f667470312e6578616d706c652e636f6d2f7075626c6963");
 static const rdata_t uri_rdata =
   RDATA(0x00, 0x0a, 0x00, 0x01, 'f', 't', 'p', ':', '/', '/',
         'f', 't', 'p', '1', '.', 'e', 'x',
@@ -841,9 +841,9 @@ static const rdata_t uri_rdata =
         'i', 'c' );
 
 static const char caa_text[] =
-  PAD(" CAA 0 issue \"ca1.example.net\"");
+  PAD("foo. CAA 0 issue \"ca1.example.net\"");
 static const char caa_generic_text[] =
-  PAD(" CAA \\# 22 00 056973737565 6361312e6578616d706c652e6e6574");
+  PAD("foo. CAA \\# 22 00 056973737565 6361312e6578616d706c652e6e6574");
 static const rdata_t caa_rdata =
   RDATA(/* flags */
         0,
@@ -853,9 +853,9 @@ static const rdata_t caa_rdata =
         'c', 'a', '1', '.', 'e', 'x', 'a', 'm', 'p', 'l', 'e', '.', 'n', 'e', 't');
 
 static const char avc_text[] =
-  PAD(" AVC \"app-name:WOLFGANG|app-class:OAM\"");
+  PAD("foo. AVC \"app-name:WOLFGANG|app-class:OAM\"");
 static const char avc_generic_text[] =
-  PAD(" AVC \\# 32 1f6170702d6e616d653a574f4c4647414e477c6170702d636c6173733a4f414d");
+  PAD("foo. AVC \\# 32 1f6170702d6e616d653a574f4c4647414e477c6170702d636c6173733a4f414d");
 static const rdata_t avc_rdata =
   RDATA(31, 'a', 'p', 'p', '-', 'n', 'a', 'm', 'e',
             ':', 'W', 'O', 'L', 'F', 'G', 'A', 'N',
@@ -863,9 +863,9 @@ static const rdata_t avc_rdata =
             'a', 's', 's', ':', 'O', 'A', 'M');
 
 static const char dlv_text[] =
-  PAD(" DLV 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
+  PAD("foo. DLV 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
 static const char dlv_generic_text[] =
-  PAD(" DLV \\# 24 e466 05 01 3079f1593ebad6dc121e202a8b766a6a4837206c");
+  PAD("foo. DLV \\# 24 e466 05 01 3079f1593ebad6dc121e202a8b766a6a4837206c");
 
 typedef struct test test_t;
 struct test {

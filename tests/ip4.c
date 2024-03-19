@@ -89,7 +89,7 @@ void ipv4_syntax(void **state)
     zone_options_t options = { 0 };
     int32_t result;
 
-    (void)snprintf(rr, sizeof(rr), " A %s", tests[i].address);
+    (void)snprintf(rr, sizeof(rr), "foo. A %s", tests[i].address);
 
     options.accept.callback = add_rr;
     options.origin.octets = origin;
