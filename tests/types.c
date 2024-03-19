@@ -867,6 +867,11 @@ static const char dlv_text[] =
 static const char dlv_generic_text[] =
   PAD("foo. DLV \\# 24 e466 05 01 3079f1593ebad6dc121e202a8b766a6a4837206c");
 
+static const char type0_generic_text[] =
+  PAD("foo. TYPE0 \\# 6 666f6f626172");
+static const rdata_t type0_rdata =
+  RDATA('f', 'o', 'o', 'b', 'a', 'r');
+
 typedef struct test test_t;
 struct test {
   const uint16_t type;
@@ -876,6 +881,7 @@ struct test {
 
 
 static const test_t tests[] = {
+  { 0, type0_generic_text, &type0_rdata },
   { ZONE_A, a_text, &a_rdata },
   { ZONE_A, a_generic_text, &a_rdata },
   { ZONE_NS, ns_text, &ns_rdata },
