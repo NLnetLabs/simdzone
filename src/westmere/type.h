@@ -77,7 +77,7 @@ static really_inline int32_t scan_generic_class(
 {
   if (scan_int16(data + 5, length - 5, code) == 0)
     return -1;
-  if (*code < 4)
+  if (*code <= 4)
     *mnemonic = &classes[*code].name;
   else
     *mnemonic = &classes[0].name;
