@@ -124,27 +124,6 @@ static really_inline ssize_t check_ttl(
 }
 
 zone_nonnull((1,2,3,4))
-static really_inline ssize_t check_type(
-  parser_t *parser,
-  const type_info_t *type,
-  const rdata_info_t *field,
-  const uint8_t *data,
-  const size_t length)
-{
-  uint16_t number;
-
-  if (length < sizeof(number))
-    SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
-
-  memcpy(&number, data, sizeof(number));
-
-  if (!number)
-    SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-
-  return 2;
-}
-
-zone_nonnull((1,2,3,4))
 static really_inline ssize_t check_name(
   parser_t *parser,
   const type_info_t *type,
@@ -1584,7 +1563,7 @@ static int32_t check_rrsig_rr(
   const uint8_t *o = parser->rdata->octets;
   const rdata_info_t *f = type->rdata.fields;
 
-  if ((r = check(&c, check_type(parser, type, &f[0], o, n))) ||
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
       (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
       (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))) ||
       (r = check(&c, check_ttl(parser, type, &f[3], o+c, n-c))) ||
@@ -2845,6 +2824,7 @@ static const rdata_info_t dlv_rdata_fields[] = {
   FIELD("digest")
 };
 
+// https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml
 static const type_info_t types[] = {
   UNKNOWN_TYPE(0),
 

@@ -225,3 +225,6 @@ anything other than domain names and text strings, MUST not be quoted.
 
 * BIND10 had a nice writeup on zone files, kindly provided by Shane Kerr.
   [Zone File Loading Requirements on Wayback Machine](https://web.archive.org/web/20140928215002/http://bind10.isc.org:80/wiki/ZoneLoadingRequirements)
+
+* `TYPE0` is sometimes used for debugging and therefore may occur in type
+  bitmaps or as unknown RR type.
