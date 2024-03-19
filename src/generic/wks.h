@@ -71,9 +71,7 @@ static really_inline int32_t scan_protocol(
   };
 
   uint64_t key;
-  uint64_t mask;// = 0xffffffffffffffffu;
-  //if (length < 8)
-  //  mask = (1llu << (length * 8)) - 1;
+  uint64_t mask;
   const int8_t *zero_mask = &zero_masks[32 - (length & 0x1f)];
   memcpy(&mask, zero_mask, 8);
 
