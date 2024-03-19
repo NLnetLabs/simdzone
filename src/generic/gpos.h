@@ -126,7 +126,7 @@ static really_inline int32_t parse_longitude(
       if (text[1] != '.')
         text += 1;
       else
-        for (text += 2; 10u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
+        for (text += 2; (uint8_t)((uint8_t)text[0] - '0') <= 9u; text++) ;
       break;
     case 0x0b: // 0b01011 ("dd.d.")
     case 0x1b: // 0b11011 ("dd.dd")
@@ -137,7 +137,7 @@ static really_inline int32_t parse_longitude(
       if (text[2] != '.')
         text += 2;
       else
-        for (text += 3; 10u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
+        for (text += 3; (uint8_t)((uint8_t)text[0] - '0') <= 9u; text++) ;
       break;
     case 0x17: // 0b10111 ("ddd.d")
       // ensure no leading zero and range is between -180 and 180
@@ -147,7 +147,7 @@ static really_inline int32_t parse_longitude(
       if (text[3] != '.')
         text += 3;
       else
-        for (text += 4; 10u > (uint8_t)((uint8_t)text[0] - '0'); text++) ;
+        for (text += 4; (uint8_t)((uint8_t)text[0] - '0') <= 9u; text++) ;
       break;
     default:
       goto bad_longitude;
@@ -177,10 +177,10 @@ static really_inline int32_t parse_altitude(
   if (token->length > 255)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  for (; 9u > (uint8_t)((uint8_t)*text - '0'); text++) ;
+  for (; (uint8_t)((uint8_t)*text - '0') <= 9u; text++) ;
 
   if (*text == '.')
-    for (text++; 9u > (uint8_t)((uint8_t)*text - '0'); text++) ;
+    for (text++; (uint8_t)((uint8_t)*text - '0') <= 9u; text++) ;
 
   if (text != token->data + token->length)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
