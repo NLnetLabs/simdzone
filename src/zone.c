@@ -392,6 +392,10 @@ static int32_t initialize_parser(
   parser->owner = &parser->buffers.owner.blocks[0];
   parser->owner->length = 0;
   parser->rdata = &parser->buffers.rdata.blocks[0];
+
+  if (!parser->options.no_includes && !parser->options.include_limit)
+    parser->options.include_limit = 10; // arbitrary, default in NSD
+
   return 0;
 }
 

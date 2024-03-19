@@ -312,6 +312,8 @@ typedef struct {
   /** Disable $INCLUDE directive. */
   /** Useful in setups where untrusted input may be offered. */
   bool no_includes;
+  /** Maximum $INCLUDE depth. 0 for default. */
+  uint32_t include_limit;
   /** Enable 1h2m3s notations for TTLS. */
   bool pretty_ttls;
   /** Origin in wire format. */

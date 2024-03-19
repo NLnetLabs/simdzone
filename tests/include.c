@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <cmocka.h>
+#include <limits.h>
 #if !_WIN32
 #include <unistd.h>
 #endif
@@ -125,6 +126,45 @@ err:
   return -1;
 }
 
+static char *generate_include(const char *text)
+{
+  for (int i=0; i < 100; i++) {
+    char *path = tempnam(NULL, "zone");
+    if (path) {
+      FILE *handle = fopen(path, "wbx");
+      if (handle) {
+        int result = fputs(text, handle);
+        fflush(handle);
+        (void)fclose(handle);
+        if (result != EOF)
+          return path;
+      }
+      free(path);
+    }
+  }
+  return NULL;
+}
+
+static int32_t parse(
+  const zone_options_t *options, const char *text, void *user_data)
+{
+  zone_parser_t parser = { 0 };
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+
+  int32_t code;
+  size_t length = strlen(text);
+  char *string = malloc(length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(string);
+  memcpy(string, text, length);
+  string[length] = '\0';
+
+  code = zone_parse_string(&parser, options, &buffers, string, length, user_data);
+  free(string);
+  return code;
+}
+
 diagnostic_pop()
 
 static int32_t add_rr(
@@ -216,12 +256,12 @@ static int32_t no_such_file_accept(
 
 static void no_such_file_log(
   zone_parser_t *parser,
-  uint32_t category,
+  uint32_t priority,
   const char *message,
   void *user_data)
 {
   (void)parser;
-  (void)category;
+  (void)priority;
   if (!strstr(message, "no such file"))
     return;
   no_file_test_t *test = (no_file_test_t*)user_data;
@@ -232,10 +272,6 @@ static void no_such_file_log(
 void the_include_that_wasnt(void **state)
 {
   // test $INCLUDE of nonexistent file is handled gracefully
-  zone_parser_t parser = { 0 };
-  zone_name_buffer_t name;
-  zone_rdata_buffer_t rdata;
-  zone_buffers_t buffers = { 1, &name, &rdata };
   zone_options_t options = { 0 };
   no_file_test_t test = { 0 };
   int32_t code;
@@ -245,7 +281,7 @@ void the_include_that_wasnt(void **state)
   options.origin.octets = origin;
   options.origin.length = sizeof(origin);
   options.default_ttl = 3600;
-  options.default_class = ZONE_IN;
+  options.default_class = 1;
 
   (void)state;
 
@@ -256,16 +292,141 @@ void the_include_that_wasnt(void **state)
   int length = snprintf(buffer, sizeof(buffer), "$INCLUDE %s", non_include);
   assert_true(length >= 0 && (size_t)length < SIZE_MAX - (ZONE_PADDING_SIZE + 1));
 
-  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  char *include = malloc((size_t)length + 1);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE %s", non_include);
 
-  code = zone_parse_string(&parser, &options, &buffers, include, (size_t)length, &test);
+  code = parse(&options, include, &test);
+  free(include);
+  free(non_include);
   assert_int_equal(code, ZONE_NOT_A_FILE);
   assert_true(test.log_count == 1);
   assert_true(test.accept_count == 0);
+}
+
+static int32_t in_too_deep_accept(
+  zone_parser_t *parser,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
+  uint16_t rdlength,
+  const uint8_t *rdata,
+  void *user_data)
+{
+  (void)parser;
+  (void)owner;
+  (void)type;
+  (void)class;
+  (void)ttl;
+  (void)rdlength;
+  (void)rdata;
+  (*(size_t *)user_data)++;
+  return 0;
+}
+
+static void in_too_deep_log(
+  zone_parser_t *parser,
+  uint32_t priority,
+  const char *message,
+  void *user_data)
+{
+  (void)parser;
+  (void)priority;
+
+  if (strstr(message, "nested too deeply"))
+    *(size_t *)user_data |= 1u << 7;
+}
+
+/*!cmocka */
+void in_too_deep(void **state)
+{
+  (void)state;
+
+  int32_t code;
+  size_t records;
+  zone_options_t options = { 0 };
+
+  options.accept.callback = &in_too_deep_accept;
+  options.log.callback = &in_too_deep_log;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+  options.include_limit = 1;
+
+#define INCLUDE "$INCLUDE %s\n"
+
+  char *deeper = generate_include("foo. TXT \"bar\"");
+  assert_non_null(deeper);
+  char buffer[16];
+  int length = snprintf(buffer, sizeof(buffer), INCLUDE, deeper);
+  assert_true(length > 0);
+  char *inception = malloc((size_t)length + 1);
+  assert_non_null(inception);
+  (void)snprintf(inception, (size_t)length + 1, INCLUDE, deeper);
+  char *deep = generate_include(inception);
+  assert_non_null(deep);
+  free(inception);
+  length = snprintf(buffer, sizeof(buffer), INCLUDE, deep);
+  assert_true(length > 0);
+  inception = malloc((size_t)length + 1);
+  (void)snprintf(inception, (size_t)length + 1, INCLUDE, deep);
+
+#undef INCLUDE
+
+  fprintf(stderr, "INPUT: %s\n", inception);
+
+  records = 0;
+  code = parse(&options, inception, &records);
+  assert_int_equal(code, ZONE_SEMANTIC_ERROR);
+  assert_int_equal(records, (1u << 7));
+
+  options.include_limit = 0;
+  records = 0;
+  code = parse(&options, inception, &records);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_int_equal(records, 1u);
+
+  free(inception);
+  free(deep);
+  free(deeper);
+}
+
+/*!cmocka */
+void been_there_done_that(void **state)
+{
+  (void)state;
+
+  zone_options_t options = { 0 };
+  options.accept.callback = &in_too_deep_accept;
+  options.log.callback = &in_too_deep_log;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+  options.include_limit = 1;
+
+  int32_t code;
+  size_t count = 0;
+
+  char *path = generate_include(" ");
+  assert_non_null(path);
+  FILE* handle = fopen(path, "wb");
+  assert_non_null(handle);
+  char dummy[16];
+  int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"\n", path);
+  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_non_null(include);
+  (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"\n", path);
+  int result = fputs(include, handle);
+  assert_true(result >= 0);
+  (void)fclose(handle);
+  free(path);
+  code = parse(&options, include, &count);
   free(include);
-  free(non_include);
+  assert_int_equal(code, ZONE_SEMANTIC_ERROR);
 }
 
 //

@@ -296,12 +296,18 @@ static really_inline int32_t parse_dollar_include(
   }
 
   // check for recursive includes
-  do {
-    if (strcmp(includer->path, file->path) != 0)
-      continue;
-    zone_close_file(parser, file);
-    SYNTAX_ERROR(parser, "Circular include in %s", NAME(&include));
-  } while ((includer = includer->includer));
+  for (uint32_t depth = 1; includer; depth++, includer = includer->includer) {
+    if (strcmp(includer->path, file->path) == 0) {
+      zone_error(parser, "Circular include in %s", file->name);
+      zone_close_file(parser, file);
+      return ZONE_SEMANTIC_ERROR;
+    }
+    if (depth > parser->options.include_limit) {
+      zone_error(parser, "Include %s nested too deeply", file->name);
+      zone_close_file(parser, file);
+      return ZONE_SEMANTIC_ERROR;
+    }
+  }
 
   adjust_line_count(parser->file);
   parser->file = file;
