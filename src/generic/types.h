@@ -1488,6 +1488,7 @@ static int32_t check_ipseckey_rr(
         return r;
       break;
     case 0: /* no gateway */
+      break;
     case 3: /* domain name */
       if ((r = check(&c, check_name(parser, t, &f[3], o+c, n-c))) < 0)
         return r;
