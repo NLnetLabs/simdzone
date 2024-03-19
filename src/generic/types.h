@@ -1365,13 +1365,13 @@ static int32_t check_sshfp_rr(
   const rdata_info_t *f = type->rdata.fields;
 
   if ((r = check(&c, check_int8(parser, type, &f[0], o, n))) ||
-      (r = check(&c, check_int8(parser, type, &f[1], o, n))))
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))))
     return r;
 
   // https://www.iana.org/assignments/dns-sshfp-rr-parameters
 
   if (c == n)
-    SYNTAX_ERROR(parser, "Missing %s in %s", NAME((&f[0])), NAME(type));
+    SYNTAX_ERROR(parser, "Missing %s in %s", NAME((&f[n!=0])), NAME(type));
   else if (o[1] == 1 && (n - c) != 20)
     SEMANTIC_ERROR(parser, "Wrong fingerprint size for type %s in %s",
                            "SHA1", NAME(type));
