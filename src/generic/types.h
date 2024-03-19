@@ -250,11 +250,6 @@ static really_inline int32_t accept_rr(
     parser->rdata->octets,
     parser->user_data);
 
-  //assert((size_t)code < parser->buffers.size);
-  //if (result < 0)
-  //  return result;
-  //parser->rdata = &parser->buffers.rdata.blocks[result];
-
   adjust_line_count(parser->file);
   return code;
 }
