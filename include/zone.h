@@ -319,14 +319,13 @@ typedef struct {
   uint32_t default_ttl;
   uint16_t default_class;
   struct {
-    /** Message categories to write out. */
-    /** All categories are printed if no categories are selected and no
-        custom callback was specified. */
-    uint32_t categories;
-    /** Callback used to write out log messages. */
+    /** Priorities NOT to write out. */
+    uint32_t mask;
+    /** Callback invoked to write out log messages. */
     zone_log_t callback;
   } log;
   struct {
+    /** Callback invoked for each RR. */
     zone_accept_t callback;
   } accept;
 } zone_options_t;
@@ -429,13 +428,13 @@ zone_nonnull((1,2,3,4));
  * error message format consistent.
  *
  * @param[in]  parser    Zone parser
- * @param[in]  category  Log category
+ * @param[in]  priority  Log priority
  * @param[in]  format    Format string compatible with printf
  * @param[in]  ...       Variadic arguments corresponding to #format
  */
 ZONE_EXPORT void zone_log(
   zone_parser_t *parser,
-  uint32_t category,
+  uint32_t priority,
   const char *format,
   ...)
 zone_nonnull((1,3))
@@ -445,13 +444,13 @@ zone_format_printf(3,4);
  * @brief Write error message to active log handler.
  *
  * @param[in]  parser     Zone parser
- * @param[in]  category   Log category
+ * @param[in]  priority   Log priority
  * @param[in]  format     Format string compatible with printf
  * @param[in]  arguments  Argument list
  */
 ZONE_EXPORT void zone_vlog(
   zone_parser_t *parser,
-  uint32_t category,
+  uint32_t priority,
   const char *format,
   va_list arguments)
 zone_nonnull((1,3));
@@ -461,7 +460,7 @@ zone_nonnull((1,2))
 zone_format_printf(2,3)
 zone_error(zone_parser_t *parser, const char *format, ...)
 {
-  if (!(parser->options.log.categories & ZONE_ERROR))
+  if (!(ZONE_ERROR & ~parser->options.log.mask))
     return;
   va_list arguments;
   va_start(arguments, format);
@@ -474,7 +473,7 @@ zone_nonnull((1,2))
 zone_format_printf(2,3)
 zone_warning(zone_parser_t *parser, const char *format, ...)
 {
-  if (!(parser->options.log.categories & ZONE_WARNING))
+  if (!(ZONE_WARNING & ~parser->options.log.mask))
     return;
   va_list arguments;
   va_start(arguments, format);
@@ -487,7 +486,7 @@ zone_nonnull((1,2))
 zone_format_printf(2,3)
 zone_info(zone_parser_t *parser, const char *format, ...)
 {
-  if (!(parser->options.log.categories & ZONE_INFO))
+  if (!(ZONE_INFO & ~parser->options.log.mask))
     return;
   va_list arguments;
   va_start(arguments, format);

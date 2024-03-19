@@ -459,11 +459,11 @@ int32_t zone_parse_string(
 zone_nonnull((1,3))
 static void print_message(
   zone_parser_t *parser,
-  uint32_t category,
+  uint32_t priority,
   const char *message,
   void *user_data)
 {
-  FILE *output = category == ZONE_INFO ? stdout : stderr;
+  FILE *output = priority == ZONE_INFO ? stdout : stderr;
   const char *format = "%s:%zu: %s\n";
   (void)user_data;
   fprintf(output, format, parser->file->name, parser->file->line, message);
@@ -471,7 +471,7 @@ static void print_message(
 
 void zone_vlog(
   zone_parser_t *parser,
-  uint32_t category,
+  uint32_t priority,
   const char *format,
   va_list arguments)
 {
@@ -486,22 +486,22 @@ void zone_vlog(
   if (parser->options.log.callback)
     callback = parser->options.log.callback;
 
-  callback(parser, category, message, parser->user_data);
+  callback(parser, priority, message, parser->user_data);
 }
 
 void zone_log(
   zone_parser_t *parser,
-  uint32_t category,
+  uint32_t priority,
   const char *format,
   ...)
 {
   va_list arguments;
 
-  if (!(parser->options.log.categories & category))
+  if (!(priority & ~parser->options.log.mask))
     return;
 
   va_start(arguments, format);
-  zone_vlog(parser, category, format, arguments);
+  zone_vlog(parser, priority, format, arguments);
   va_end(arguments);
 }
 
