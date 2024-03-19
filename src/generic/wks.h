@@ -92,7 +92,7 @@ static really_inline int32_t scan_protocol(
   uint8_t digit;
   int32_t number = 0;
   size_t index = 0;
-  while ((digit = (uint8_t)name[index++]) - '0' <= 9)
+  while ((digit = (uint8_t)name[index++] - '0') <= 9)
     number = number * 10 + digit;
 
   if (index != length || number > 255)
