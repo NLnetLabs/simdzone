@@ -48,7 +48,7 @@ static really_inline int32_t scan_name(
     return -1;
   *l = (uint8_t)((w - 1) - l);
 
-  if (t != te || w >= we)
+  if (t != te || w > we)
     return -1;
 
   *lengthp = (size_t)(w - octets);
