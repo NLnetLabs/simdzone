@@ -1117,7 +1117,7 @@ static int32_t check_nxt_rr(
   const uint8_t *o = parser->rdata->octets;
   const rdata_info_t *f = type->rdata.fields;
 
-  if ((r = check(&c, check_name(parser, type, &f[3], o+c, n-c))))
+  if ((r = check(&c, check_name(parser, type, &f[0], o+c, n-c))))
     return r;
 
   return accept_rr(parser, type, rdata);
