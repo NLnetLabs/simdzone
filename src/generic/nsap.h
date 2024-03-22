@@ -28,7 +28,7 @@ static really_inline int32_t parse_nsap(
   // hex string anywhere after "0x" for readability. The "."s have no
   // significance other than for readability and are not propagated in the
   // protocol (e.g., queries or zone transfers).
-  if (unlikely((data[0] == '0') ^ ((data[1] & 0xdf) == 'X')))
+  if (unlikely(data[0] != '0' || !(data[1] == 'X' || data[1] == 'x')))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
   data += 2;
