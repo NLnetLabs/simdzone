@@ -13,7 +13,9 @@
 #include <stdlib.h>
 #include <cmocka.h>
 #include <limits.h>
-#if !_WIN32
+#if _WIN32
+#include <process.h>
+#else
 #include <unistd.h>
 #endif
 
@@ -126,17 +128,30 @@ err:
   return -1;
 }
 
+static char *temporary_name(void)
+{
+#if _WIN32
+  int pid = _getpid();
+#else
+  pid_t pid = getpid();
+#endif
+
+  char format[128];
+  snprintf(format, sizeof(format), "zone.%d", pid);
+  return tempnam(NULL, format);
+}
+
 static char *generate_include(const char *text)
 {
   for (int i=0; i < 100; i++) {
-    char *path = tempnam(NULL, "zone");
+    char *path = temporary_name();
     if (path) {
       FILE *handle = fopen(path, "wbx");
       if (handle) {
-        int result = fputs(text, handle);
+        int error = fputs(text, handle);
         fflush(handle);
         (void)fclose(handle);
-        if (result != EOF)
+        if (error != EOF)
           return path;
       }
       free(path);
@@ -285,7 +300,7 @@ void the_include_that_wasnt(void **state)
 
   (void)state;
 
-  char *non_include = tempnam(NULL, "zone");
+  char *non_include = temporary_name();
   assert_non_null(non_include);
 
   char buffer[16];
