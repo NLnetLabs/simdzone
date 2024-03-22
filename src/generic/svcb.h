@@ -598,7 +598,7 @@ static int32_t parse_mandatory(
       while (octets < rdata->octets) {
         memcpy(&smaller_key, octets, sizeof(smaller_key));
         smaller_key = be16toh(smaller_key);
-        if (key < smaller_key)
+        if (key <= smaller_key)
           break;
         octets += 2;
       }
@@ -692,7 +692,7 @@ static int32_t parse_mandatory_lax(
       while (octets < rdata->octets) {
         memcpy(&smaller_key, octets, sizeof(smaller_key));
         smaller_key = be16toh(smaller_key);
-        if (key < smaller_key)
+        if (key <= smaller_key)
           break;
         octets += 2;
       }
