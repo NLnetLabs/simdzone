@@ -91,6 +91,8 @@ void ipv4_syntax(void **state)
 
     (void)snprintf(rr, sizeof(rr), "foo. A %s", tests[i].address);
 
+    fprintf(stderr, "INPUT: %s\n", rr);
+
     options.accept.callback = add_rr;
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);

@@ -203,7 +203,7 @@ static int32_t parse_ipv4hint(
   (void)key;
   (void)param;
 
-  if (scan_ip4(t, rdata->octets, &n) == -1)
+  if ((n = (size_t)scan_ip4(t, rdata->octets)) == 0)
     SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", NAME(type));
   rdata->octets += 4;
   t += n;
@@ -211,7 +211,7 @@ static int32_t parse_ipv4hint(
   while (*t == ',') {
     if (rdata->octets > rdata->limit)
       SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", NAME(type));
-    if (scan_ip4(t + 1, rdata->octets, &n) == -1)
+    if ((n = (size_t)scan_ip4(t + 1, rdata->octets)) == 0)
       SYNTAX_ERROR(parser, "Invalid ipv4hint in %s", NAME(type));
     rdata->octets += 4;
     t += n + 1;
@@ -271,7 +271,7 @@ static int32_t parse_ipv6hint(
   (void)key;
   (void)param;
 
-  if (scan_ip6(t, rdata->octets, &n) == -1)
+  if ((n = (size_t)scan_ip6(t, rdata->octets)) == 0)
     SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", NAME(type));
   rdata->octets += 16;
   t += n;
@@ -279,7 +279,7 @@ static int32_t parse_ipv6hint(
   while (*t == ',') {
     if (rdata->octets >= rdata->limit)
       SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", NAME(type));
-    if (scan_ip6(t + 1, rdata->octets, &n) == -1)
+    if ((n = (size_t)scan_ip6(t + 1, rdata->octets)) == 0)
       SYNTAX_ERROR(parser, "Invalid ipv6hint in %s", NAME(type));
     rdata->octets += 16;
     t += n + 1;

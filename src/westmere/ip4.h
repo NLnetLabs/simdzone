@@ -151,9 +151,8 @@ static inline int sse_inet_aton(const char* ipv4_string, uint8_t* destination, s
 
   uint32_t hash_key = (partition_mask * 0x00CF7800) >> 24;
   uint8_t hash_id = patterns_id[hash_key];
-  if (hash_id >= 81) {
+  if (hash_id >= 81)
       return 0;
-  }
   const uint8_t* const pattern_ptr = &patterns[hash_id][0];
 
   __m128i shuf = _mm_loadu_si128((const __m128i *)pattern_ptr);
@@ -181,14 +180,12 @@ static inline int sse_inet_aton(const char* ipv4_string, uint8_t* destination, s
 }
 
 nonnull_all
-static really_inline int32_t scan_ip4(
-  const char *text, uint8_t *wire, size_t *length)
+static really_inline int32_t scan_ip4(const char *text, uint8_t *wire)
 {
   size_t len;
   if (sse_inet_aton(text, wire, &len) != 1)
-    return -1;
-  *length = len;
-  return 4;
+    return 0;
+  return (int32_t)len;
 }
 
 nonnull_all
@@ -199,10 +196,8 @@ static really_inline int32_t parse_ip4(
   rdata_t *rdata,
   const token_t *token)
 {
-  size_t length;
-
   // Note that this assumes that reading up to token->data + 16 is safe (i.e., we do not cross a page).
-  if (sse_inet_aton(token->data, rdata->octets, &length) != 1 || length != token->length)
+  if ((size_t)scan_ip4(token->data, rdata->octets) != token->length)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
   rdata->octets += 4;
   return 0;
