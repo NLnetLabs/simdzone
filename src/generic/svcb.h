@@ -514,7 +514,7 @@ static really_inline size_t scan_svc_param(
     return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_DOHPATH)]), 7;
   else if (memcmp(data, "ohttp", 5) == 0)
     return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_OHTTP)]), 5;
-  else if (memcmp(data, "key", 0) == 0)
+  else if (memcmp(data, "key", 3) == 0)
     return scan_unknown_svc_param_key(data, key, param);
   else
     return 0;
