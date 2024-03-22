@@ -683,8 +683,8 @@ static never_inline int32_t maybe_take_quoted(
     if (likely(token->code == QUOTED)) {
       assert(*parser->file->fields.head > *parser->file->delimiters.head);
       token->data++;
-      token->length = (uintptr_t)*parser->file->delimiters.head -
-                      (uintptr_t)*parser->file->fields.head;
+      token->length = ((uintptr_t)*parser->file->delimiters.head -
+                       (uintptr_t)*parser->file->fields.head) - 1;
       parser->file->fields.head++;
       parser->file->delimiters.head++;
       return 0;
