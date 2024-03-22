@@ -35,9 +35,9 @@
  * inet_pton4(src, dst)
  *  like inet_aton() but without all the hexadecimal and shorthand.
  * return:
- *  1 if `src' is a valid dotted quad, else 0.
+ *  length if `src' is a valid dotted quad, else 0.
  * notice:
- *  does not touch `dst' unless it's returning 1.
+ *  does not touch `dst' unless it's returning !0.
  * author:
  *  Paul Vixie, 1996.
  */
@@ -59,11 +59,11 @@ inet_pton4(const char *src, uint8_t *dst)
       uint32_t new = *tp * 10 + (uint32_t)(pch - digits);
 
       if (new > 255)
-        return -1;
+        return (0);
       *tp = (uint8_t)new;
       if (! saw_digit) {
         if (++octets > 4)
-          return -1;
+          return (0);
         saw_digit = 1;
       }
     } else if (ch == '.' && saw_digit) {
@@ -75,7 +75,7 @@ inet_pton4(const char *src, uint8_t *dst)
       break;
   }
   if (octets < 4)
-    return -1;
+    return (0);
 
   memcpy(dst, tmp, NS_INADDRSZ);
   return (int)(src - start);
@@ -85,9 +85,9 @@ inet_pton4(const char *src, uint8_t *dst)
  * inet_pton6(src, dst)
  *  convert presentation level address to network order binary form.
  * return:
- *  1 if `src' is a valid [RFC1884 2.2] address, else 0.
+ *  length if `src' is a valid [RFC1884 2.2] address, else 0.
  * notice:
- *  (1) does not touch `dst' unless it's returning 1.
+ *  (1) does not touch `dst' unless it's returning !0.
  *  (2) :: in a full address is silently ignored.
  * credit:
  *  inspired by Mark Andrews.
@@ -112,7 +112,7 @@ inet_pton6(const char *src, uint8_t *dst)
   /* Leading :: requires some special handling. */
   if (*src == ':')
     if (*++src != ':')
-      return -1;
+      return (0);
   curtok = src;
   saw_xdigit = 0;
   val = 0;
@@ -125,7 +125,7 @@ inet_pton6(const char *src, uint8_t *dst)
       val <<= 4;
       val |= (pch - xdigits);
       if (val > 0xffff)
-        return -1;
+        return (0);
       saw_xdigit = 1;
       continue;
     }
@@ -156,7 +156,7 @@ inet_pton6(const char *src, uint8_t *dst)
   }
   if (saw_xdigit) {
     if (tp + NS_INT16SZ > endp)
-      return -1;
+      return (0);
     *tp++ = (uint8_t) (val >> 8) & 0xff;
     *tp++ = (uint8_t) val & 0xff;
   }
@@ -175,20 +175,15 @@ inet_pton6(const char *src, uint8_t *dst)
     tp = endp;
   }
   if (tp != endp)
-    return -1;
+    return (0);
   memcpy(dst, tmp, NS_IN6ADDRSZ);
   return (int)(src - start);
 }
 
 nonnull_all
-static really_inline int32_t scan_ip6(
-  const char *text, uint8_t *wire, size_t *length)
+static really_inline int32_t scan_ip6(const char *text, uint8_t *wire)
 {
-  int len = inet_pton6(text, wire);
-  if (len == -1)
-    return -1;
-  *length = (size_t)len;
-  return 16;
+  return inet_pton6(text, wire);
 }
 
 nonnull_all
@@ -199,12 +194,10 @@ static really_inline int32_t parse_ip6(
   rdata_t *rdata,
   const token_t *token)
 {
-  if (inet_pton6(token->data, rdata->octets) != -1) {
-    rdata->octets += 16;
-    return 0;
-  }
-
-  SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
+  if ((size_t)inet_pton6(token->data, rdata->octets) != token->length)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(item), NAME(type));
+  rdata->octets += 16;
+  return 0;
 }
 
 #endif // IP6_H

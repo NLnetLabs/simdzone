@@ -14,7 +14,7 @@ static really_inline int32_t scan_apl(
 {
   uint8_t negate = text[0] == '!';
   uint8_t digits[3];
-  size_t count;
+  int32_t count;
   uint32_t prefix;
   const uint8_t af_inet[2] = { 0x00, 0x01 }, af_inet6[2] = { 0x00, 0x02 };
 
@@ -27,7 +27,7 @@ static really_inline int32_t scan_apl(
       if (size < 8)
         return -1;
       memcpy(octets, af_inet, sizeof(af_inet));
-      if (scan_ip4(&text[negate+2], &octets[4], &count) == -1)
+      if (!(count = scan_ip4(&text[negate+2], &octets[4])))
         return -1;
       count += negate + 2;
       digits[0] = (uint8_t)text[count+1] - '0';
@@ -47,7 +47,7 @@ static really_inline int32_t scan_apl(
       if (size < 20)
         return -1;
       memcpy(octets, af_inet6, sizeof(af_inet6));
-      if (scan_ip6(&text[negate+2], &octets[4], &count) == -1)
+      if (!(count = scan_ip6(&text[negate+2], &octets[4])))
         return -1;
       count += negate + 2;
       digits[0] = (uint8_t)text[count+1] - '0';
