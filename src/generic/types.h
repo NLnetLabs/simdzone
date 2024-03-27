@@ -67,13 +67,12 @@ static really_inline int32_t parse_text(
   { { { "", 0 }, code }, 0, false, false, { 0, NULL }, check_generic_rr, parse_unknown_rdata }
 
 #if _WIN32
-// FIXME: actually, for all the check functions, an int32_t will more than suffice
+// FIXME: check functions can be simplified as int32_t is wide enough to
+//        represent errors and the maximum length of rdata.
 #include <basetsd.h>
 typedef SSIZE_T ssize_t;
 #endif
 
-// FIXME: check functions can be simplified as int32_t is wide enough to
-//        represent errors and the maximum length of rdata.
 nonnull((1,2,3,4))
 static really_inline ssize_t check_bytes(
   parser_t *parser,
@@ -170,15 +169,15 @@ static really_inline ssize_t check_nsec(
   const size_t length)
 {
   size_t count = 0;
-  size_t last_window = 0;
+  int32_t last_window = -1;
 
   while ((count + 2) < length) {
-    const size_t window = (size_t)data[0];
+    const int32_t window = (int32_t)data[0];
     const size_t blocks = (size_t)data[1];
-    if (window < last_window || !window != !last_window)
+    if (window <= last_window)
       SYNTAX_ERROR(parser, "Invalid %s in %s, windows are out-of-order",
                    NAME(field), NAME(type));
-    if (blocks > 32)
+    if (!blocks || blocks > 32)
       SYNTAX_ERROR(parser, "Invalid %s in %s, blocks are out-of-bounds",
                    NAME(field), NAME(type));
     count += 2 + blocks;
