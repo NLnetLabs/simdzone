@@ -94,7 +94,7 @@ static bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
   uint64_t dy = (uint64_t)_mm_extract_epi8(v, 6) - 1;
 
   bool is_leap_yr = (bool)is_leap_year((uint32_t)yr);
-  if(mo > 11) { return false; } // unlikely branch
+  if(yr < 1970 || mo > 11) { return false; } // unlikely branch
   if (dy > (uint64_t)mdays_minus_one[mo]) { // unlikely branch
     if (mo == 1 && is_leap_yr) {
       if (dy != 29 - 1) {
@@ -112,7 +112,7 @@ static bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
   days += dy;
   uint64_t time_in_second64 = seconds + days * 60 * 60 * 24;
   *time_in_second = (uint32_t)time_in_second64;
-  return time_in_second64 == (uint32_t)time_in_second64;
+  return true;
 }
 
 nonnull_all
