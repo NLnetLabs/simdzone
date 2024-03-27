@@ -205,10 +205,9 @@ struct zone_name_buffer {
   uint8_t octets[ ZONE_NAME_SIZE + ZONE_PADDING_SIZE ];
 };
 
-// FIXME: explain need for NSEC padding
 typedef struct zone_rdata_buffer zone_rdata_buffer_t;
 struct zone_rdata_buffer {
-  uint8_t octets[ ZONE_RDATA_SIZE + 4096 /* NSEC padding */ ];
+  uint8_t octets[ ZONE_RDATA_SIZE + ZONE_PADDING_SIZE ];
 };
 
 // @private
