@@ -55,7 +55,7 @@ static really_inline int32_t parse_time(
   const uint64_t min = (d[10] * 10) + d[11];
   const uint64_t sec = (d[12] * 10) + d[13];
 
-  if (year < 1970 || year > 2106)
+  if (year < 1970)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
   uint64_t leap_year = is_leap_year(year);

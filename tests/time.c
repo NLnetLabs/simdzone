@@ -59,7 +59,7 @@ void time_stamp_syntax(void **state)
     // year before 1970
     { "19690101010101", 0, ZONE_SYNTAX_ERROR },
     // year after 2106
-    { "21070101010101", 0, ZONE_SYNTAX_ERROR },
+    { "21070101010101", 28319565, ZONE_SUCCESS },
     // month 0
     { "20230001010101", 0, ZONE_SYNTAX_ERROR },
     // month 13
