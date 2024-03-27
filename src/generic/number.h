@@ -86,7 +86,6 @@ static really_inline int32_t parse_int8(
   uint8_t number;
   if (!scan_int8(token->data, token->length, &number))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
-  memcpy(rdata->octets, &number, 1);
   *rdata->octets++ = number;
   return 0;
 }
