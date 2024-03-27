@@ -13,7 +13,7 @@ nonnull_all
 static really_inline int32_t scan_type(
   const char *, size_t, uint16_t *, const mnemonic_t **);
 
-typedef uint8_t nsec_t[256 + 2];
+typedef uint8_t nsec_t[32 /* 256 / 8 */ + 2];
 
 nonnull_all
 static really_inline int32_t parse_nsec(
@@ -25,9 +25,8 @@ static really_inline int32_t parse_nsec(
 {
   if (likely(is_contiguous(token))) {
     nsec_t *bitmap = (void *)rdata->octets;
-    //assert(parser->rdata->octets
-    // FIXME: convert to static assert
-    //assert(parser->rdata->length < sizeof(parser->rdata) - (256 * (256 + 2)));
+    assert(rdata->octets <= rdata->limit);
+    assert((size_t)(rdata->limit - rdata->octets) >= 256 * sizeof(nsec_t));
 
     uint32_t highest_window = 0;
     uint32_t windows[256] = { 0 };
