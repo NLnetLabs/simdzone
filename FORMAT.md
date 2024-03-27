@@ -228,3 +228,6 @@ anything other than domain names and text strings, MUST not be quoted.
 
 * `TYPE0` is sometimes used for debugging and therefore may occur in type
   bitmaps or as unknown RR type.
+
+* `pdns/master/regression-tests/zones/test.com` contains regression tests
+  that may be useful for testing simdzone.
