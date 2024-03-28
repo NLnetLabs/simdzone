@@ -17,84 +17,85 @@ nonnull_all
 static really_inline const char *scan_comment(
   parser_t *parser, const char *start, const char *end)
 {
+  assert(!parser->file->state.is_escaped);
+
   while (start < end) {
     if (unlikely(*start == '\n'))
       return start;
-    start += 1;
+    start++;
   }
 
   parser->file->state.in_comment = 1;
-  return end;
+  return start;
 }
 
 nonnull_all
 static really_inline const char *scan_quoted(
   parser_t *parser, const char *start, const char *end)
 {
+  if (unlikely(parser->file->state.is_escaped))
+    goto escaped;
+
   while (start < end) {
     if (*start == '\\') {
-      parser->file->lines.tail[0] += *(start + 1) == '\n';
-      start += 2;
+escaped:
+      if ((parser->file->state.is_escaped = (++start == end)))
+        break;
+      assert(start < end);
+      *parser->file->lines.tail += (*start == '\n');
+      start++;
     } else if (*start == '\"') {
+      parser->file->state.in_quoted = 0;
       *parser->file->delimiters.tail++ = start;
-      return start + 1;
-    } else if (*start == '\n') {
-      parser->file->lines.tail[0]++;
-      start += 1;
+      return ++start;
     } else {
-      start += 1;
+      *parser->file->lines.tail += (*start == '\n');
+      start++;
     }
   }
 
-  parser->file->lines.tail[0] -= *end == '\n';
   parser->file->state.in_quoted = 1;
-  parser->file->state.is_escaped = (start > end);
-  return end;
+  return start;
 }
 
 nonnull_all
 static really_inline const char *scan_contiguous(
   parser_t *parser, const char *start, const char *end)
 {
+  if (parser->file->state.is_escaped)
+    goto escaped;
+
   while (start < end) {
     if (likely(classify[ (uint8_t)*start ] == CONTIGUOUS)) {
-      if (likely(*start != '\\')) {
-        start += 1;
-      } else {
-        parser->file->lines.tail[0] += *(start + 1) == '\n';
-        start += 2;
+      if (unlikely(*start == '\\')) {
+escaped:
+        if ((parser->file->state.is_escaped = (++start == end)))
+          break;
+        assert(start < end);
+        parser->file->lines.tail[0] += (*start == '\n');
       }
+      start++;
     } else {
+      parser->file->state.follows_contiguous = 0;
       *parser->file->delimiters.tail++ = start;
       return start;
     }
   }
 
-  parser->file->lines.tail[0] -= *end == '\n';
-  parser->file->state.is_escaped = (start > end);
   parser->file->state.follows_contiguous = 1;
-  return end;
+  return start;
 }
 
 nonnull_all
 static really_inline void scan(
   parser_t *parser, const char *start, const char *end)
 {
-  if (parser->file->state.is_escaped) {
-    parser->file->state.is_escaped = 0;
-    parser->file->lines.tail[0] += (*start++ == '\n');
-  }
-
-  if (parser->file->state.follows_contiguous) {
-    parser->file->state.follows_contiguous = 0;
+  if (parser->file->state.follows_contiguous)
     start = scan_contiguous(parser, start, end);
-  } if (parser->file->state.in_comment) {
-    parser->file->state.in_comment = 0;
+  else if (parser->file->state.in_comment)
     start = scan_comment(parser, start, end);
-  } else if (parser->file->state.in_quoted) {
-    parser->file->state.in_quoted = 0;
+  else if (parser->file->state.in_quoted)
     start = scan_quoted(parser, start, end);
-  }
 
   while (start < end) {
     const int32_t code = classify[(uint8_t)*start];
@@ -104,18 +105,17 @@ static really_inline void scan(
       *parser->file->fields.tail++ = start;
       start = scan_contiguous(parser, start, end);
     } else if (code == LINE_FEED) {
-      if (parser->file->lines.tail[0])
+      if (*parser->file->lines.tail) {
         *parser->file->fields.tail++ = line_feed;
-      else
+        parser->file->lines.tail++;
+      } else {
         *parser->file->fields.tail++ = start;
+      }
       start++;
     } else if (code == QUOTED) {
       *parser->file->fields.tail++ = start;
-      start = scan_quoted(parser, start+1, end);
-    } else if (code == LEFT_PAREN) {
-      *parser->file->fields.tail++ = start;
-      start++;
-    } else if (code == RIGHT_PAREN) {
+      start = scan_quoted(parser, start + 1, end);
+    } else if (code == LEFT_PAREN || code == RIGHT_PAREN) {
       *parser->file->fields.tail++ = start;
       start++;
     } else {
