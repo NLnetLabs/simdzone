@@ -231,3 +231,7 @@ anything other than domain names and text strings, MUST not be quoted.
 
 * `pdns/master/regression-tests/zones/test.com` contains regression tests
   that may be useful for testing simdzone.
+
+* Some implementations (Knot, possibly PowerDNS) will silently split-up
+  strings longer than 255 characters. Others (BIND, simdzone) will throw a
+  syntax error.
