@@ -71,11 +71,10 @@ static int32_t newline_test_accept_rr(
 /*!cmocka */
 void newlines(void **state)
 {
-#if 0
-  static const char embedded_lf_text[] =
+  static const char quoted_lf_text[] =
     PAD("1. TXT \"foo\nbar\n\"\n2. TXT \"foobar\"");
-  // >> do the same thing for contiguous
-#endif
+  static const char escaped_lf_text[] =
+    PAD("1. TXT foo\\\nbar\\\n\n2. TXT \"foobar\"");
   static const char grouped_lf_text[] =
     PAD("1. TXT (\nfoo\nbar\n)\n2. TXT \"foobar\"");
   static const char plain_lf_text[] =
@@ -88,9 +87,8 @@ void newlines(void **state)
   static const uint8_t origin[] = { 0 };
 
   static const struct newline_test tests[] = {
-#if 0
-    { embedded_lf_text, { 1, 4 } },
-#endif
+    { quoted_lf_text, { 1, 4 } },
+    { escaped_lf_text, { 1, 4 } },
     { grouped_lf_text, { 1, 5 } },
     { plain_lf_text, { 1, 2 } },
     { control_lf_text, { 2, 3 } },

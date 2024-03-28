@@ -209,44 +209,40 @@ static really_inline void write_indexes(parser_t *parser, const block_t *block, 
   uint64_t delimiter_count = count_ones(delimiters);
   // bulk of the data are contiguous and quoted character strings. field and
   // delimiter counts are therefore (mostly) equal. select the greater number
-  // and write out indexes using a single loop, (hopefully) leveraging
-  // superscalar properties of modern CPUs
+  // and write out indexes in a single loop leveraging superscalar properties
+  // of modern CPUs
   uint64_t count = field_count;
   if (delimiter_count > field_count)
     count = delimiter_count;
-
-  uint64_t newline = block->newline;
-  const uint64_t in_string = block->contiguous | block->in_quoted;
 
   // take slow path if (escaped) newlines appear in contiguous or quoted
   // character strings. edge case, but must be supported and handled in the
   // scanner for ease of use and to accommodate for parallel processing in the
   // parser. escaped newlines may have been present in the last block
-  if (unlikely(parser->file->lines.tail[0] || (newline & in_string))) {
-    // FIXME: test logic properly, likely eligable for simplification
-    for (count=0; count < field_count; count++) {
-      const uint64_t field = -fields & fields;
-      if (field & newline) {
-        parser->file->lines.tail++;
-        parser->file->fields.tail[count] = line_feed;
-        newline &= -field;
+  uint64_t newlines = block->newline & (block->contiguous | block->in_quoted);
+
+  if (unlikely(*parser->file->newlines.tail || newlines)) {
+    for (uint64_t i=0; i < count; i++) {
+      const uint64_t field = fields & -fields;
+      const uint64_t delimiter = delimiters & -delimiters;
+      if (field & block->newline) {
+        *parser->file->newlines.tail += count_ones(newlines & (field - 1));
+        if (*parser->file->newlines.tail) {
+          parser->file->fields.tail[i] = line_feed;
+          parser->file->newlines.tail++;
+        } else {
+          parser->file->fields.tail[i] = base + trailing_zeroes(field);
+        }
+        newlines &= -field;
       } else {
-        // count newlines here so number of newlines remains correct if last
-        // token is start of contiguous or quoted and index must be reset
-        *parser->file->lines.tail += count_ones(newline & ~(-field));
-        parser->file->fields.tail[count] = base + trailing_zeroes(field);
-        newline &= -field;
+        parser->file->fields.tail[i] = base + trailing_zeroes(field);
       }
-      parser->file->delimiters.tail[count] = base + trailing_zeroes(delimiters);
-      fields = clear_lowest_bit(fields);
-      delimiters = clear_lowest_bit(delimiters);
+      parser->file->delimiters.tail[i] = base + trailing_zeroes(delimiter);
+      fields &= ~field;
+      delimiters &= ~delimiter;
     }
 
-    for (; count < delimiter_count; count++) {
-      parser->file->delimiters.tail[count] = base + trailing_zeroes(delimiters);
-      delimiters = clear_lowest_bit(delimiters);
-    }
-
+    *parser->file->newlines.tail += count_ones(newlines);
     parser->file->fields.tail += field_count;
     parser->file->delimiters.tail += delimiter_count;
   } else {
