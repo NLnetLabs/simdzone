@@ -255,7 +255,7 @@ struct zone_file {
   // enough to hold every token for a single read + terminators
   struct { const char **head, **tail, *tape[ZONE_TAPE_SIZE + 2]; } fields;
   struct { const char **head, **tail, *tape[ZONE_TAPE_SIZE + 1]; } delimiters;
-  struct { uint16_t *head, *tail, tape[ZONE_TAPE_SIZE + 1]; } lines;
+  struct { uint16_t *head, *tail, tape[ZONE_TAPE_SIZE + 1]; } newlines;
 };
 
 typedef struct zone_parser zone_parser_t;

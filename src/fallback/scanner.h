@@ -42,14 +42,14 @@ escaped:
       if ((parser->file->state.is_escaped = (++start == end)))
         break;
       assert(start < end);
-      *parser->file->lines.tail += (*start == '\n');
+      *parser->file->newlines.tail += (*start == '\n');
       start++;
     } else if (*start == '\"') {
       parser->file->state.in_quoted = 0;
       *parser->file->delimiters.tail++ = start;
       return ++start;
     } else {
-      *parser->file->lines.tail += (*start == '\n');
+      *parser->file->newlines.tail += (*start == '\n');
       start++;
     }
   }
@@ -72,7 +72,7 @@ escaped:
         if ((parser->file->state.is_escaped = (++start == end)))
           break;
         assert(start < end);
-        parser->file->lines.tail[0] += (*start == '\n');
+        parser->file->newlines.tail[0] += (*start == '\n');
       }
       start++;
     } else {
@@ -105,9 +105,9 @@ static really_inline void scan(
       *parser->file->fields.tail++ = start;
       start = scan_contiguous(parser, start, end);
     } else if (code == LINE_FEED) {
-      if (*parser->file->lines.tail) {
+      if (*parser->file->newlines.tail) {
         *parser->file->fields.tail++ = line_feed;
-        parser->file->lines.tail++;
+        parser->file->newlines.tail++;
       } else {
         *parser->file->fields.tail++ = start;
       }

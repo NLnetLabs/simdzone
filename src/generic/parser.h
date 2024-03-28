@@ -320,9 +320,9 @@ static really_inline int32_t advance(parser_t *parser)
   int32_t code;
 
   // save embedded line count (quoted or escaped newlines)
-  parser->file->lines.tape[0] = parser->file->lines.tail[0];
-  parser->file->lines.head = parser->file->lines.tape;
-  parser->file->lines.tail = parser->file->lines.tape;
+  parser->file->newlines.tape[0] = parser->file->newlines.tail[0];
+  parser->file->newlines.head = parser->file->newlines.tape;
+  parser->file->newlines.tail = parser->file->newlines.tape;
   // restore non-terminated token (partial quoted or contiguous)
   parser->file->fields.tape[0] = parser->file->fields.tail[1];
   parser->file->fields.head = parser->file->fields.tape;
@@ -436,7 +436,7 @@ static never_inline void maybe_take(parser_t *parser, token_t *token)
       return;
     } else if (token->code == LINE_FEED) {
       if (unlikely(token->data == line_feed))
-        parser->file->span += *parser->file->lines.head++;
+        parser->file->span += *parser->file->newlines.head++;
       parser->file->span++;
       parser->file->fields.head++;
       if (unlikely(parser->file->grouped))
@@ -493,7 +493,7 @@ static really_inline void take(parser_t *parser, token_t *token)
       return;
     } else if (token->code == LINE_FEED) {
       if (unlikely(token->data == line_feed))
-        parser->file->span += *parser->file->lines.head++;
+        parser->file->span += *parser->file->newlines.head++;
       parser->file->span++;
       parser->file->fields.head++;
       if (unlikely(parser->file->grouped))
@@ -606,7 +606,7 @@ static never_inline int32_t maybe_take_contiguous(
       parser->file->fields.head++;
     } else if (token->code == LINE_FEED) {
       if (token->data == line_feed)
-        parser->file->span += *parser->file->lines.head++;
+        parser->file->span += *parser->file->newlines.head++;
       parser->file->span++;
       if (!parser->file->grouped)
         SYNTAX_ERROR(parser, token, "Missing %s in %s", NAME(field), NAME(type));
@@ -707,7 +707,7 @@ static never_inline int32_t maybe_take_quoted(
       parser->file->fields.head++;
     } else if (token->code == LINE_FEED) {
       if (token->data == line_feed)
-        parser->file->span += *parser->file->lines.head++;
+        parser->file->span += *parser->file->newlines.head++;
       parser->file->span++;
       if (!parser->file->grouped)
         SYNTAX_ERROR(parser, token, "Missing %s in %s", NAME(field), NAME(type));
@@ -812,7 +812,7 @@ static never_inline int32_t maybe_take_contiguous_or_quoted(
       parser->file->fields.head++;
     } else if (token->code == LINE_FEED) {
       if (token->data == line_feed)
-        parser->file->span += *parser->file->lines.head++;
+        parser->file->span += *parser->file->newlines.head++;
       parser->file->span++;
       if (!parser->file->grouped)
         SYNTAX_ERROR(parser, token, "Missing %s in %s", NAME(field), NAME(type));
@@ -905,7 +905,7 @@ static never_inline int32_t maybe_take_delimiter(
   for (;;) {
     if (likely(token->code == LINE_FEED)) {
       if (unlikely(token->data == line_feed))
-        parser->file->span += *parser->file->lines.head++;
+        parser->file->span += *parser->file->newlines.head++;
       if (unlikely(parser->file->grouped)) {
         parser->file->span++;
         parser->file->fields.head++;

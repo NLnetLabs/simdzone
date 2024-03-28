@@ -260,8 +260,8 @@ static void initialize_file(
   file->fields.head = file->fields.tail = file->fields.tape;
   file->delimiters.tape[0] = NULL;
   file->delimiters.head = file->delimiters.tail = file->delimiters.tape;
-  file->lines.tape[0] = 0;
-  file->lines.head = file->lines.tail = file->lines.tape;
+  file->newlines.tape[0] = 0;
+  file->newlines.head = file->newlines.tail = file->newlines.tape;
 }
 
 nonnull_all
