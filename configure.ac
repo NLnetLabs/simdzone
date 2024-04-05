@@ -10,13 +10,12 @@
 # platform not supported by NSD here is undesirable. Builds for standalone use
 # or development/testing are required to use CMake.
 
-sinclude(m4/ax_check_compile_flag.m4)
-
 AC_INIT([simdzone],[0.1.0])
+
 AC_CONFIG_HEADERS([config.h:src/config.h.in])
 AC_CONFIG_FILES([Makefile])
-AC_CONFIG_MACRO_DIRS([m4])
 
+m4_include(m4/ax_check_compile_flag.m4)
 m4_version_prereq([2.70], [AC_PROG_CC], [AC_PROG_CC_STDC])
 
 # Figure out the canonical target architecture.
