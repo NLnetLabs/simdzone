@@ -24,7 +24,7 @@
 # define zone_has_attribute(params) __has_attribute(params)
 # define zone_attribute(params) __attribute__(params)
 #else
-# define zone_has_attribute(params)
+# define zone_has_attribute(params) (0)
 # define zone_attribute(params)
 #endif
 
