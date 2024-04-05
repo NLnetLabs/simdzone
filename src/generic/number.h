@@ -15,10 +15,8 @@ static really_inline int32_t scan_int8(
 {
   uint32_t sum = (uint8_t)data[0] - '0';
 
-  if (sum > 9 || length > 3)
+  if (sum > 9 || !length || length > 3)
     return 0;
-
-  uint32_t non_zero = (sum != 0) | (length == 1);
 
   for (size_t count=1; count < length; count++) {
     const uint8_t digit = (uint8_t)data[count] - '0';
@@ -28,7 +26,7 @@ static really_inline int32_t scan_int8(
   }
 
   *number = (uint8_t)sum;
-  return sum <= 255u && non_zero;
+  return sum <= 255u;
 }
 
 nonnull((1,3))
@@ -37,10 +35,8 @@ static really_inline int32_t scan_int16(
 {
   uint32_t sum = (uint8_t)data[0] - '0';
 
-  if (sum > 9 || length > 5)
+  if (sum > 9 || !length || length > 5)
     return 0;
-
-  uint32_t non_zero = (sum != 0) | (length == 1);
 
   for (size_t count=1; count < length; count++) {
     const uint8_t digit = (uint8_t)data[count] - '0';
@@ -50,7 +46,7 @@ static really_inline int32_t scan_int16(
   }
 
   *number = (uint16_t)sum;
-  return sum <= 65535u && non_zero;
+  return sum <= 65535u;
 }
 
 nonnull((1,3))
@@ -59,10 +55,8 @@ static really_inline int32_t scan_int32(
 {
   uint64_t sum = (uint8_t)data[0] - '0';
 
-  if (sum > 9 || length > 10)
+  if (sum > 9 || !length || length > 10)
     return 0;
-
-  uint32_t non_zero = (sum != 0) | (length == 1);
 
   for (size_t count=1; count < length; count++) {
     const uint8_t digit = (uint8_t)data[count] - '0';
@@ -72,7 +66,7 @@ static really_inline int32_t scan_int32(
   }
 
   *number = (uint32_t)sum;
-  return sum <= 4294967295u && non_zero;
+  return sum <= 4294967295u;
 }
 
 nonnull_all

@@ -51,7 +51,7 @@ void time_stamp_syntax(void **state)
     // one second over maximum value
     { "4294967296", 0, ZONE_SYNTAX_ERROR },
     // starts with zero
-    { "01", 0, ZONE_SYNTAX_ERROR },
+    { "01", 1, ZONE_SUCCESS },
     // Time specified as YYYYMMDDHHmmSS
     // bad number of digits
     { "202301010101", 0, ZONE_SYNTAX_ERROR },
