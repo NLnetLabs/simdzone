@@ -461,9 +461,9 @@ zone_nonnull((1,2))
 zone_format_printf(2,3)
 zone_error(zone_parser_t *parser, const char *format, ...)
 {
+  va_list arguments;
   if (!(ZONE_ERROR & ~parser->options.log.mask))
     return;
-  va_list arguments;
   va_start(arguments, format);
   zone_vlog(parser, ZONE_ERROR, format, arguments);
   va_end(arguments);
@@ -474,9 +474,9 @@ zone_nonnull((1,2))
 zone_format_printf(2,3)
 zone_warning(zone_parser_t *parser, const char *format, ...)
 {
+  va_list arguments;
   if (!(ZONE_WARNING & ~parser->options.log.mask))
     return;
-  va_list arguments;
   va_start(arguments, format);
   zone_vlog(parser, ZONE_WARNING, format, arguments);
   va_end(arguments);
@@ -487,9 +487,9 @@ zone_nonnull((1,2))
 zone_format_printf(2,3)
 zone_info(zone_parser_t *parser, const char *format, ...)
 {
+  va_list arguments;
   if (!(ZONE_INFO & ~parser->options.log.mask))
     return;
-  va_list arguments;
   va_start(arguments, format);
   zone_vlog(parser, ZONE_INFO, format, arguments);
   va_end(arguments);
