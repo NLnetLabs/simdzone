@@ -20,8 +20,10 @@ static really_inline const char *scan_comment(
   assert(!parser->file->state.is_escaped);
 
   while (start < end) {
-    if (unlikely(*start == '\n'))
+    if (unlikely(*start == '\n')) {
+      parser->file->state.in_comment = 0;
       return start;
+    }
     start++;
   }
 
