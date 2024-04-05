@@ -235,3 +235,5 @@ anything other than domain names and text strings, MUST not be quoted.
 * Some implementations (Knot, possibly PowerDNS) will silently split-up
   strings longer than 255 characters. Others (BIND, simdzone) will throw a
   syntax error.
+
+* Leading zeroes in integers appear to be allowed judging by the zone file generated for the [socket10kxfr](https://github.com/NLnetLabs/nsd/blob/86a6961f2ca64f169d7beece0ed8a5e1dd1cd302/tpkg/long/socket10kxfr.tdir/socket10kxfr.pre#L64) test in NSD. BIND and Knot (and the old parser in NSD) all parsed it without problems.
