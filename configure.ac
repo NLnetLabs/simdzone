@@ -18,6 +18,18 @@ AC_CONFIG_FILES([Makefile])
 m4_include(m4/ax_check_compile_flag.m4)
 m4_version_prereq([2.70], [AC_PROG_CC], [AC_PROG_CC_STDC])
 
+AC_ARG_ENABLE(westmere, AS_HELP_STRING([--disable-westmere],[Disable Westmere (SSE4.2) kernel]))
+case "$enable_westmere" in
+  no)    enable_westmere=no ;;
+  yes|*) enable_westmere=yes ;;
+esac
+
+AC_ARG_ENABLE(haswell, AS_HELP_STRING([--disable-haswell],[Disable Haswell (AVX2) kernel]))
+case "$enable_haswell" in
+  no)    enable_haswell=no ;;
+  yes|*) enable_haswell=yes ;;
+esac
+
 # Figure out the canonical target architecture.
 AC_CANONICAL_TARGET
 
@@ -36,7 +48,8 @@ if test $x86_64 = "yes"; then
   AX_CHECK_COMPILE_FLAG([-march=westmere],,,[-Werror])
   AX_CHECK_COMPILE_FLAG([-march=haswell],,,[-Werror])
 
-  if test $ac_cv_header_immintrin_h = "yes" -a \
+  if test $enable_westmere != "no" -a \
+          $ac_cv_header_immintrin_h = "yes" -a \
           $ax_cv_check_cflags__Werror__march_westmere = "yes"
   then
     AC_DEFINE(HAVE_WESTMERE, 1, [Wether or not to compile support for SSE4.2])
@@ -45,7 +58,8 @@ if test $x86_64 = "yes"; then
     HAVE_WESTMERE=NO
   fi
 
-  if test $ac_cv_header_immintrin_h = "yes" -a \
+  if test $enable_haswell != "no" -a \
+          $ac_cv_header_immintrin_h = "yes" -a \
           $ax_cv_check_cflags__Werror__march_haswell = "yes"
   then
     AC_DEFINE(HAVE_HASWELL, 1, [Wether or not to compile support for AVX2])

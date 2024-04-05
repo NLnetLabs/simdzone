@@ -46,6 +46,9 @@ endif()
 option(BUILD_TESTING "Build the testing tree." OFF)
 option(BUILD_DOCUMENTATION "Build documentation." OFF)
 
+option(WESTMERE "Build Westmere (SSE4.2) kernel for x86_64" ON)
+option(HASWELL "Build Haswell (AVX2) kernel for x86_64" ON)
+
 if(CMAKE_VERSION VERSION_LESS 3.20)
   # CMAKE_<LANG>_BYTE_ORDER was added in version 3.20. Mimic the option in
   # prior versions.
@@ -181,7 +184,7 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
   check_c_compiler_flag("-march=westmere" HAVE_MARCH_WESTMERE)
   check_c_compiler_flag("-march=haswell" HAVE_MARCH_HASWELL)
 
-  if(HAVE_IMMINTRIN_H AND HAVE_MARCH_WESTMERE)
+  if(WESTMERE AND HAVE_IMMINTRIN_H AND HAVE_MARCH_WESTMERE)
     set(HAVE_WESTMERE TRUE)
     set_source_files_properties(
       src/westmere/parser.c PROPERTIES COMPILE_FLAGS "-march=westmere")
@@ -191,7 +194,7 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
     target_sources(zone-bench PRIVATE src/westmere/bench.c)
   endif()
 
-  if(HAVE_IMMINTRIN_H AND HAVE_MARCH_HASWELL)
+  if(HASWELL AND HAVE_IMMINTRIN_H AND HAVE_MARCH_HASWELL)
     set(HAVE_HASWELL TRUE)
     set_source_files_properties(
       src/haswell/parser.c PROPERTIES COMPILE_FLAGS "-march=haswell")
