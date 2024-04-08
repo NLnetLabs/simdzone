@@ -210,18 +210,17 @@ int main(int argc, char *argv[])
   if (!(kernel = select_kernel(name)))
     exit(EXIT_FAILURE);
 
-  zone_parser_t parser = { 0 };
-  zone_options_t options = {
-    .non_strict = 0,
-    .no_includes = false,
-    .include_limit = 0,
-    .pretty_ttls = true,
-    .origin = { .octets = root, .length = 1 },
-    .default_ttl = 3600,
-    .default_class = 1,
-    .log = { .mask = 0, .callback = 0 },
-    .accept = { .callback = &bench_accept }
-  };
+  zone_parser_t parser;
+  memset(&parser, 0, sizeof(parser));
+  zone_options_t options;
+  memset(&options, 0, sizeof(options));
+  options.pretty_ttls = true;
+  options.origin.octets = root;
+  options.origin.length = 1;
+  options.accept.callback = &bench_accept;
+  options.default_ttl = 3600;
+  options.default_class = 1;
+
   zone_name_buffer_t owner;
   zone_rdata_buffer_t rdata;
   zone_buffers_t buffers = { 1, &owner, &rdata };
