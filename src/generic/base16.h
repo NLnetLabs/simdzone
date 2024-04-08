@@ -217,7 +217,7 @@ nonnull((1,3,4))
 static really_inline int base16_decode(
   const char *src, size_t srclen, uint8_t *out, size_t *outlen)
 {
-  struct base16_state state = { 0 };
+  struct base16_state state = { .eof = 0, .bytes = 0, .carry = 0 };
   return base16_stream_decode(&state, src, srclen, out, outlen) & !state.bytes;
 }
 
