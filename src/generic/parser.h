@@ -13,6 +13,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 
 #if _MSC_VER
 # define strncasecmp(s1, s2, n) _strnicmp((s1), (s2), (n))

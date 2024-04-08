@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <setjmp.h>
 #include <string.h>
+#include <stdlib.h>
 #include <cmocka.h>
 #if !_WIN32
 #include <unistd.h>

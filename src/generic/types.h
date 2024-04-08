@@ -2394,7 +2394,7 @@ static int32_t parse_generic_rdata(
 
   take(parser, token);
   if (is_contiguous(token)) {
-    struct base16_state state = { 0 };
+    struct base16_state state = { .eof = 0, .bytes = 0, .carry = 0 };
 
     do {
       size_t length = token->length + 1 / 2;

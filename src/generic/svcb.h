@@ -242,7 +242,7 @@ static int32_t parse_ech(
   if (token->length / 4 > size / 3)
     SYNTAX_ERROR(parser, "maximum size exceeded");
 
-  struct base64_state state = { 0 };
+  struct base64_state state = { .eof = 0, .bytes = 0, .carry = 0 };
   if (!base64_stream_decode(
     &state, token->data, token->length, rdata->octets, &length))
     SYNTAX_ERROR(parser, "Invalid ech in %s", NAME(type));

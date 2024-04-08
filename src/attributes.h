@@ -1,7 +1,7 @@
 /*
  * attributes.h -- internal compiler attribute abstractions
  *
- * Copyright (c) 2023, NLnet Labs. All rights reserved.
+ * Copyright (c) 2023-2024, NLnet Labs. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -22,13 +22,21 @@
 # define likely(params) (params)
 # define unlikely(params) (params)
 
-# define zone_format(params)
-# define zone_format_printf(string_index, first_to_check)
 #else // _MSC_VER
-# define really_inline inline zone_attribute((always_inline))
-# define never_inline zone_attribute((noinline))
+# if zone_has_attribute(always_inline) || zone_has_gnuc(3, 1)
+#   define really_inline inline __attribute__((always_inline))
+# else
+#   define really_inline inline
+# endif
+
+# if zone_has_attribute(noinline) || zone_has_gnuc(2, 96)
+#   define never_inline __attribute__((noinline))
+# else
+#   define never_inline
+# endif
+
 # if zone_has_attribute(warn_unused_result)
-#   define warn_unused_result zone_attribute((warn_unused_result))
+#   define warn_unused_result __attribute__((warn_unused_result))
 # else
 #   define warn_unused_result
 # endif

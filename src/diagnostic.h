@@ -16,7 +16,11 @@
            __pragma(warning(disable:warning_specifier))
 # define diagnostic_pop() \
            __pragma(warning(pop))
-#elif __GNUC__
+// Support for selectively enabling and disabling warnings via
+// #pragma GCC diagnostic was added in GCC 4.6
+// (https://gcc.gnu.org/gcc-4.6/changes.html).
+#elif (defined __clang__) \
+   || (defined __GNUC__ && (((__GNUC__ * 100) + __GNUC_MINOR__) >= 406))
 # define stringify(x) #x
 # define paste(flag, warning) stringify(flag ## warning)
 # define pragma(x) _Pragma(#x)
@@ -27,10 +31,10 @@
 # if __clang__
 #   define clang_diagnostic_ignored(warning) \
       diagnostic_ignored(GCC diagnostic ignored paste(-W,warning))
-# elif __GNUC__ && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 406
+# else
 #   define gcc_diagnostic_ignored(warning) \
       diagnostic_ignored(GCC diagnostic ignored paste(-W,warning))
-#endif
+# endif
 #endif
 
 #if !defined diagnostic_push

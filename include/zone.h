@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <stddef.h>
 
 #include "zone/attributes.h"
 #include "zone/export.h"
@@ -444,57 +444,44 @@ zone_format_printf(3,4);
 /**
  * @brief Write error message to active log handler.
  *
- * @param[in]  parser     Zone parser
- * @param[in]  priority   Log priority
- * @param[in]  format     Format string compatible with printf
- * @param[in]  arguments  Argument list
+ * Shorthand to write out error message via @zone_log if error messages are
+ * not to be discarded.
+ *
+ * @param[in]  parser  Zone parser
+ * @param[in]  format  Format string
+ * @param[in]  ...     Variadic arguments corresponding to #format
  */
-ZONE_EXPORT void zone_vlog(
-  zone_parser_t *parser,
-  uint32_t priority,
-  const char *format,
-  va_list arguments)
-zone_nonnull((1,3));
+#define zone_error(parser, ...) \
+  (((parser)->options.log.mask & ZONE_ERROR) ? \
+     (void)0 : zone_log((parser), ZONE_ERROR, __VA_ARGS__))
 
-ZONE_EXPORT inline void
-zone_nonnull((1,2))
-zone_format_printf(2,3)
-zone_error(zone_parser_t *parser, const char *format, ...)
-{
-  va_list arguments;
-  if (!(ZONE_ERROR & ~parser->options.log.mask))
-    return;
-  va_start(arguments, format);
-  zone_vlog(parser, ZONE_ERROR, format, arguments);
-  va_end(arguments);
-}
+/**
+ * @brief Write warning message to active log handler.
+ *
+ * Shorthand to write out warning message via @zone_log if warning messages
+ * are not to be discarded.
+ *
+ * @param[in]  parser  Zone parser
+ * @param[in]  format  Format string compatible with printf.
+ * @param[in]  ...     Variadic arguments corresponding to @format.
+ */
+#define zone_warning(parser, ...) \
+  (((parser)->options.mask & ZONE_WARNING) ? \
+     (void)0 : zone_log((parser), ZONE_WARNING, __VA_ARGS__))
 
-ZONE_EXPORT inline void
-zone_nonnull((1,2))
-zone_format_printf(2,3)
-zone_warning(zone_parser_t *parser, const char *format, ...)
-{
-  va_list arguments;
-  if (!(ZONE_WARNING & ~parser->options.log.mask))
-    return;
-  va_start(arguments, format);
-  zone_vlog(parser, ZONE_WARNING, format, arguments);
-  va_end(arguments);
-}
-
-ZONE_EXPORT inline void
-zone_nonnull((1,2))
-zone_format_printf(2,3)
-zone_info(zone_parser_t *parser, const char *format, ...)
-{
-  va_list arguments;
-  if (!(ZONE_INFO & ~parser->options.log.mask))
-    return;
-  va_start(arguments, format);
-  zone_vlog(parser, ZONE_INFO, format, arguments);
-  va_end(arguments);
-}
-
+/**
+ * @brief Write informational message to active log handler.
+ *
+ * Shorthand to write out informational message via @zone_log if
+ * informational messages are not be discarded.
+ *
+ * @param[in]  parser  Zone parser.
+ * @param[in]  format  Format string compatible with printf.
+ * @param[in]  ...     Variadic arguments corresponding to @format.
+ */
+#define zone_info(parser, ...) \
+  (((parser)->options.mask & ZONE_INFO) ? \
+     (void)0 : zone_log((parser), ZONE_INFO, __VA_ARGS__))
 
 #if defined(__cplusplus)
 }

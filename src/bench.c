@@ -211,16 +211,20 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
 
   zone_parser_t parser = { 0 };
-  zone_options_t options = { 0 };
+  zone_options_t options = {
+    .non_strict = 0,
+    .no_includes = false,
+    .include_limit = 0,
+    .pretty_ttls = true,
+    .origin = { .octets = root, .length = 1 },
+    .default_ttl = 3600,
+    .default_class = 1,
+    .log = { .mask = 0, .callback = 0 },
+    .accept = { .callback = &bench_accept }
+  };
   zone_name_buffer_t owner;
   zone_rdata_buffer_t rdata;
   zone_buffers_t buffers = { 1, &owner, &rdata };
-
-  options.accept.callback = &bench_accept;
-  options.origin.octets = root;
-  options.origin.length = 1;
-  options.default_ttl = 3600;
-  options.default_class = ZONE_IN;
 
   if (zone_open(&parser, &options, &buffers, argv[argc-1], NULL) < 0)
     exit(EXIT_FAILURE);

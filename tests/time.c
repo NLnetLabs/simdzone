@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <setjmp.h>
 #include <string.h>
+#include <stdlib.h>
 #include <cmocka.h>
 
 #include "zone.h"
