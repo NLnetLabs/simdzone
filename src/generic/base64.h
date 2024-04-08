@@ -679,7 +679,7 @@ static really_inline int base64_decode(
   uint8_t *out,
   size_t *outlen)
 {
-  struct base64_state state = { 0 };
+  struct base64_state state = { .eof = 0, .bytes = 0, .carry = 0 };
   return base64_stream_decode(&state, src, srclen, out, outlen) & !state.bytes;
 }
 
@@ -692,7 +692,7 @@ static really_inline int32_t parse_base64_sequence(
   token_t *token)
 {
   if (is_contiguous(token)) {
-    struct base64_state state = { 0 };
+    struct base64_state state = { .eof = 0, .bytes = 0, .carry = 0 };
 
     do {
       size_t length = token->length / 4;

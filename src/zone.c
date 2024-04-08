@@ -477,11 +477,20 @@ void zone_vlog(
   zone_parser_t *parser,
   uint32_t priority,
   const char *format,
+  va_list arguments);
+
+void zone_vlog(
+  zone_parser_t *parser,
+  uint32_t priority,
+  const char *format,
   va_list arguments)
 {
   char message[2048];
   int length;
   zone_log_t callback = print_message;
+
+  if (!(priority & ~parser->options.log.mask))
+    return;
 
   length = vsnprintf(message, sizeof(message), format, arguments);
   assert(length >= 0);
@@ -500,20 +509,7 @@ void zone_log(
   ...)
 {
   va_list arguments;
-
-  if (!(priority & ~parser->options.log.mask))
-    return;
-
   va_start(arguments, format);
   zone_vlog(parser, priority, format, arguments);
   va_end(arguments);
 }
-
-ZONE_EXPORT extern inline void
-zone_error(zone_parser_t *parser, const char *format, ...);
-
-ZONE_EXPORT extern inline void
-zone_warning(zone_parser_t *parser, const char *format, ...);
-
-ZONE_EXPORT extern inline void
-zone_info(zone_parser_t *parser, const char *format, ...);
