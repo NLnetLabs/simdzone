@@ -210,6 +210,7 @@ static void close_file(
 
   assert(!is_string || file == &parser->first);
   assert(!is_string || file->handle == NULL);
+  (void)parser;
 
   if (file->buffer.data && !is_string)
     free(file->buffer.data);
