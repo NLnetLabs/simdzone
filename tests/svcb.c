@@ -816,13 +816,14 @@ void rfc9460_test_vectors(void **state)
 
   for (size_t i = 0, n = sizeof(tests)/sizeof(tests[0]); i < n; i++) {
     const test_t *test = &tests[i];
-    zone_parser_t parser = { 0 };
+    zone_parser_t parser;
     zone_name_buffer_t name;
     zone_rdata_buffer_t rdata;
     zone_buffers_t buffers = { 1, &name, &rdata };
-    zone_options_t options = { 0 };
+    zone_options_t options;
     int32_t code;
 
+    memset(&options, 0, sizeof(options));
     options.non_strict = tests[i].secondary;
     options.accept.callback = add_rr;
     options.origin.octets = origin;

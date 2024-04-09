@@ -99,13 +99,14 @@ void newlines(void **state)
   (void)state;
 
   for (size_t i=0, n = sizeof(tests)/sizeof(tests[0]); i < n; i++) {
-    zone_parser_t parser = { 0 };
+    zone_parser_t parser;
     zone_name_buffer_t name;
     zone_rdata_buffer_t rdata;
     zone_buffers_t buffers = { 1, &name, &rdata };
-    zone_options_t options = { 0 };
+    zone_options_t options;
     int32_t result;
 
+    memset(&options, 0, sizeof(options));
     options.accept.callback = newline_test_accept_rr;
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
@@ -238,11 +239,11 @@ void strings(void **state)
   static const uint8_t origin[] = { 3, 'f', 'o', 'o', 0 };
 
   for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
-    zone_parser_t parser = { 0 };
+    zone_parser_t parser;
     zone_name_buffer_t name;
     zone_rdata_buffer_t rdata;
     zone_buffers_t buffers = { 1, &name, &rdata };
-    zone_options_t options = { 0 };
+    zone_options_t options;
     char input[512] = { 0 };
     size_t length;
     int32_t code;
@@ -250,6 +251,7 @@ void strings(void **state)
     (void)snprintf(input, sizeof(input), "foo. TXT %s", tests[i].text);
     length = strlen(input);
 
+    memset(&options, 0, sizeof(options));
     options.accept.callback = strings_callback;
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
@@ -436,11 +438,11 @@ void names(void **state)
   static const uint8_t origin[] = { 3, 'f', 'o', 'o', 0 };
 
   for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
-    zone_parser_t parser = { 0 };
+    zone_parser_t parser;
     zone_name_buffer_t name;
     zone_rdata_buffer_t rdata;
     zone_buffers_t buffers = { 1, &name, &rdata };
-    zone_options_t options = { 0 };
+    zone_options_t options;
     char input[512] = { 0 };
     size_t length;
     int32_t code;
@@ -448,6 +450,7 @@ void names(void **state)
     (void)snprintf(input, sizeof(input), "%s A 192.168.0.1", tests[i].input);
     length = strlen(input);
 
+    memset(&options, 0, sizeof(options));
     options.accept.callback = names_callback;
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
@@ -513,15 +516,16 @@ void ttls(void **state)
   static const uint8_t origin[] = { 3, 'f', 'o', 'o', 0 };
 
   for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
-    zone_parser_t parser = { 0 };
+    zone_parser_t parser;
     zone_name_buffer_t name;
     zone_rdata_buffer_t rdata;
     zone_buffers_t buffers = { 1, &name, &rdata };
-    zone_options_t options = { 0 };
+    zone_options_t options;
     const char *str = tests[i].text;
     size_t len = strlen(str);
     int32_t code;
 
+    memset(&options, 0, sizeof(options));
     options.accept.callback = tests_callback;
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
@@ -567,9 +571,10 @@ static int32_t parse(const char *text, size_t *count)
   zone_name_buffer_t name;
   zone_rdata_buffer_t rdata;
   zone_buffers_t buffers = { 1, &name, &rdata };
-  zone_options_t options = { 0 };
+  zone_options_t options;
   const uint8_t origin[] = { 0 };
 
+  memset(&options, 0, sizeof(options));
   options.accept.callback = &dummy_callback;
   options.origin.octets = origin;
   options.origin.length = sizeof(origin);
@@ -828,9 +833,10 @@ void include_with_origin(void **state)
   zone_name_buffer_t name;
   zone_rdata_buffer_t rdata;
   zone_buffers_t buffers = { 1, &name, &rdata };
-  zone_options_t options = { 0 };
+  zone_options_t options;
   static const uint8_t origin[] = { 3, 'b', 'a', 'r',  0 };
 
+  memset(&options, 0, sizeof(options));
   options.accept.callback = &include_origin_callback;
   options.origin.octets = origin;
   options.origin.length = sizeof(origin);
@@ -893,9 +899,10 @@ void include_without_origin(void **state)
   zone_name_buffer_t name;
   zone_rdata_buffer_t rdata;
   zone_buffers_t buffers = { 1, &name, &rdata };
-  zone_options_t options = { 0 };
+  zone_options_t options;
   static const uint8_t origin[] = { 3, 'b', 'a', 'r',  0 };
 
+  memset(&options, 0, sizeof(options));
   options.accept.callback = &no_origin_callback;
   options.origin.octets = origin;
   options.origin.length = sizeof(origin);
@@ -977,9 +984,10 @@ void owner_is_reinstated(void **state)
   zone_name_buffer_t name;
   zone_rdata_buffer_t rdata;
   zone_buffers_t buffers = { 1, &name, &rdata };
-  zone_options_t options = { 0 };
+  zone_options_t options;
   static const uint8_t origin[] = { 3, 'b', 'a', 'r',  0 };
 
+  memset(&options, 0, sizeof(options));
   options.accept.callback = &reinstate_callback;
   options.origin.octets = origin;
   options.origin.length = sizeof(origin);
@@ -1019,9 +1027,10 @@ void origin_is_reinstated(void **state)
   zone_name_buffer_t name;
   zone_rdata_buffer_t rdata;
   zone_buffers_t buffers = { 1, &name, &rdata };
-  zone_options_t options = { 0 };
+  zone_options_t options;
   static const uint8_t origin[] = { 3, 'b', 'a', 'r',  0 };
 
+  memset(&options, 0, sizeof(options));
   options.accept.callback = &reinstate_callback;
   options.origin.octets = origin;
   options.origin.length = sizeof(origin);
