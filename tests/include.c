@@ -163,7 +163,7 @@ static char *generate_include(const char *text)
 static int32_t parse(
   const zone_options_t *options, const char *text, void *user_data)
 {
-  zone_parser_t parser = { 0 };
+  zone_parser_t parser;
   zone_name_buffer_t name;
   zone_rdata_buffer_t rdata;
   zone_buffers_t buffers = { 1, &name, &rdata };
@@ -214,13 +214,14 @@ static uint8_t origin[] =
 void include_from_string(void **state)
 {
   input_t *input;
-  zone_parser_t parser = { 0 };
+  zone_parser_t parser;
   zone_name_buffer_t name;
   zone_rdata_buffer_t rdata;
   zone_buffers_t buffers = { 1, &name, &rdata };
-  zone_options_t options = { 0 };
+  zone_options_t options;
   int32_t result;
 
+  memset(&options, 0, sizeof(options));
   options.accept.callback = &add_rr;
   options.origin.octets = origin;
   options.origin.length = sizeof(origin);
@@ -287,10 +288,11 @@ static void no_such_file_log(
 void the_include_that_wasnt(void **state)
 {
   // test $INCLUDE of nonexistent file is handled gracefully
-  zone_options_t options = { 0 };
-  no_file_test_t test = { 0 };
+  zone_options_t options;
+  no_file_test_t test;
   int32_t code;
 
+  memset(&options, 0, sizeof(options));
   options.accept.callback = &no_such_file_accept;
   options.log.callback = &no_such_file_log;
   options.origin.octets = origin;
@@ -311,6 +313,7 @@ void the_include_that_wasnt(void **state)
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE %s", non_include);
 
+  memset(&test, 0, sizeof(test));
   code = parse(&options, include, &test);
   free(include);
   free(non_include);
@@ -360,8 +363,9 @@ void in_too_deep(void **state)
 
   int32_t code;
   size_t records;
-  zone_options_t options = { 0 };
+  zone_options_t options;
 
+  memset(&options, 0, sizeof(options));
   options.accept.callback = &in_too_deep_accept;
   options.log.callback = &in_too_deep_log;
   options.origin.octets = origin;
@@ -413,7 +417,8 @@ void been_there_done_that(void **state)
 {
   (void)state;
 
-  zone_options_t options = { 0 };
+  zone_options_t options;
+  memset(&options, 0, sizeof(options));
   options.accept.callback = &in_too_deep_accept;
   options.log.callback = &in_too_deep_log;
   options.origin.octets = origin;

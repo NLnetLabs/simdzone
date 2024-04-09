@@ -80,11 +80,11 @@ void time_stamp_syntax(void **state)
   (void)state;
 
   for (size_t i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
-    zone_parser_t parser = { 0 };
+    zone_parser_t parser;
     zone_name_buffer_t name;
     zone_rdata_buffer_t rdata;
     zone_buffers_t buffers = { 1, &name, &rdata };
-    zone_options_t options = { 0 };
+    zone_options_t options;
     int32_t result;
 
 #define FORMAT "host.example.com. 86400 IN RRSIG A 5 3 86400 %s (\n"      \
@@ -100,6 +100,7 @@ void time_stamp_syntax(void **state)
     (void)snprintf(rr, size, FORMAT, tests[i].timestamp);
 
     fprintf(stderr, "INPUT: %s\n", rr);
+    memset(&options, 0, sizeof(options));
     options.accept.callback = add_rr;
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
