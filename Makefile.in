@@ -39,6 +39,9 @@ clean:
 distclean: clean
 	@rm -f Makefile config.h config.log config.status
 
+realclean: distclean
+	@rm -rf autom4te*
+
 libzone.a: $(EXPORT_HEADER) $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 	$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 
