@@ -170,7 +170,7 @@ static int32_t parse(
 
   int32_t code;
   size_t length = strlen(text);
-  char *string = malloc(length + 1 + ZONE_PADDING_SIZE);
+  char *string = malloc(length + 1 + ZONE_BLOCK_SIZE);
   assert_non_null(string);
   memcpy(string, text, length);
   string[length] = '\0';
@@ -226,7 +226,7 @@ void include_from_string(void **state)
   options.origin.octets = origin;
   options.origin.length = sizeof(origin);
   options.default_ttl = 3600;
-  options.default_class = ZONE_IN;
+  options.default_class = ZONE_CLASS_IN;
 
   input = (input_t *)*state;
 
@@ -307,7 +307,7 @@ void the_include_that_wasnt(void **state)
 
   char buffer[16];
   int length = snprintf(buffer, sizeof(buffer), "$INCLUDE %s", non_include);
-  assert_true(length >= 0 && (size_t)length < SIZE_MAX - (ZONE_PADDING_SIZE + 1));
+  assert_true(length >= 0 && (size_t)length < SIZE_MAX - (ZONE_BLOCK_SIZE + 1));
 
   char *include = malloc((size_t)length + 1);
   assert_non_null(include);
@@ -436,8 +436,8 @@ void been_there_done_that(void **state)
   assert_non_null(handle);
   char dummy[16];
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"\n", path);
-  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"\n", path);
   int result = fputs(include, handle);

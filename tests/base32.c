@@ -84,7 +84,7 @@ void base32_syntax(void **state)
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
     options.default_ttl = 3600;
-    options.default_class = ZONE_IN;
+    options.default_class = ZONE_CLASS_IN;
 
     result = zone_parse_string(&parser, &options, &buffers, rr, strlen(rr), NULL);
     assert_int_equal(result, tests[i].result);

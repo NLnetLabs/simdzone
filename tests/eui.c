@@ -42,9 +42,9 @@ static int32_t accept_eui48_and_eui64(
 
   if (test->code != 0)
     return ZONE_SYNTAX_ERROR;
-  if (test->type == ZONE_EUI48 && rdlength != 6)
+  if (test->type == ZONE_TYPE_EUI48 && rdlength != 6)
     return ZONE_SYNTAX_ERROR;
-  if (test->type == ZONE_EUI64 && rdlength != 8)
+  if (test->type == ZONE_TYPE_EUI64 && rdlength != 8)
     return ZONE_SYNTAX_ERROR;
   if (memcmp(rdata, test->rdata, rdlength) != 0)
     return ZONE_SYNTAX_ERROR;
@@ -75,33 +75,33 @@ void eui48_and_eui64(void **state)
 
   static const struct eui_test tests[] = {
     // EUI48
-    { 0, ZONE_EUI48, PAD("host.example. 86400 IN EUI48 00-00-5e-00-53-2a"), eui48_address },
+    { 0, ZONE_TYPE_EUI48, PAD("host.example. 86400 IN EUI48 00-00-5e-00-53-2a"), eui48_address },
     // missing rdata
-    { ZONE_SYNTAX_ERROR, ZONE_EUI48, PAD("@ EUI48"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI48, PAD("@ EUI48"), NULL },
     // trailing rdata
-    { ZONE_SYNTAX_ERROR, ZONE_EUI48, PAD("@ EUI48 00-00-5e-00-53-2a foobar"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI48, PAD("@ EUI48 00-00-5e-00-53-2a foobar"), NULL },
     // quoted address
-    { ZONE_SYNTAX_ERROR, ZONE_EUI48, PAD("@ EUI48 \"00-00-5e-00-53-2a\""), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI48, PAD("@ EUI48 \"00-00-5e-00-53-2a\""), NULL },
     // bad addresses
-    { ZONE_SYNTAX_ERROR, ZONE_EUI48, PAD("@ EUI48 00-00-5e-00-53-2"), NULL },
-    { ZONE_SYNTAX_ERROR, ZONE_EUI48, PAD("@ EUI48 00-00-5e-00-53-2a-"), NULL },
-    { ZONE_SYNTAX_ERROR, ZONE_EUI48, PAD("@ EUI48 00.00.5e.00.53.2a"), NULL },
-    { ZONE_SYNTAX_ERROR, ZONE_EUI48, PAD("@ EUI48 0--00-5e-00-53-2a"), NULL },
-    { ZONE_SYNTAX_ERROR, ZONE_EUI48, PAD("@ EUI48 foobar"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI48, PAD("@ EUI48 00-00-5e-00-53-2"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI48, PAD("@ EUI48 00-00-5e-00-53-2a-"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI48, PAD("@ EUI48 00.00.5e.00.53.2a"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI48, PAD("@ EUI48 0--00-5e-00-53-2a"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI48, PAD("@ EUI48 foobar"), NULL },
     // EUI64
-    { 0, ZONE_EUI64, PAD("host.example. 86400 IN EUI64 00-00-5e-ef-10-00-00-2a"), eui64_address },
+    { 0, ZONE_TYPE_EUI64, PAD("host.example. 86400 IN EUI64 00-00-5e-ef-10-00-00-2a"), eui64_address },
     // missing rdata
-    { ZONE_SYNTAX_ERROR, ZONE_EUI64, PAD("@ EUI64"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI64, PAD("@ EUI64"), NULL },
     // trailing rdata
-    { ZONE_SYNTAX_ERROR, ZONE_EUI64, PAD("@ EUI64 00-00-5e-ef-10-00-00-2a foobar"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI64, PAD("@ EUI64 00-00-5e-ef-10-00-00-2a foobar"), NULL },
     // quoted address
-    { ZONE_SYNTAX_ERROR, ZONE_EUI64, PAD("@ EUI64 \"00-00-5e-ef-10-00-00-2a\""), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI64, PAD("@ EUI64 \"00-00-5e-ef-10-00-00-2a\""), NULL },
     // bad addresses
-    { ZONE_SYNTAX_ERROR, ZONE_EUI64, PAD("@ EUI64 00-00-5e-ef-10-00-00-2"), NULL },
-    { ZONE_SYNTAX_ERROR, ZONE_EUI64, PAD("@ EUI64 00-00-5e-ef-10-00-00-2a-"), NULL },
-    { ZONE_SYNTAX_ERROR, ZONE_EUI64, PAD("@ EUI64 00.00.5e.ef.10.00.00.2a"), NULL },
-    { ZONE_SYNTAX_ERROR, ZONE_EUI64, PAD("@ EUI64 0--00-5e-ef-10-00-00-2a"), NULL },
-    { ZONE_SYNTAX_ERROR, ZONE_EUI64, PAD("@ EUI64 foobar"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI64, PAD("@ EUI64 00-00-5e-ef-10-00-00-2"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI64, PAD("@ EUI64 00-00-5e-ef-10-00-00-2a-"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI64, PAD("@ EUI64 00.00.5e.ef.10.00.00.2a"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI64, PAD("@ EUI64 0--00-5e-ef-10-00-00-2a"), NULL },
+    { ZONE_SYNTAX_ERROR, ZONE_TYPE_EUI64, PAD("@ EUI64 foobar"), NULL },
   };
 
   (void)state;
