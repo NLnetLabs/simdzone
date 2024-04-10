@@ -1416,7 +1416,7 @@ static const rdata_info_t ipseckey_ipv4_rdata_fields[] = {
 };
 
 static const type_info_t ipseckey_ipv4[] = {
-  TYPE("IPSECKEY", ZONE_IPSECKEY, ZONE_IN, FIELDS(ipseckey_ipv4_rdata_fields),
+  TYPE("IPSECKEY", ZONE_TYPE_IPSECKEY, ZONE_CLASS_IN, FIELDS(ipseckey_ipv4_rdata_fields),
                    check_ipseckey_rr, parse_ipseckey_rdata),
 };
 
@@ -1429,10 +1429,9 @@ static const rdata_info_t ipseckey_ipv6_rdata_fields[] = {
 };
 
 static const type_info_t ipseckey_ipv6[] = {
-  TYPE("IPSECKEY", ZONE_IPSECKEY, ZONE_IN, FIELDS(ipseckey_ipv6_rdata_fields),
+  TYPE("IPSECKEY", ZONE_TYPE_IPSECKEY, ZONE_CLASS_IN, FIELDS(ipseckey_ipv6_rdata_fields),
                    check_ipseckey_rr, parse_ipseckey_rdata),
 };
-
 
 diagnostic_pop()
 
@@ -2433,10 +2432,10 @@ clang_diagnostic_ignored(missing-field-initializers)
 
 static const class_info_t classes[] = {
   UNKNOWN_CLASS(0),
-  CLASS("IN", 1),
-  CLASS("CS", 2),
-  CLASS("CH", 3),
-  CLASS("HS", 4)
+  CLASS("IN", ZONE_CLASS_IN),
+  CLASS("CS", ZONE_CLASS_CS),
+  CLASS("CH", ZONE_CLASS_CH),
+  CLASS("HS", ZONE_CLASS_HS)
 };
 
 static const rdata_info_t a_rdata_fields[] = {
@@ -2827,137 +2826,137 @@ static const rdata_info_t dlv_rdata_fields[] = {
 static const type_info_t types[] = {
   UNKNOWN_TYPE(0),
 
-  TYPE("A", ZONE_A, ZONE_ANY, FIELDS(a_rdata_fields),
+  TYPE("A", ZONE_TYPE_A, ZONE_CLASS_ANY, FIELDS(a_rdata_fields),
             check_a_rr, parse_a_rdata),
-  TYPE("NS", ZONE_NS, ZONE_ANY, FIELDS(ns_rdata_fields),
+  TYPE("NS", ZONE_TYPE_NS, ZONE_CLASS_ANY, FIELDS(ns_rdata_fields),
              check_ns_rr, parse_ns_rdata),
-  TYPE("MD", ZONE_MD, ZONE_ANY, FIELDS(md_rdata_fields), // obsolete
+  TYPE("MD", ZONE_TYPE_MD, ZONE_CLASS_ANY, FIELDS(md_rdata_fields), // obsolete
              check_ns_rr, parse_ns_rdata),
-  TYPE("MF", ZONE_MF, ZONE_ANY, FIELDS(mf_rdata_fields), // obsolete
+  TYPE("MF", ZONE_TYPE_MF, ZONE_CLASS_ANY, FIELDS(mf_rdata_fields), // obsolete
              check_ns_rr, parse_ns_rdata),
-  TYPE("CNAME", ZONE_CNAME, ZONE_ANY, FIELDS(cname_rdata_fields),
+  TYPE("CNAME", ZONE_TYPE_CNAME, ZONE_CLASS_ANY, FIELDS(cname_rdata_fields),
                 check_ns_rr, parse_ns_rdata),
-  TYPE("SOA", ZONE_SOA, ZONE_ANY, FIELDS(soa_rdata_fields),
+  TYPE("SOA", ZONE_TYPE_SOA, ZONE_CLASS_ANY, FIELDS(soa_rdata_fields),
               check_soa_rr, parse_soa_rdata),
-  TYPE("MB", ZONE_MB, ZONE_ANY, FIELDS(mb_rdata_fields), // experimental
+  TYPE("MB", ZONE_TYPE_MB, ZONE_CLASS_ANY, FIELDS(mb_rdata_fields), // experimental
              check_ns_rr, parse_ns_rdata),
-  TYPE("MG", ZONE_MG, ZONE_ANY, FIELDS(mg_rdata_fields), // experimental
+  TYPE("MG", ZONE_TYPE_MG, ZONE_CLASS_ANY, FIELDS(mg_rdata_fields), // experimental
              check_ns_rr, parse_ns_rdata),
-  TYPE("MR", ZONE_MR, ZONE_ANY, FIELDS(mr_rdata_fields), // experimental
+  TYPE("MR", ZONE_TYPE_MR, ZONE_CLASS_ANY, FIELDS(mr_rdata_fields), // experimental
              check_ns_rr, parse_ns_rdata),
-  TYPE("NULL", ZONE_NULL, ZONE_ANY, FIELDS(null_rdata_fields), // experimetal
+  TYPE("NULL", ZONE_TYPE_NULL, ZONE_CLASS_ANY, FIELDS(null_rdata_fields), // experimetal
                check_generic_rr, parse_unknown_rdata),
-  TYPE("WKS", ZONE_WKS, ZONE_IN, FIELDS(wks_rdata_fields),
+  TYPE("WKS", ZONE_TYPE_WKS, ZONE_CLASS_IN, FIELDS(wks_rdata_fields),
               check_wks_rr, parse_wks_rdata),
-  TYPE("PTR", ZONE_PTR, ZONE_ANY, FIELDS(ptr_rdata_fields),
+  TYPE("PTR", ZONE_TYPE_PTR, ZONE_CLASS_ANY, FIELDS(ptr_rdata_fields),
               check_ns_rr, parse_ns_rdata),
-  TYPE("HINFO", ZONE_HINFO, ZONE_ANY, FIELDS(hinfo_rdata_fields),
+  TYPE("HINFO", ZONE_TYPE_HINFO, ZONE_CLASS_ANY, FIELDS(hinfo_rdata_fields),
                 check_hinfo_rr, parse_hinfo_rdata),
-  TYPE("MINFO", ZONE_MINFO, ZONE_ANY, FIELDS(minfo_rdata_fields),
+  TYPE("MINFO", ZONE_TYPE_MINFO, ZONE_CLASS_ANY, FIELDS(minfo_rdata_fields),
                 check_minfo_rr, parse_minfo_rdata),
-  TYPE("MX", ZONE_MX, ZONE_ANY, FIELDS(mx_rdata_fields),
+  TYPE("MX", ZONE_TYPE_MX, ZONE_CLASS_ANY, FIELDS(mx_rdata_fields),
              check_mx_rr, parse_mx_rdata),
-  TYPE("TXT", ZONE_TXT, ZONE_ANY, FIELDS(txt_rdata_fields),
+  TYPE("TXT", ZONE_TYPE_TXT, ZONE_CLASS_ANY, FIELDS(txt_rdata_fields),
               check_txt_rr, parse_txt_rdata),
-  TYPE("RP", ZONE_RP, ZONE_ANY, FIELDS(rp_rdata_fields),
+  TYPE("RP", ZONE_TYPE_RP, ZONE_CLASS_ANY, FIELDS(rp_rdata_fields),
              check_minfo_rr, parse_minfo_rdata),
-  TYPE("AFSDB", ZONE_AFSDB, ZONE_ANY, FIELDS(afsdb_rdata_fields),
+  TYPE("AFSDB", ZONE_TYPE_AFSDB, ZONE_CLASS_ANY, FIELDS(afsdb_rdata_fields),
                 check_mx_rr, parse_mx_rdata),
-  TYPE("X25", ZONE_X25, ZONE_ANY, FIELDS(x25_rdata_fields),
+  TYPE("X25", ZONE_TYPE_X25, ZONE_CLASS_ANY, FIELDS(x25_rdata_fields),
               check_x25_rr, parse_x25_rdata),
-  TYPE("ISDN", ZONE_ISDN, ZONE_ANY, FIELDS(isdn_rdata_fields),
+  TYPE("ISDN", ZONE_TYPE_ISDN, ZONE_CLASS_ANY, FIELDS(isdn_rdata_fields),
                check_isdn_rr, parse_isdn_rdata),
-  TYPE("RT", ZONE_RT, ZONE_ANY, FIELDS(rt_rdata_fields),
+  TYPE("RT", ZONE_TYPE_RT, ZONE_CLASS_ANY, FIELDS(rt_rdata_fields),
              check_rt_rr, parse_rt_rdata),
-  TYPE("NSAP", ZONE_NSAP, ZONE_IN, FIELDS(nsap_rdata_fields),
+  TYPE("NSAP", ZONE_TYPE_NSAP, ZONE_CLASS_IN, FIELDS(nsap_rdata_fields),
                check_nsap_rr, parse_nsap_rdata),
-  TYPE("NSAP-PTR", ZONE_NSAP_PTR, ZONE_IN, FIELDS(nsap_ptr_rdata_fields),
+  TYPE("NSAP-PTR", ZONE_TYPE_NSAP_PTR, ZONE_CLASS_IN, FIELDS(nsap_ptr_rdata_fields),
                    check_nsap_ptr_rr, parse_nsap_ptr_rdata),
-  TYPE("SIG", ZONE_SIG, ZONE_ANY, FIELDS(sig_rdata_fields),
+  TYPE("SIG", ZONE_TYPE_SIG, ZONE_CLASS_ANY, FIELDS(sig_rdata_fields),
               check_rrsig_rr, parse_rrsig_rdata),
-  TYPE("KEY", ZONE_KEY, ZONE_ANY, FIELDS(key_rdata_fields),
+  TYPE("KEY", ZONE_TYPE_KEY, ZONE_CLASS_ANY, FIELDS(key_rdata_fields),
               check_key_rr, parse_key_rdata),
-  TYPE("PX", ZONE_PX, ZONE_IN, FIELDS(px_rdata_fields),
+  TYPE("PX", ZONE_TYPE_PX, ZONE_CLASS_IN, FIELDS(px_rdata_fields),
              check_px_rr, parse_px_rdata),
-  TYPE("GPOS", ZONE_GPOS, ZONE_ANY, FIELDS(gpos_rdata_fields),
+  TYPE("GPOS", ZONE_TYPE_GPOS, ZONE_CLASS_ANY, FIELDS(gpos_rdata_fields),
                check_gpos_rr, parse_gpos_rdata),
-  TYPE("AAAA", ZONE_AAAA, ZONE_IN, FIELDS(aaaa_rdata_fields),
+  TYPE("AAAA", ZONE_TYPE_AAAA, ZONE_CLASS_IN, FIELDS(aaaa_rdata_fields),
                check_aaaa_rr, parse_aaaa_rdata),
-  TYPE("LOC", ZONE_LOC, ZONE_ANY, FIELDS(loc_rdata_fields),
+  TYPE("LOC", ZONE_TYPE_LOC, ZONE_CLASS_ANY, FIELDS(loc_rdata_fields),
               check_loc_rr, parse_loc_rdata),
-  TYPE("NXT", ZONE_NXT, ZONE_ANY, FIELDS(nxt_rdata_fields), // obsolete
+  TYPE("NXT", ZONE_TYPE_NXT, ZONE_CLASS_ANY, FIELDS(nxt_rdata_fields), // obsolete
               check_nxt_rr, parse_nxt_rdata),
 
   UNKNOWN_TYPE(31),
   UNKNOWN_TYPE(32),
 
-  TYPE("SRV", ZONE_SRV, ZONE_IN, FIELDS(srv_rdata_fields),
+  TYPE("SRV", ZONE_TYPE_SRV, ZONE_CLASS_IN, FIELDS(srv_rdata_fields),
               check_srv_rr, parse_srv_rdata),
 
   UNKNOWN_TYPE(34),
 
-  TYPE("NAPTR", ZONE_NAPTR, ZONE_IN, FIELDS(naptr_rdata_fields),
+  TYPE("NAPTR", ZONE_TYPE_NAPTR, ZONE_CLASS_IN, FIELDS(naptr_rdata_fields),
                 check_naptr_rr, parse_naptr_rdata),
-  TYPE("KX", ZONE_KX, ZONE_IN, FIELDS(kx_rdata_fields),
+  TYPE("KX", ZONE_TYPE_KX, ZONE_CLASS_IN, FIELDS(kx_rdata_fields),
              check_mx_rr, parse_mx_rdata),
-  TYPE("CERT", ZONE_CERT, ZONE_ANY, FIELDS(cert_rdata_fields),
+  TYPE("CERT", ZONE_TYPE_CERT, ZONE_CLASS_ANY, FIELDS(cert_rdata_fields),
                check_cert_rr, parse_cert_rdata),
 
   UNKNOWN_TYPE(38),
 
-  TYPE("DNAME", ZONE_DNAME, ZONE_ANY, FIELDS(dname_rdata_fields),
+  TYPE("DNAME", ZONE_TYPE_DNAME, ZONE_CLASS_ANY, FIELDS(dname_rdata_fields),
                 check_ns_rr, parse_ns_rdata),
 
   UNKNOWN_TYPE(40),
   UNKNOWN_TYPE(41),
 
-  TYPE("APL", ZONE_APL, ZONE_IN, FIELDS(apl_rdata_fields),
+  TYPE("APL", ZONE_TYPE_APL, ZONE_CLASS_IN, FIELDS(apl_rdata_fields),
              check_apl_rr, parse_apl_rdata),
-  TYPE("DS", ZONE_DS, ZONE_ANY, FIELDS(ds_rdata_fields),
+  TYPE("DS", ZONE_TYPE_DS, ZONE_CLASS_ANY, FIELDS(ds_rdata_fields),
              check_ds_rr, parse_ds_rdata),
-  TYPE("SSHFP", ZONE_SSHFP, ZONE_ANY, FIELDS(sshfp_rdata_fields),
+  TYPE("SSHFP", ZONE_TYPE_SSHFP, ZONE_CLASS_ANY, FIELDS(sshfp_rdata_fields),
                 check_sshfp_rr, parse_sshfp_rdata),
-  TYPE("IPSECKEY", ZONE_IPSECKEY, ZONE_IN, FIELDS(ipseckey_rdata_fields),
+  TYPE("IPSECKEY", ZONE_TYPE_IPSECKEY, ZONE_CLASS_IN, FIELDS(ipseckey_rdata_fields),
                    check_ipseckey_rr, parse_ipseckey_rdata),
-  TYPE("RRSIG", ZONE_RRSIG, ZONE_ANY, FIELDS(rrsig_rdata_fields),
+  TYPE("RRSIG", ZONE_TYPE_RRSIG, ZONE_CLASS_ANY, FIELDS(rrsig_rdata_fields),
                 check_rrsig_rr, parse_rrsig_rdata),
-  TYPE("NSEC", ZONE_NSEC, ZONE_ANY, FIELDS(nsec_rdata_fields),
+  TYPE("NSEC", ZONE_TYPE_NSEC, ZONE_CLASS_ANY, FIELDS(nsec_rdata_fields),
                check_nsec_rr, parse_nsec_rdata),
-  TYPE("DNSKEY", ZONE_DNSKEY, ZONE_ANY, FIELDS(dnskey_rdata_fields),
+  TYPE("DNSKEY", ZONE_TYPE_DNSKEY, ZONE_CLASS_ANY, FIELDS(dnskey_rdata_fields),
                  check_dnskey_rr, parse_dnskey_rdata),
-  TYPE("DHCID", ZONE_DHCID, ZONE_IN, FIELDS(dhcid_rdata_fields),
+  TYPE("DHCID", ZONE_TYPE_DHCID, ZONE_CLASS_IN, FIELDS(dhcid_rdata_fields),
                 check_dhcid_rr, parse_dhcid_rdata),
-  TYPE("NSEC3", ZONE_NSEC3, ZONE_ANY, FIELDS(nsec3_rdata_fields),
+  TYPE("NSEC3", ZONE_TYPE_NSEC3, ZONE_CLASS_ANY, FIELDS(nsec3_rdata_fields),
                 check_nsec3_rr, parse_nsec3_rdata),
-  TYPE("NSEC3PARAM", ZONE_NSEC3PARAM, ZONE_ANY, FIELDS(nsec3param_rdata_fields),
+  TYPE("NSEC3PARAM", ZONE_TYPE_NSEC3PARAM, ZONE_CLASS_ANY, FIELDS(nsec3param_rdata_fields),
                      check_nsec3param_rr, parse_nsec3param_rdata),
-  TYPE("TLSA", ZONE_TLSA, ZONE_ANY, FIELDS(tlsa_rdata_fields),
+  TYPE("TLSA", ZONE_TYPE_TLSA, ZONE_CLASS_ANY, FIELDS(tlsa_rdata_fields),
                check_tlsa_rr, parse_tlsa_rdata),
-  TYPE("SMIMEA", ZONE_SMIMEA, ZONE_ANY, FIELDS(smimea_rdata_fields),
+  TYPE("SMIMEA", ZONE_TYPE_SMIMEA, ZONE_CLASS_ANY, FIELDS(smimea_rdata_fields),
                  check_tlsa_rr, parse_tlsa_rdata),
 
   UNKNOWN_TYPE(54),
 
-  TYPE("HIP", ZONE_HIP, ZONE_ANY, FIELDS(hip_rdata_fields),
+  TYPE("HIP", ZONE_TYPE_HIP, ZONE_CLASS_ANY, FIELDS(hip_rdata_fields),
               check_hip_rr, parse_hip_rdata),
 
   UNKNOWN_TYPE(56),
   UNKNOWN_TYPE(57),
   UNKNOWN_TYPE(58),
 
-  TYPE("CDS", ZONE_CDS, ZONE_ANY, FIELDS(cds_rdata_fields),
+  TYPE("CDS", ZONE_TYPE_CDS, ZONE_CLASS_ANY, FIELDS(cds_rdata_fields),
               check_ds_rr, parse_ds_rdata),
-  TYPE("CDNSKEY", ZONE_CDNSKEY, ZONE_ANY, FIELDS(cdnskey_rdata_fields),
+  TYPE("CDNSKEY", ZONE_TYPE_CDNSKEY, ZONE_CLASS_ANY, FIELDS(cdnskey_rdata_fields),
                   check_dnskey_rr, parse_dnskey_rdata),
-  TYPE("OPENPGPKEY", ZONE_OPENPGPKEY, ZONE_ANY, FIELDS(openpgpkey_rdata_fields),
+  TYPE("OPENPGPKEY", ZONE_TYPE_OPENPGPKEY, ZONE_CLASS_ANY, FIELDS(openpgpkey_rdata_fields),
                      check_openpgpkey_rr, parse_openpgpkey_rdata),
-  TYPE("CSYNC", ZONE_CSYNC, ZONE_ANY, FIELDS(csync_rdata_fields),
+  TYPE("CSYNC", ZONE_TYPE_CSYNC, ZONE_CLASS_ANY, FIELDS(csync_rdata_fields),
                 check_csync_rr, parse_csync_rdata),
-  TYPE("ZONEMD", ZONE_ZONEMD, ZONE_ANY, FIELDS(zonemd_rdata_fields),
+  TYPE("ZONEMD", ZONE_TYPE_ZONEMD, ZONE_CLASS_ANY, FIELDS(zonemd_rdata_fields),
                  check_zonemd_rr, parse_zonemd_rdata),
-  TYPE("SVCB", ZONE_SVCB, ZONE_IN, FIELDS(svcb_rdata_fields),
+  TYPE("SVCB", ZONE_TYPE_SVCB, ZONE_CLASS_IN, FIELDS(svcb_rdata_fields),
                check_svcb_rr, parse_svcb_rdata),
-  TYPE("HTTPS", ZONE_HTTPS, ZONE_IN, FIELDS(https_rdata_fields),
+  TYPE("HTTPS", ZONE_TYPE_HTTPS, ZONE_CLASS_IN, FIELDS(https_rdata_fields),
                 check_https_rr, parse_https_rdata),
 
   UNKNOWN_TYPE(66),
@@ -2994,7 +2993,7 @@ static const type_info_t types[] = {
   UNKNOWN_TYPE(97),
   UNKNOWN_TYPE(98),
 
-  TYPE("SPF", ZONE_SPF, ZONE_ANY, FIELDS(spf_rdata_fields), // obsolete
+  TYPE("SPF", ZONE_TYPE_SPF, ZONE_CLASS_ANY, FIELDS(spf_rdata_fields), // obsolete
               check_txt_rr, parse_txt_rdata),
 
   UNKNOWN_TYPE(100),
@@ -3002,17 +3001,17 @@ static const type_info_t types[] = {
   UNKNOWN_TYPE(102),
   UNKNOWN_TYPE(103),
 
-  TYPE("NID", ZONE_NID, ZONE_ANY, FIELDS(nid_rdata_fields),
+  TYPE("NID", ZONE_TYPE_NID, ZONE_CLASS_ANY, FIELDS(nid_rdata_fields),
               check_nid_rr, parse_nid_rdata),
-  TYPE("L32", ZONE_L32, ZONE_ANY, FIELDS(l32_rdata_fields),
+  TYPE("L32", ZONE_TYPE_L32, ZONE_CLASS_ANY, FIELDS(l32_rdata_fields),
               check_l32_rr, parse_l32_rdata),
-  TYPE("L64", ZONE_L64, ZONE_ANY, FIELDS(l64_rdata_fields),
+  TYPE("L64", ZONE_TYPE_L64, ZONE_CLASS_ANY, FIELDS(l64_rdata_fields),
               check_l64_rr, parse_l64_rdata),
-  TYPE("LP", ZONE_LP, ZONE_ANY, FIELDS(lp_rdata_fields),
+  TYPE("LP", ZONE_TYPE_LP, ZONE_CLASS_ANY, FIELDS(lp_rdata_fields),
              check_mx_rr, parse_mx_rdata),
-  TYPE("EUI48", ZONE_EUI48, ZONE_ANY, FIELDS(eui48_rdata_fields),
+  TYPE("EUI48", ZONE_TYPE_EUI48, ZONE_CLASS_ANY, FIELDS(eui48_rdata_fields),
                 check_eui48_rr, parse_eui48_rdata),
-  TYPE("EUI64", ZONE_EUI64, ZONE_ANY, FIELDS(eui64_rdata_fields),
+  TYPE("EUI64", ZONE_TYPE_EUI64, ZONE_CLASS_ANY, FIELDS(eui64_rdata_fields),
                 check_eui64_rr, parse_eui64_rdata),
 
   UNKNOWN_TYPE(110),
@@ -3162,13 +3161,13 @@ static const type_info_t types[] = {
   UNKNOWN_TYPE(254),
   UNKNOWN_TYPE(255),
 
-  TYPE("URI", ZONE_URI, ZONE_ANY, FIELDS(uri_rdata_fields),
+  TYPE("URI", ZONE_TYPE_URI, ZONE_CLASS_ANY, FIELDS(uri_rdata_fields),
               check_uri_rr, parse_uri_rdata),
-  TYPE("CAA", ZONE_CAA, ZONE_ANY, FIELDS(caa_rdata_fields),
+  TYPE("CAA", ZONE_TYPE_CAA, ZONE_CLASS_ANY, FIELDS(caa_rdata_fields),
               check_caa_rr, parse_caa_rdata),
-  TYPE("AVC", ZONE_AVC, ZONE_ANY, FIELDS(avc_rdata_fields),
+  TYPE("AVC", ZONE_TYPE_AVC, ZONE_CLASS_ANY, FIELDS(avc_rdata_fields),
               check_txt_rr, parse_txt_rdata),
-  TYPE("DLV", ZONE_DLV, ZONE_ANY, FIELDS(dlv_rdata_fields), // obsolete
+  TYPE("DLV", ZONE_TYPE_DLV, ZONE_CLASS_ANY, FIELDS(dlv_rdata_fields), // obsolete
               check_ds_rr, parse_ds_rdata)
 };
 

@@ -111,7 +111,7 @@ void newlines(void **state)
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
     options.default_ttl = 3600;
-    options.default_class = ZONE_IN;
+    options.default_class = ZONE_CLASS_IN;
 
     fprintf(stderr, "INPUT: \"%s\"\n", tests[i].input);
     result = zone_parse_string(
@@ -256,7 +256,7 @@ void strings(void **state)
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
     options.default_ttl = 3600;
-    options.default_class = ZONE_IN;
+    options.default_class = ZONE_CLASS_IN;
 
     fprintf(stderr, "INPUT: '%s'\n", input);
     code = zone_parse_string(&parser, &options, &buffers, input, length, (void *)&tests[i]);
@@ -455,7 +455,7 @@ void names(void **state)
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
     options.default_ttl = 3600;
-    options.default_class = ZONE_IN;
+    options.default_class = ZONE_CLASS_IN;
 
     fprintf(stderr, "INPUT: '%s'\n", input);
     code = zone_parse_string(&parser, &options, &buffers, input, length, &tests[i]);
@@ -530,8 +530,8 @@ void ttls(void **state)
     options.origin.octets = origin;
     options.origin.length = sizeof(origin);
     options.default_ttl = 3600;
-    options.default_class = ZONE_IN;
-    options.non_strict = tests[i].non_strict;
+    options.default_class = ZONE_CLASS_IN;
+    options.secondary = tests[i].non_strict;
     options.pretty_ttls = tests[i].pretty_ttls;
 
     fprintf(stderr, "INPUT: '%s'\n", str);
@@ -616,8 +616,8 @@ static int32_t parse_as_include(const char *text, size_t *count)
   assert_non_null(path);
   char dummy[16];
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"\n", path);
-  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"\n", path);
   code = parse(include, count);
@@ -775,8 +775,8 @@ void bad_includes(void **state)
   assert_non_null(handle);
   char dummy[32];
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\" foo. bar\n", path);
-  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\" foo. bar.\n", path);
   int result = fputs(include, handle);
@@ -824,8 +824,8 @@ void include_with_origin(void **state)
   assert_non_null(path);
   char dummy[32];
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\" baz.", path);
-  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\" baz.", path);
 
@@ -889,8 +889,8 @@ void include_without_origin(void **state)
   char dummy[32];
 #define FMT "$INCLUDE \"%s\""
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"", path);
-  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"", path);
 #undef FMT
@@ -973,8 +973,8 @@ void owner_is_reinstated(void **state)
   "$INCLUDE \"%s\" baz.\n" \
   " TXT foobar"
   int length = snprintf(dummy, sizeof(dummy), FMT, path);
-  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, FMT, path);
 #undef FMT
@@ -1016,8 +1016,8 @@ void origin_is_reinstated(void **state)
   "$INCLUDE \"%s\" baz.\n" \
   "foo TXT foobar"
   int length = snprintf(dummy, sizeof(dummy), FMT, path);
-  assert_true(length > 0 && length < INT_MAX - ZONE_PADDING_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_PADDING_SIZE);
+  assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
+  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, FMT, path);
 #undef FMT

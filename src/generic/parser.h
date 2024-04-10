@@ -203,7 +203,7 @@ static never_inline int32_t raise_error(
 {
   va_list arguments;
   uint32_t category = ZONE_ERROR;
-  if (code == ZONE_SEMANTIC_ERROR && parser->options.non_strict)
+  if (code == ZONE_SEMANTIC_ERROR && parser->options.secondary)
     category = ZONE_WARNING;
   va_start(arguments, format);
   zone_vlog(parser, category, format, arguments);
@@ -291,7 +291,7 @@ static int32_t refill(parser_t *parser)
     if (parser->file->buffer.size >= MAXIMUM_WINDOW_SIZE)
       SYNTAX_ERROR(parser, "Impossibly large input, exceeds %zu bytes", size);
     size += ZONE_WINDOW_SIZE;
-    if (!(data = realloc(parser->file->buffer.data, size + 1 + ZONE_PADDING_SIZE)))
+    if (!(data = realloc(parser->file->buffer.data, size + 1 + ZONE_BLOCK_SIZE)))
       OUT_OF_MEMORY(parser, "Not enough memory to allocate buffer of %zu", size);
     parser->file->buffer.size = size;
     parser->file->buffer.data = data;

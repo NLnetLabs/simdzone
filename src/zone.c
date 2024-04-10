@@ -270,7 +270,7 @@ static int32_t open_file(
   parser_t *parser, file_t *file, const char *include, size_t length)
 {
   int32_t code;
-  const size_t size = ZONE_WINDOW_SIZE + 1 + ZONE_PADDING_SIZE;
+  const size_t size = ZONE_WINDOW_SIZE + 1 + ZONE_BLOCK_SIZE;
 
   initialize_file(parser, file);
 
@@ -362,7 +362,7 @@ static int32_t initialize_parser(
     return ZONE_BAD_PARAMETER;
   if (!options->default_ttl)
     return ZONE_BAD_PARAMETER;
-  if (!options->non_strict && options->default_ttl > INT32_MAX)
+  if (!options->secondary && options->default_ttl > INT32_MAX)
     return ZONE_BAD_PARAMETER;
   if (!options->origin.octets || !options->origin.length)
     return ZONE_BAD_PARAMETER;

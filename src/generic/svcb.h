@@ -366,35 +366,6 @@ static int32_t parse_unknown(
   return 0;
 }
 
-/**
- * @defgroup svc_params Service Parameter Keys
- *
- * [IANA registered service parameter keys](https://www.iana.org/assignments/dns-svcb/dns-svcb.xhtml)
- *
- * @{
- */
-/** Parameters clients must not ignore @rfc{9460} */
-#define SVC_PARAM_KEY_MANDATORY (0u)
-/** Application Layer Protocol Negotiation (ALPN) protocol identifiers @rfc{9460} */
-#define SVC_PARAM_KEY_ALPN (1u)
-/** No support for default protocol (alpn must be specified) @rfc{9460} */
-#define SVC_PARAM_KEY_NO_DEFAULT_ALPN (2u)
-/** TCP or UDP port for alternative endpoint @rfc{9460} */
-#define SVC_PARAM_KEY_PORT (3u)
-/** IPv4 address hints @rfc{9460} */
-#define SVC_PARAM_KEY_IPV4HINT (4u)
-/** Encrypted ClientHello (ECH) configuration @draft{ietf, tls-svcb-ech} */
-#define SVC_PARAM_KEY_ECH (5u)
-/** IPv6 address hints @rfc{9460} */
-#define SVC_PARAM_KEY_IPV6HINT (6u)
-/** URI template in relative form @rfc{9461} */
-#define SVC_PARAM_KEY_DOHPATH (7u)
-/** Target is an Oblivious HTTP service @draft{ohai,svcb-config} */
-#define SVC_PARAM_KEY_OHTTP (8u)
-/** Reserved ("invalid key") @rfc{9460} */
-#define SVC_PARAM_KEY_INVALID_KEY (65535u)
-/** @} */
-
 nonnull_all
 static int32_t parse_mandatory_lax(
   parser_t *parser,
@@ -415,8 +386,8 @@ static int32_t parse_mandatory(
   rdata_t *rdata,
   const token_t *token);
 
-#define SVC_PARAM(name, key, value, parse, parse_non_strict) \
-  { { { name, sizeof(name) - 1 }, key }, value, parse, parse_non_strict }
+#define SVC_PARAM(name, key, value, parse, parse_lax) \
+  { { { name, sizeof(name) - 1 }, key }, value, parse, parse_lax }
 
 #define NO_VALUE (0u)
 #define OPTIONAL_VALUE (1u << 1)
@@ -497,23 +468,23 @@ static really_inline size_t scan_svc_param(
   //
   // FIXME: naive implementation
   if (memcmp(data, "mandatory", 9) == 0)
-    return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_MANDATORY)]), 9;
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_MANDATORY)]), 9;
   else if (memcmp(data, "alpn", 4) == 0)
-    return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_ALPN)]), 4;
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_ALPN)]), 4;
   else if (memcmp(data, "no-default-alpn", 15) == 0)
-    return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_NO_DEFAULT_ALPN)]), 15;
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_NO_DEFAULT_ALPN)]), 15;
   else if (memcmp(data, "port", 4) == 0)
-    return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_PORT)]), 4;
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_PORT)]), 4;
   else if (memcmp(data, "ipv4hint", 8) == 0)
-    return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_IPV4HINT)]), 8;
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_IPV4HINT)]), 8;
   else if (memcmp(data, "ech", 3) == 0)
-    return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_ECH)]), 3;
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_ECH)]), 3;
   else if (memcmp(data, "ipv6hint", 8) == 0)
-    return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_IPV6HINT)]), 8;
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_IPV6HINT)]), 8;
   else if (memcmp(data, "dohpath", 7) == 0)
-    return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_DOHPATH)]), 7;
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_DOHPATH)]), 7;
   else if (memcmp(data, "ohttp", 5) == 0)
-    return (void)(*param = &svc_params[(*key = SVC_PARAM_KEY_OHTTP)]), 5;
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_OHTTP)]), 5;
   else if (memcmp(data, "key", 3) == 0)
     return scan_unknown_svc_param_key(data, key, param);
   else
@@ -546,7 +517,7 @@ static int32_t parse_mandatory(
   //   This SvcParamKey is always automatically mandatory and MUST NOT appear
   //   in its own value-list. Other automatically mandatory keys SHOULD NOT
   //   appear in the list either.
-  uint64_t mandatory = (1u << SVC_PARAM_KEY_MANDATORY);
+  uint64_t mandatory = (1u << ZONE_SVC_PARAM_KEY_MANDATORY);
   uint64_t keys = 0u;
   int32_t highest_key = -1;
   const char *data = token->data;
@@ -556,10 +527,10 @@ static int32_t parse_mandatory(
   // RFC9460 section 9:
   //   The "automatically mandatory" keys (Section 8) are "port" and
   //   "no-default-alpn".
-  if (type->name.value == ZONE_HTTPS)
-    mandatory = (1u << SVC_PARAM_KEY_MANDATORY) |
-                (1u << SVC_PARAM_KEY_NO_DEFAULT_ALPN) |
-                (1u << SVC_PARAM_KEY_PORT);
+  if (type->name.value == ZONE_TYPE_HTTPS)
+    mandatory = (1u << ZONE_SVC_PARAM_KEY_MANDATORY) |
+                (1u << ZONE_SVC_PARAM_KEY_NO_DEFAULT_ALPN) |
+                (1u << ZONE_SVC_PARAM_KEY_PORT);
 
   // RFC9460 section 8:
   //   The presentation value SHALL be a comma-seperatred list of one or more
@@ -641,7 +612,7 @@ static int32_t parse_mandatory_lax(
   //   This SvcParamKey is always automatically mandatory and MUST NOT appear
   //   in its own value-list. Other automatically mandatory keys SHOULD NOT
   //   appear in the list either.
-  uint64_t mandatory = (1u << SVC_PARAM_KEY_MANDATORY);
+  uint64_t mandatory = (1u << ZONE_SVC_PARAM_KEY_MANDATORY);
   uint64_t keys = 0;
   // RFC9460 section 8:
   //   In wire format, the keys are represented by their numeric values in
@@ -665,10 +636,10 @@ static int32_t parse_mandatory_lax(
   // RFC9460 section 9:
   //   The "automatically mandatory" keys (Section 8) are "port" and
   //   "no-default-alpn".
-  if (type->name.value == ZONE_HTTPS)
-    mandatory = (1u << SVC_PARAM_KEY_MANDATORY) |
-                (1u << SVC_PARAM_KEY_NO_DEFAULT_ALPN) |
-                (1u << SVC_PARAM_KEY_PORT);
+  if (type->name.value == ZONE_TYPE_HTTPS)
+    mandatory = (1u << ZONE_SVC_PARAM_KEY_MANDATORY) |
+                (1u << ZONE_SVC_PARAM_KEY_NO_DEFAULT_ALPN) |
+                (1u << ZONE_SVC_PARAM_KEY_PORT);
 
   key = htobe16(key);
   memcpy(rdata->octets, &key, 2);
@@ -914,7 +885,7 @@ static really_inline int32_t parse_svc_params(
   token_t *token)
 {
   // propagate data as-is if secondary
-  if (parser->options.non_strict)
+  if (parser->options.secondary)
     return parse_svc_params_lax(parser, type, field, rdata, token);
 
   int32_t code;
@@ -985,12 +956,12 @@ static really_inline int32_t parse_svc_params(
       rdata_view.limit = parser->rdata->octets + (ZONE_RDATA_SIZE - length);
       // move data PADDING_SIZE past limit to ensure SIMD operatations
       // do not overwrite existing data
-      memmove(rdata_view.limit + ZONE_PADDING_SIZE, octets, length);
+      memmove(rdata_view.limit + ZONE_BLOCK_SIZE, octets, length);
       if ((code = parse_svc_param(
            parser, type, field, key, param, param->parse, &rdata_view, token)))
         return code;
       assert(rdata_view.octets < rdata_view.limit);
-      memmove(rdata_view.octets, rdata_view.limit + ZONE_PADDING_SIZE, length);
+      memmove(rdata_view.octets, rdata_view.limit + ZONE_BLOCK_SIZE, length);
       rdata->octets = rdata_view.octets + length;
       length = (uint16_t)(rdata_view.octets - octets) - 4u;
     }
@@ -1005,7 +976,7 @@ static really_inline int32_t parse_svc_params(
   if ((code = have_delimiter(parser, type, token)))
     return code;
   assert(whence);
-  if ((keys & (1u << SVC_PARAM_KEY_MANDATORY)) &&
+  if ((keys & (1u << ZONE_SVC_PARAM_KEY_MANDATORY)) &&
       (code = check_mandatory(parser, type, field, rdata, whence)) < 0)
     return code;
   // RFC9460 section 7.2:

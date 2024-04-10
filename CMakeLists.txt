@@ -8,7 +8,7 @@ project(
   simdzone
   LANGUAGES C
   VERSION 0.1.0
-  DESCRIPTION "Fast and standards compliant DNS zone parser")
+  DESCRIPTION "Fast and standards compliant DNS presentation format parser")
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
@@ -249,9 +249,13 @@ if(BUILD_DOCUMENTATION)
     "ZONE_EXPORT=")
   # https://datatracker.ietf.org/doc/rfc<xxx>/
   # https://datatracker.ietf.org/doc/draft-ietf-<xxx>-<yyy>/
+  # https://www.iana.org/assignments/<xxx>/<xxx>.xhtml#<yyy>
+  # https://github.com/NLnetLabs/simdzone/issues/<xxx>
   set(DOXYGEN_ALIASES
     "rfc{1}=\"<a href='https://datatracker.ietf.org/doc/rfc\\1/'>[RFC\\1]</a>\""
     "draft{2}=\"<a href='https://datatracker.ietf.org/doc/draft-ietf-\\1-\\2/'>[draft-ietf-\\1-\\2]</a>\""
+    "iana{3}=\"<a href='https://www.iana.org/assignments/\\2/\\2.xhtml#\\3'>\\1 registry</a>\""
+    "issue{1}=\"<a href='https://github.com/NLnetLabs/simdzone/issues/\\1'>#\\1</a>\""
     "obsolete=<b>(OBSOLETE)</b>"
     "experimental=<b>(EXPERIMENTAL)</b>")
   set(DOXYGEN_VERBATIM_VARS DOXYGEN_ALIASES)

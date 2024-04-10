@@ -221,6 +221,15 @@ static really_inline void write_indexes(parser_t *parser, const block_t *block, 
   // parser. escaped newlines may have been present in the last block
   uint64_t newlines = block->newline & (block->contiguous | block->in_quoted);
 
+  // non-delimiting tokens may contain (escaped) newlines. tracking newlines
+  // within tokens by taping them makes the lex operation more complex, resulting
+  // in a significantly larger binary and slower operation, and may introduce an
+  // infinite loop if the tape may not be sufficiently large enough. tokens
+  // containing newlines is very much an edge case, therefore the scanner
+  // implements an unlikely slow path that tracks the number of escaped newlines
+  // during tokenization and registers them with each consecutive newline token.
+  // this mode of operation nicely isolates location tracking in the scanner and
+  // accommodates parallel processing should that ever be desired
   if (unlikely(*parser->file->newlines.tail || newlines)) {
     for (uint64_t i=0; i < count; i++) {
       const uint64_t field = fields & -fields;
