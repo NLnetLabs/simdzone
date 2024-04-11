@@ -20,6 +20,7 @@ static inline uint64_t count_ones(uint64_t input_num) {
   return (uint64_t)_mm_popcnt_u64(input_num);
 }
 
+no_sanitize_undefined
 static inline uint64_t trailing_zeroes(uint64_t input_num) {
   return (uint64_t)__builtin_ctzll(input_num);
 }
