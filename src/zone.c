@@ -483,10 +483,12 @@ int32_t zone_parse_string(
   return code;
 }
 
-zone_nonnull((1,3))
+zone_nonnull((1,5))
 static void print_message(
   zone_parser_t *parser,
   uint32_t priority,
+  const char *file,
+  size_t line,
   const char *message,
   void *user_data)
 {
@@ -495,8 +497,8 @@ static void print_message(
   assert(parser->file);
   FILE *output = priority == ZONE_INFO ? stdout : stderr;
 
-  if (parser->file->name)
-    fprintf(output, "%s:%zu: %s\n", parser->file->name, parser->file->line, message);
+  if (file)
+    fprintf(output, "%s:%zu: %s\n", file, line, message);
   else
     fprintf(output, "%s\n", message);
 }
@@ -526,8 +528,10 @@ void zone_vlog(
     memcpy(message+(sizeof(message) - 4), "...", 3);
   if (parser->options.log.callback)
     callback = parser->options.log.callback;
-
-  callback(parser, priority, message, parser->user_data);
+  assert(parser->file);
+  const char *file = parser->file->name;
+  const size_t line = parser->file->line;
+  callback(parser, priority, file, line, message, parser->user_data);
 }
 
 void zone_log(
