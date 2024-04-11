@@ -1,7 +1,7 @@
 #
-# Makefile.in -- xxx
+# Makefile.in -- one file to make them all
 #
-# Copyright (c) 2022-2023, NLnet Labs. All rights reserved.
+# Copyright (c) 2022-2024, NLnet Labs. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -11,6 +11,7 @@ HASWELL = @HAVE_HASWELL@
 CC = @CC@
 CPPFLAGS = @CPPFLAGS@ -I./include -I./src -I.
 CFLAGS = @CFLAGS@
+DEPFLAGS = -MT $@ -MMD -MP -MF $(@:.o=.d)
 
 SOURCES = src/zone.c src/fallback/parser.c
 
@@ -27,7 +28,7 @@ EXPORT_HEADER = include/zone/export.h
 
 .PHONY: all clean
 
-all: libzone.a make.dep
+all: libzone.a
 
 clean:
 	@rm -f make.dep
@@ -45,26 +46,21 @@ realclean: distclean
 libzone.a: $(EXPORT_HEADER) $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 	$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 
-DEPENDS = $(OBJECTS:.o=.d) \
-          $($(WESTMERE)_OBJECTS:.o=.d) \
-          $($(HASWELL)_OBJECTS:.o=.d)
-
-%.d: %.c
-	@touch $@
 
 $(EXPORT_HEADER):
 	@echo "#define ZONE_EXPORT" > include/zone/export.h
 
-$(OBJECTS): $(SOURCES)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -o $@ -c $(@:.o=.c)
+$(OBJECTS): $(SOURCES) $(SOURCES:.c=.d)
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $<
 
-$(WESTMERE_OBJECTS): $(WESTMERE_SOURCES)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -march=westmere -MMD -o $@ -c $(@:.o=.c)
+$(WESTMERE_OBJECTS): $(WESTMERE_SOURCES) $(WESTMERE_SOURCES:.c=.d)
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $<
 
-$(HASWELL_OBJECTS): $(HASWELL_SOURCES)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -march=haswell -MMD -o $@ -c $(@:.o=.c)
+$(HASWELL_OBJECTS): $(HASWELL_SOURCES) $(HASWELL_SOURCES:.c=.d)
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $<
 
-make.dep: $(DEPENDS)
-	@cat $(DEPENDS) > $@
-
--include make.dep
+DEPENDS := $(SOURCES:.c=.d) \
+           $($(WESTMERE)_SOURCES:.c=.d) \
+           $($(HASWELL)_SOURCES:.c=.d)
+$(DEPENDS):
+-include $(wildcard $(DEPENDS))
