@@ -342,10 +342,14 @@ struct zone_parser;
  * By default messages are printed to stdout (info) and stderr (warnings,
  * errors). A custom log handler (callback) may be provided for better
  * integration of reporting.
+ *
+ * @note file maybe NULL if initial file does not exist.
  */
 typedef void(*zone_log_t)(
   zone_parser_t *,
   uint32_t, // priority
+  const char *, // file
+  size_t, // line
   const char *, // message
   void *); // user data
 

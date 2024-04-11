@@ -245,6 +245,7 @@ void include_from_string(void **state)
 
 typedef struct no_file_test no_file_test_t;
 struct no_file_test {
+  bool have_file;
   size_t accept_count, log_count;
 };
 
@@ -273,14 +274,18 @@ static int32_t no_such_file_accept(
 static void no_such_file_log(
   zone_parser_t *parser,
   uint32_t priority,
+  const char *file,
+  size_t line,
   const char *message,
   void *user_data)
 {
   (void)parser;
   (void)priority;
+  (void)line;
   if (!strstr(message, "no such file"))
     return;
   no_file_test_t *test = (no_file_test_t*)user_data;
+  test->have_file = file != NULL;
   test->log_count++;
 }
 
@@ -313,6 +318,7 @@ void the_file_that_wasnt(void **state)
   code = zone_parse(&parser, &options, &buffers, non_file, &test);
   free(non_file);
   assert_int_equal(code, ZONE_NOT_A_FILE);
+  assert_false(test.have_file);
   assert_true(test.log_count == 1);
   assert_true(test.accept_count == 0);
 }
@@ -351,6 +357,7 @@ void the_include_that_wasnt(void **state)
   free(include);
   free(non_include);
   assert_int_equal(code, ZONE_NOT_A_FILE);
+  assert_true(test.have_file);
   assert_true(test.log_count == 1);
   assert_true(test.accept_count == 0);
 }
@@ -379,11 +386,15 @@ static int32_t in_too_deep_accept(
 static void in_too_deep_log(
   zone_parser_t *parser,
   uint32_t priority,
+  const char *file,
+  size_t line,
   const char *message,
   void *user_data)
 {
   (void)parser;
   (void)priority;
+  (void)file;
+  (void)line;
 
   if (strstr(message, "nested too deeply"))
     *(size_t *)user_data |= 1u << 7;
