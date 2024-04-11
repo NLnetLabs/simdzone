@@ -51,13 +51,13 @@ $(EXPORT_HEADER):
 	@echo "#define ZONE_EXPORT" > include/zone/export.h
 
 $(OBJECTS): $(SOURCES) $(SOURCES:.c=.d)
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $<
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(@:.o=.c)
 
 $(WESTMERE_OBJECTS): $(WESTMERE_SOURCES) $(WESTMERE_SOURCES:.c=.d)
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $<
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $(@:.o=.c)
 
 $(HASWELL_OBJECTS): $(HASWELL_SOURCES) $(HASWELL_SOURCES:.c=.d)
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $<
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $(@:.o=.c)
 
 DEPENDS := $(SOURCES:.c=.d) \
            $($(WESTMERE)_SOURCES:.c=.d) \
