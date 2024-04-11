@@ -285,6 +285,39 @@ static void no_such_file_log(
 }
 
 /*!cmocka */
+void the_file_that_wasnt(void **state)
+{
+  // test parsing of nonexistent file is handled gracefully
+  zone_parser_t parser;
+  zone_options_t options;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  no_file_test_t test;
+  int32_t code;
+
+  memset(&options, 0, sizeof(options));
+  options.accept.callback = &no_such_file_accept;
+  options.log.callback = &no_such_file_log;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+
+  (void)state;
+
+  char *non_file = temporary_name();
+  assert_non_null(non_file);
+
+  memset(&test, 0, sizeof(test));
+  code = zone_parse(&parser, &options, &buffers, non_file, &test);
+  free(non_file);
+  assert_int_equal(code, ZONE_NOT_A_FILE);
+  assert_true(test.log_count == 1);
+  assert_true(test.accept_count == 0);
+}
+
+/*!cmocka */
 void the_include_that_wasnt(void **state)
 {
   // test $INCLUDE of nonexistent file is handled gracefully

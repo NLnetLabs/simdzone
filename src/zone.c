@@ -334,9 +334,21 @@ int32_t zone_open_file(
 
   if (!(*file = malloc(sizeof(**file))))
     return ZONE_OUT_OF_MEMORY;
-  if ((code = open_file(parser, *file, path, length)) < 0)
-    return (void)free(*file), code;
-  return 0;
+  if ((code = open_file(parser, *file, path, length)) == 0)
+    return 0;
+
+  free(*file);
+
+  const char *reason = NULL;
+  switch (code) {
+    case ZONE_OUT_OF_MEMORY: reason = "out of memory"; break;
+    case ZONE_NOT_PERMITTED: reason = "access denied"; break;
+    case ZONE_NOT_A_FILE:    reason = "no such file";  break;
+  }
+
+  assert(reason);
+  zone_error(parser, "Cannot open %.*s, %s", (int)length, path, reason);
+  return code;
 }
 
 nonnull_all
@@ -411,9 +423,19 @@ int32_t zone_open(
 
   if ((code = initialize_parser(parser, options, buffers, user_data)) < 0)
     return code;
-  if ((code = open_file(parser, &parser->first, path, strlen(path))) < 0)
-    return code;
-  return 0;
+  if ((code = open_file(parser, &parser->first, path, strlen(path))) == 0)
+    return 0;
+
+  const char *reason = NULL;
+  switch (code) {
+    case ZONE_OUT_OF_MEMORY: reason = "out of memory"; break;
+    case ZONE_NOT_PERMITTED: reason = "access denied"; break;
+    case ZONE_NOT_A_FILE:    reason = "no such file";  break;
+  }
+
+  assert(reason);
+  zone_error(parser, "Cannot open %s, %s", path, reason);
+  return code;
 }
 
 diagnostic_pop()
@@ -468,10 +490,15 @@ static void print_message(
   const char *message,
   void *user_data)
 {
-  FILE *output = priority == ZONE_INFO ? stdout : stderr;
-  const char *format = "%s:%zu: %s\n";
   (void)user_data;
-  fprintf(output, format, parser->file->name, parser->file->line, message);
+
+  assert(parser->file);
+  FILE *output = priority == ZONE_INFO ? stdout : stderr;
+
+  if (parser->file->name)
+    fprintf(output, "%s:%zu: %s\n", parser->file->name, parser->file->line, message);
+  else
+    fprintf(output, "%s\n", message);
 }
 
 void zone_vlog(
