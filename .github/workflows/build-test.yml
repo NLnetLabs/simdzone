@@ -18,7 +18,7 @@ jobs:
             build_type: Debug
             build_tool_options: -j 4
             analyzer: off
-            sanitizer: address
+            sanitizer: address,undefined
           - os: macos-12
             build_type: Debug
             build_tool_options: -j 4

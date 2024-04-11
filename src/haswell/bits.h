@@ -21,6 +21,7 @@ static inline uint64_t count_ones(uint64_t bits) {
   return (uint64_t)_mm_popcnt_u64(bits);
 }
 
+no_sanitize_undefined
 static inline uint64_t trailing_zeroes(uint64_t bits) {
   return (uint64_t)__builtin_ctzll(bits);
 }
