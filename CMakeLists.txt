@@ -63,6 +63,7 @@ endif()
 include(CheckIncludeFile)
 include(CheckCCompilerFlag)
 include(GenerateExportHeader)
+include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 include(CTest)
 
@@ -152,7 +153,8 @@ target_include_directories(
   zone PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
               $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
               $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+              $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 target_sources(zone PRIVATE
   src/zone.c src/fallback/parser.c)
@@ -270,3 +272,42 @@ if(BUILD_DOCUMENTATION)
     BUILDER html
     SOURCE_DIRECTORY doc/manual)
 endif()
+
+# Generate Package Configuration file
+configure_package_config_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/simdzoneConfig.cmake.in
+  simdzoneConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/simdzone)
+
+# Generate Package Version file
+write_basic_package_version_file(
+  simdzoneConfigVersion.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion)
+
+install(
+  FILES ${CMAKE_CURRENT_BINARY_DIR}/simdzoneConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/simdzoneConfigVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/simdzone)
+
+install(
+  FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/zone.h
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+install(
+  FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/zone/attributes.h
+        ${CMAKE_CURRENT_BINARY_DIR}/include/zone/export.h
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zone/)
+
+install(
+  EXPORT simdzone
+  FILE simdzoneTargets.cmake
+  NAMESPACE "simdzone::"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/simdzone)
+
+install(
+  TARGETS zone
+  EXPORT simdzone
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
