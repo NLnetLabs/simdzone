@@ -143,7 +143,7 @@ if(MINGW)
   set(CMAKE_STATIC_LIBRARY_PREFIX "")
 endif()
 
-add_library(zone STATIC)
+add_library(zone)
 
 generate_export_header(
   zone BASE_NAME ZONE EXPORT_FILE_NAME include/zone/export.h)
