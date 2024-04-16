@@ -492,6 +492,7 @@ static void print_message(
   const char *message,
   void *user_data)
 {
+  (void)parser;
   (void)user_data;
 
   assert(parser->file);
