@@ -9,9 +9,11 @@ WESTMERE = @HAVE_WESTMERE@
 HASWELL = @HAVE_HASWELL@
 
 CC = @CC@
-CPPFLAGS = @CPPFLAGS@ -I./include -I./src -I.
+CPPFLAGS = @CPPFLAGS@ -I$(srcdir)/include -I$(srcdir)/src -I.
 CFLAGS = @CFLAGS@
 DEPFLAGS = -MT $@ -MMD -MP -MF $(@:.o=.d)
+srcdir = @srcdir@
+VPATH = @srcdir@
 
 SOURCES = src/zone.c src/fallback/parser.c
 
@@ -31,7 +33,6 @@ EXPORT_HEADER = include/zone/export.h
 all: libzone.a
 
 clean:
-	@rm -f make.dep
 	@rm -f libzone.a
 	@rm -f $(OBJECTS) $(OBJECTS:.o=.d)
 	@rm -f $(WESTMERE_OBJECTS) $(WESTMERE_OBJECTS:.o=.d)
@@ -48,16 +49,20 @@ libzone.a: $(EXPORT_HEADER) $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJEC
 
 
 $(EXPORT_HEADER):
+	@mkdir -p include/zone
 	@echo "#define ZONE_EXPORT" > include/zone/export.h
 
 $(OBJECTS): $(SOURCES) $(SOURCES:.c=.d)
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(@:.o=.c)
+	@mkdir -p src/fallback
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(srcdir)/$(@:.o=.c)
 
 $(WESTMERE_OBJECTS): $(WESTMERE_SOURCES) $(WESTMERE_SOURCES:.c=.d)
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $(@:.o=.c)
+	@mkdir -p src/westmere
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $(srcdir)/$(@:.o=.c)
 
 $(HASWELL_OBJECTS): $(HASWELL_SOURCES) $(HASWELL_SOURCES:.c=.d)
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $(@:.o=.c)
+	@mkdir -p src/haswell
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $(srcdir)/$(@:.o=.c)
 
 DEPENDS := $(SOURCES:.c=.d) \
            $($(WESTMERE)_SOURCES:.c=.d) \
