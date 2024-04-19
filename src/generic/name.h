@@ -111,6 +111,7 @@ escaped:
       wire += count + 1;
       length += count + 1;
       left -= count + octet;
+      count += 1; // for correct carry
     } else {
       block.dots &= mask;
       text += count;

@@ -363,6 +363,7 @@ void names(void **state)
   static const char only_null_labels[] = "..";
   static const char last_label_is_null[] = "foo..";
   static const char first_label_is_null[] = "..foo";
+  static const char star_dot_3[] = "\\042.\\042.\\042.wcent.nlnetlabs.nl.";
 
   static const uint8_t owner_abs_0[] = { 1, 0, 0 };
   static const uint8_t owner_abs_spc[] = { 1, ' ', 0 };
@@ -409,6 +410,9 @@ void names(void **state)
     29,'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f',
        '0','1','2','3','4','5','6','7','8','9','a','b','c',
     0 };
+  static const uint8_t owner_star_dot_3[] = {
+    1, '*', 1, '*', 1, '*', 5, 'w', 'c', 'e', 'n', 't', 9, 'n', 'l', 'n', 'e', 't', 'l', 'a', 'b', 's', 2, 'n', 'l', 0
+  };
 
   static struct names_test tests[] = {
     { only_rel_label_too_long,  ZONE_SYNTAX_ERROR, { 0, NULL } },
@@ -432,7 +436,8 @@ void names(void **state)
     { "foo\\000.",              0, { 6, owner_abs_foo0 } },
     { "foo\\000\\000.",         0, { 7, owner_abs_foo00 } },
     { "foo\\..",                0, { 6, owner_abs_foodot } },
-    { "foo\\.",                 0, { 10, owner_rel_foodot } }
+    { "foo\\.",                 0, { 10, owner_rel_foodot } },
+    { star_dot_3,               0, { sizeof(owner_star_dot_3), owner_star_dot_3 } }
   };
 
   static const uint8_t origin[] = { 3, 'f', 'o', 'o', 0 };
