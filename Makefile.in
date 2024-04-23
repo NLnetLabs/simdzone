@@ -52,17 +52,22 @@ $(EXPORT_HEADER):
 	@mkdir -p include/zone
 	@echo "#define ZONE_EXPORT" > include/zone/export.h
 
-$(OBJECTS): $(SOURCES) $(SOURCES:.c=.d)
+$(OBJECTS):
 	@mkdir -p src/fallback
 	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(srcdir)/$(@:.o=.c)
 
-$(WESTMERE_OBJECTS): $(WESTMERE_SOURCES) $(WESTMERE_SOURCES:.c=.d)
+$(WESTMERE_OBJECTS):
 	@mkdir -p src/westmere
 	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $(srcdir)/$(@:.o=.c)
 
-$(HASWELL_OBJECTS): $(HASWELL_SOURCES) $(HASWELL_SOURCES:.c=.d)
+$(HASWELL_OBJECTS):
 	@mkdir -p src/haswell
 	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $(srcdir)/$(@:.o=.c)
+
+src/zone.o: $(srcdir)/src/zone.c src/zone.d
+src/fallback/parser.o: $(srcdir)/src/fallback/parser.c src/fallback/parser.d
+src/westmere/parser.o: $(srcdir)/src/westmere/parser.c src/westmere/parser.d
+src/haswell/parser.o: $(srcdir)/src/haswell/parser.c src/haswell/parser.d
 
 DEPENDS := $(SOURCES:.c=.d) \
            $($(WESTMERE)_SOURCES:.c=.d) \
