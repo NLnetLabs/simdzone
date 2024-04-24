@@ -9,22 +9,24 @@ WESTMERE = @HAVE_WESTMERE@
 HASWELL = @HAVE_HASWELL@
 
 CC = @CC@
-CPPFLAGS = @CPPFLAGS@ -I$(srcdir)/include -I$(srcdir)/src -I.
+CPPFLAGS = @CPPFLAGS@ -I$(SOURCE)/include -I$(SOURCE)/src -I.
 CFLAGS = @CFLAGS@
 DEPFLAGS = -MT $@ -MMD -MP -MF $(@:.o=.d)
-srcdir = @srcdir@
 VPATH = @srcdir@
 
-SOURCES = src/zone.c src/fallback/parser.c
-
-OBJECTS = $(SOURCES:.c=.o)
-NO_OBJECTS =
-
 WESTMERE_SOURCES = src/westmere/parser.c
-WESTMERE_OBJECTS = $(WESTMERE_SOURCES:.c=.o)
+WESTMERE_OBJECTS = $($(WESTMERE)_SOURCES:.c=.o)
 
 HASWELL_SOURCES = src/haswell/parser.c
-HASWELL_OBJECTS = $(HASWELL_SOURCES:.c=.o)
+HASWELL_OBJECTS = $($(HASWELL)_SOURCES:.c=.o)
+
+SOURCE = @srcdir@
+SOURCES = src/zone.c src/fallback/parser.c
+NO_SOURCES =
+OBJECTS = $(SOURCES:.c=.o) \
+          $($(WESTMERE)_SOURCES:.c=.o) \
+          $($(HASWELL)_SOURCES:.c=.o)
+DEPENDS = $(OBJECTS:.o=.d)
 
 EXPORT_HEADER = include/zone/export.h
 
@@ -33,10 +35,8 @@ EXPORT_HEADER = include/zone/export.h
 all: libzone.a
 
 clean:
-	@rm -f libzone.a
-	@rm -f $(OBJECTS) $(OBJECTS:.o=.d)
-	@rm -f $(WESTMERE_OBJECTS) $(WESTMERE_OBJECTS:.o=.d)
-	@rm -f $(HASWELL_OBJECTS) $(HASWELL_OBJECTS:.o=.d)
+	@rm -f .depend
+	@rm -f libzone.a $(OBJECTS)
 
 distclean: clean
 	@rm -f Makefile config.h config.log config.status
@@ -44,33 +44,25 @@ distclean: clean
 realclean: distclean
 	@rm -rf autom4te*
 
-libzone.a: $(EXPORT_HEADER) $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
-	$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
-
+libzone.a: $(EXPORT_HEADER) $(OBJECTS)
+	$(AR) rcs libzone.a $(OBJECTS)
 
 $(EXPORT_HEADER):
 	@mkdir -p include/zone
 	@echo "#define ZONE_EXPORT" > include/zone/export.h
 
-$(OBJECTS):
-	@mkdir -p src/fallback
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(srcdir)/$(@:.o=.c)
+$(WESTMERE_OBJECTS): CFLAGS += -march=westmere
+$(HASWELL_OBJECTS): CFLAGS += -march=haswell
 
-$(WESTMERE_OBJECTS):
-	@mkdir -p src/westmere
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $(srcdir)/$(@:.o=.c)
+$(OBJECTS): .depend
+	@mkdir -p src/fallback src/westmere src/haswell
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(SOURCE)/$(@:.o=.c)
+	@touch $@
 
-$(HASWELL_OBJECTS):
-	@mkdir -p src/haswell
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $(srcdir)/$(@:.o=.c)
+.depend:
+	@cat /dev/null > $@
+	@for x in $(OBJECTS:.o=); do echo "$${x}.o: $${x}.c $${x}.d" >> $@; done
 
-src/zone.o: $(srcdir)/src/zone.c src/zone.d
-src/fallback/parser.o: $(srcdir)/src/fallback/parser.c src/fallback/parser.d
-src/westmere/parser.o: $(srcdir)/src/westmere/parser.c src/westmere/parser.d
-src/haswell/parser.o: $(srcdir)/src/haswell/parser.c src/haswell/parser.d
-
-DEPENDS := $(SOURCES:.c=.d) \
-           $($(WESTMERE)_SOURCES:.c=.d) \
-           $($(HASWELL)_SOURCES:.c=.d)
+-include .depend
 $(DEPENDS):
--include $(wildcard $(DEPENDS))
+-include $(DEPENDS)
