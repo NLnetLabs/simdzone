@@ -61,7 +61,7 @@ $(OBJECTS): .depend
 
 .depend:
 	@cat /dev/null > $@
-	@for x in $(OBJECTS:.o=); do echo "$${x}.o: $${x}.c $${x}.d" >> $@; done
+	@for x in $(OBJECTS:.o=); do echo "$${x}.o: $(SOURCE)/$${x}.c $${x}.d" >> $@; done
 
 -include .depend
 $(DEPENDS):
