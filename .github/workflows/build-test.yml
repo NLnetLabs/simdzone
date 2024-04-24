@@ -20,6 +20,7 @@ jobs:
             analyzer: off
             sanitizer: address,undefined
           - os: macos-12
+            packages: automake
             build_type: Debug
             build_tool_options: -j 4
             analyzer: off
@@ -51,12 +52,18 @@ jobs:
         run: |
           $python_base = python -m site --user-base
           Write-Output "$python_base\\bin" >> $GITHUB_PATH
-      - uses: msys2/setup-msys2@v2
+      - name: 'Install macOS packages'
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew install ${{matrix.packages}}
+      - name: 'Install MSYS2 packages'
+        uses: msys2/setup-msys2@v2
         if: runner.os == 'Windows' && matrix.generator == 'MinGW Makefiles'
         with:
           update: false
           release: false
-          install: make gcc
+          install: make gcc base-devel autotools autoconf-wrapper
       - name: 'Workaround for actions/runner-images#9491'
         if: runner.os == 'Linux'
         run: sudo sysctl vm.mmap_rnd_bits=28
@@ -113,3 +120,13 @@ jobs:
           cd build
           ctest -j 4 --output-on-failure -T test -C ${BUILD_TYPE:-RelWithDebInfo}
           ZONE_KERNEL=fallback ctest -j 4 --output-on-failure -T test -C ${BUILD_TYPE:-RelWithDebInfo}
+      - name: 'Build simdzone with configure + make'
+        if: runner.os != 'Windows'
+        id: test_autoconf
+        shell: bash
+        run: |
+          set -e -x
+          echo $PATH
+          autoreconf -i
+          ./configure
+          make -j 2
