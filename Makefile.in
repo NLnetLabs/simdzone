@@ -14,19 +14,20 @@ CFLAGS = @CFLAGS@
 DEPFLAGS = -MT $@ -MMD -MP -MF $(@:.o=.d)
 VPATH = @srcdir@
 
+SOURCE = @srcdir@
+
+SOURCES = src/zone.c src/fallback/parser.c
+OBJECTS = $(SOURCES:.c=.o)
+
 WESTMERE_SOURCES = src/westmere/parser.c
-WESTMERE_OBJECTS = $($(WESTMERE)_SOURCES:.c=.o)
+WESTMERE_OBJECTS = $(WESTMERE_SOURCES:.c=.o)
 
 HASWELL_SOURCES = src/haswell/parser.c
-HASWELL_OBJECTS = $($(HASWELL)_SOURCES:.c=.o)
+HASWELL_OBJECTS = $(HASWELL_SOURCES:.c=.o)
 
-SOURCE = @srcdir@
-SOURCES = src/zone.c src/fallback/parser.c
-NO_SOURCES =
-OBJECTS = $(SOURCES:.c=.o) \
-          $($(WESTMERE)_SOURCES:.c=.o) \
-          $($(HASWELL)_SOURCES:.c=.o)
-DEPENDS = $(OBJECTS:.o=.d)
+NO_OBJECTS =
+
+DEPENDS = $(SOURCES:.c=.d) $(WESTMERE_SOURCES:.c=.d) $(HASWELL_SOURCES:.c=.d)
 
 EXPORT_HEADER = include/zone/export.h
 
@@ -44,24 +45,29 @@ distclean: clean
 realclean: distclean
 	@rm -rf autom4te*
 
-libzone.a: $(EXPORT_HEADER) $(OBJECTS)
-	$(AR) rcs libzone.a $(OBJECTS)
+libzone.a: $(EXPORT_HEADER) $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
+	$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 
 $(EXPORT_HEADER):
 	@mkdir -p include/zone
 	@echo "#define ZONE_EXPORT" > include/zone/export.h
 
-$(WESTMERE_OBJECTS): CFLAGS += -march=westmere
-$(HASWELL_OBJECTS): CFLAGS += -march=haswell
+$(WESTMERE_OBJECTS): .depend
+	@mkdir -p src/westmere
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $(SOURCE)/$(@:.o=.c)
+
+$(HASWELL_OBJECTS): .depend
+	@mkdir -p src/haswell
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $(SOURCE)/$(@:.o=.c)
 
 $(OBJECTS): .depend
-	@mkdir -p src/fallback src/westmere src/haswell
+	@mkdir -p src/fallback
 	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(SOURCE)/$(@:.o=.c)
 	@touch $@
 
 .depend:
 	@cat /dev/null > $@
-	@for x in $(OBJECTS:.o=); do echo "$${x}.o: $(SOURCE)/$${x}.c $${x}.d" >> $@; done
+	@for x in $(DEPENDS:.d=); do echo "$${x}.o: $(SOURCE)/$${x}.c $${x}.d" >> $@; done
 
 -include .depend
 $(DEPENDS):
