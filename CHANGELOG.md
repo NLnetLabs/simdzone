@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix makefile dependencies.
 - Fix makefile to use source directory for build dependencies.
 - Fix changelog to reflect v0.1.0 release.
+- Update makefile to not use target-specific variables.
 
 ## [0.1.0] - 2024-04-16
 
