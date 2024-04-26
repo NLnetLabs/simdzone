@@ -21,9 +21,13 @@ Contributions are very welcome!
    > Downloading zone data via the browser can be problematic. The
    > [The CZDS API client in Java][4] can be used as a workaround.
 
+3. The *Hint and Zone Files* can be obtained from Internet Assigned Numbers
+   Authority (IANA) [Root Zone Management][5] page.
+
 [2]: https://internetstiftelsen.se/en/zone-data/
 [3]: https://czds.icann.org/
 [4]: https://github.com/icann/czds-api-client-java/
+[5]: https://www.iana.org/domains/root
 
 ## Source layout
 
