@@ -11,7 +11,7 @@ HASWELL = @HAVE_HASWELL@
 CC = @CC@
 CPPFLAGS = @CPPFLAGS@ -I$(SOURCE)/include -I$(SOURCE)/src -I.
 CFLAGS = @CFLAGS@
-DEPFLAGS = -MT $@ -MMD -MP -MF $(@:.o=.d)
+DEPFLAGS = @DEPFLAGS@
 VPATH = @srcdir@
 
 SOURCE = @srcdir@
