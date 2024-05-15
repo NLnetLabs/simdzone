@@ -32,6 +32,13 @@ case "$enable_haswell" in
   yes|*) enable_haswell=yes ;;
 esac
 
+# GCC and Clang
+AX_CHECK_COMPILE_FLAG([-MMD],DEPFLAGS="-MMD -MP")
+# Oracle Developer Studio (no -MP)
+AX_CHECK_COMPILE_FLAG([-xMMD],DEPFLAGS="-xMMD")
+
+AC_SUBST([DEPFLAGS])
+
 # Figure out the canonical target architecture.
 AC_CANONICAL_TARGET
 
