@@ -118,7 +118,7 @@ static really_inline int32_t scan_type_or_class(
   const char *data, size_t length, uint16_t *code, const mnemonic_t **mnemonic)
 {
   uint64_t input0, input1;
-  static const uint64_t letter_mask = 0x40404040404040llu;
+  static const uint64_t letter_mask = 0x4040404040404040llu;
 
   // safe, input is padded
   memcpy(&input0, data, 8);
@@ -161,7 +161,7 @@ static really_inline int32_t scan_type(
   const char *data, size_t length, uint16_t *code, const mnemonic_t **mnemonic)
 {
   uint64_t input0, input1;
-  static const uint64_t letter_mask = 0x40404040404040llu;
+  static const uint64_t letter_mask = 0x4040404040404040llu;
 
   // safe, input is padded
   memcpy(&input0, data, 8);

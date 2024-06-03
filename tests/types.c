@@ -489,6 +489,16 @@ static const rdata_t nsec_rdata =
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x20);
 
+static const char nsec_text_2[] =
+  PAD("alfa.example.com. 86400 IN NSEC host.example.com. ns soa rrsig dnskey nsec3param");
+
+static const rdata_t nsec_rdata_2 =
+  RDATA(0x04, 'h',  'o',  's',  't',
+        0x07, 'e',  'x',  'a',  'm',  'p',  'l',  'e',
+        0x03, 'c',  'o',  'm',  0x00,
+	0x00, 0x07, 0x22, 0x00, 0x00, 0x00, 0x00, 0x02,
+	0x90);
+
 // https://datatracker.ietf.org/doc/html/rfc5155#appendix-B.2.1
 static const char nsec3_no_data_text[] =
   PAD("ji6neoaepv8b5o6k4ev33abha8ht9fgc.example. NSEC3 1 1 12 aabbccdd (\n"
@@ -948,6 +958,7 @@ static const test_t tests[] = {
   { ZONE_TYPE_IPSECKEY, ipseckey_ipv6_text, &ipseckey_ipv6_rdata },
   { ZONE_TYPE_IPSECKEY, ipseckey_name_text, &ipseckey_name_rdata },
   { ZONE_TYPE_NSEC, nsec_text, &nsec_rdata },
+  { ZONE_TYPE_NSEC, nsec_text_2, &nsec_rdata_2 },
   { ZONE_TYPE_NSEC3, nsec3_no_data_text, &nsec3_no_data_rdata },
   { ZONE_TYPE_DHCID, dhcid_text, &dhcid_rdata },
   { ZONE_TYPE_DHCID, dhcid_generic_text, &dhcid_rdata },
