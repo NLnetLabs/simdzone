@@ -40,7 +40,7 @@ AC_CANONICAL_TARGET
 case "$target" in
   *amd64*)  x86_64=yes ;;
   *x86_64*) x86_64=yes ;;
-  *)                   ;;
+  *)        x86_64=no  ;;
 esac
 
 if test $x86_64 = "yes"; then
