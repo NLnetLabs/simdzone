@@ -74,7 +74,18 @@
 #define le64toh(x) OSSwapLittleToHostInt64(x)
 
 #else
-#include <endian.h>
+
+#if defined(linux) || defined(__OpenBSD__)
+#  ifdef HAVE_ENDIAN_H
+#    include <endian.h>    /* attempt to define endianness */
+#  else
+#    include <machine/endian.h> /* on older OpenBSD */
+#  endif
+#endif
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+#include <sys/endian.h> /* attempt to define endianness */
+#endif
+
 #endif
 
 #endif // ENDIAN_H
