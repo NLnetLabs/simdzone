@@ -64,18 +64,17 @@ nonnull_all
 static really_inline const char *scan_contiguous(
   parser_t *parser, const char *start, const char *end)
 {
-  if (parser->file->state.is_escaped)
+  if (parser->file->state.is_escaped && start < end)
     goto escaped;
 
   while (start < end) {
     if (likely(classify[ (uint8_t)*start ] == CONTIGUOUS)) {
       if (unlikely(*start == '\\')) {
-escaped:
         if ((parser->file->state.is_escaped = (++start == end)))
           break;
+escaped:
         assert(start < end);
         parser->file->newlines.tail[0] += (*start == '\n');
-	continue;
       }
       start++;
     } else {
