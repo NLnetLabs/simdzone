@@ -35,14 +35,14 @@ nonnull_all
 static really_inline const char *scan_quoted(
   parser_t *parser, const char *start, const char *end)
 {
-  if (unlikely(parser->file->state.is_escaped))
+  if (unlikely(parser->file->state.is_escaped && start < end))
     goto escaped;
 
   while (start < end) {
     if (*start == '\\') {
-escaped:
       if ((parser->file->state.is_escaped = (++start == end)))
         break;
+escaped:
       assert(start < end);
       *parser->file->newlines.tail += (*start == '\n');
       start++;
