@@ -75,6 +75,7 @@ escaped:
           break;
         assert(start < end);
         parser->file->newlines.tail[0] += (*start == '\n');
+	continue;
       }
       start++;
     } else {

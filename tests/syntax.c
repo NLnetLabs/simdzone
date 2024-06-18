@@ -1049,3 +1049,73 @@ void origin_is_reinstated(void **state)
   assert_int_equal(code, ZONE_SUCCESS);
   assert_true(count == 3);
 }
+
+static int32_t contiguous_escaped_start_cb(
+  zone_parser_t *parser,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
+  uint16_t rdlength,
+  const uint8_t *rdata,
+  void *user_data)
+{
+  (void)parser;
+  (void)owner;
+  (void)type;
+  (void)class;
+  (void)ttl;
+  (void)rdlength;
+  (void)rdata;
+  (void)user_data;
+  return ZONE_SUCCESS;
+}
+
+/*!cmocka */
+void contiguous_escaped_start(void** state)
+{
+  /* Check that the fallback parser handles a scan of a contiguous segment
+   * that starts with is_escaped. */
+  char* zone =
+"$ORIGIN example.\n"
+"$TTL 3600\n"
+"@	IN	SOA	ns postmaster.mail 2147483647 3600 900 1814400 900\n"
+"	IN	NS	ns\n"
+"ns	IN	A	203.0.113.53\n"
+"ns	IN	AAAA	2001:db8:feed:beef::53\n"
+"\n"
+"0000000	IN	A	192.0.2.0\n"
+"0000000	IN	TYPE994	\\# 10 30313233343536373839\n"
+"0000001	IN	A	192.0.2.1\n"
+"0000001	IN	TYPE994	\\# 11 3031323334353637383961\n"
+"0000002	IN	A	192.0.2.2\n"
+"0000002	IN	TYPE994	\\# 12 303132333435363738396162\n"
+"0000003	IN	A	192.0.2.3\n"
+"0000003	IN	TYPE994	\\# 13 30313233343536373839616263\n"
+"0000004	IN	A	192.0.2.4\n"
+"0000004	IN	TYPE994	\\# 14 3031323334353637383961626364\n"
+"0000005	IN	A	192.0.2.5\n"
+"0000005	IN	TYPE994	\\# 15 303132333435363738396162636465\n"
+"0000006	IN	A	192.0.2.6\n"
+"0000006	IN	TYPE994	\\# 16 30313233343536373839616263646566\n"
+	;
+  static uint8_t origin[] = { 0 };
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options;
+  int32_t result;
+  (void) state;
+
+  memset(&options, 0, sizeof(options));
+  options.accept.callback = contiguous_escaped_start_cb;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = ZONE_CLASS_IN;
+
+  result = zone_parse_string(&parser, &options, &buffers, zone, strlen(zone),
+    NULL);
+  assert_int_equal(result, ZONE_SUCCESS);
+}
