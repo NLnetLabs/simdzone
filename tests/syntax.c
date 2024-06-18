@@ -1076,7 +1076,7 @@ void contiguous_escaped_start(void** state)
 {
   /* Check that the fallback parser handles a scan of a contiguous segment
    * that starts with is_escaped. */
-  char* zone =
+  char* zone = PAD(
 "$ORIGIN example.\n"
 "$TTL 3600\n"
 "@	IN	SOA	ns postmaster.mail 2147483647 3600 900 1814400 900\n"
@@ -1098,7 +1098,7 @@ void contiguous_escaped_start(void** state)
 "0000005	IN	TYPE994	\\# 15 303132333435363738396162636465\n"
 "0000006	IN	A	192.0.2.6\n"
 "0000006	IN	TYPE994	\\# 16 30313233343536373839616263646566\n"
-	;
+	);
   static uint8_t origin[] = { 0 };
   zone_parser_t parser;
   zone_name_buffer_t name;
@@ -1125,7 +1125,7 @@ void quoted_escaped_start(void** state)
 {
   /* Check that the fallback parser handles a scan of a quoted segment
    * that starts with is_escaped. */
-  char* zone =
+  char* zone = PAD(
 "$ORIGIN example.\n"
 "$TTL 3600\n"
 "@	IN	SOA	ns postmaster.mail 2147483647 3600 900 1814400 900\n"
@@ -1147,7 +1147,7 @@ void quoted_escaped_start(void** state)
 "0000005	IN	TYPE994	\\# 15 303132333435363738396162636465\n"
 "0000006	IN	A	192.0.2.6\n"
 "0000006	IN	TXT \"aaa\\#\"\n"
-	;
+	);
   static uint8_t origin[] = { 0 };
   zone_parser_t parser;
   zone_name_buffer_t name;
