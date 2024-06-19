@@ -74,6 +74,7 @@
 #define le64toh(x) OSSwapLittleToHostInt64(x)
 
 #else
+#include "config.h"
 
 #if defined(linux) || defined(__OpenBSD__)
 #  ifdef HAVE_ENDIAN_H

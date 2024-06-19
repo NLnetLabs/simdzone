@@ -1,3 +1,6 @@
+/* Wether or not have the <endian.h> header file */
+#undef HAVE_ENDIAN_H
+
 /* Wether or not to compile support for SSE4.2 */
 #undef HAVE_WESTMERE
 
