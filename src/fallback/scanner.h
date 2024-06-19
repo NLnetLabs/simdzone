@@ -40,9 +40,10 @@ static really_inline const char *scan_quoted(
 
   while (start < end) {
     if (*start == '\\') {
-      if ((parser->file->state.is_escaped = (++start == end)))
-        break;
+      start++;
 escaped:
+      if ((parser->file->state.is_escaped = (start == end)))
+        break;
       assert(start < end);
       *parser->file->newlines.tail += (*start == '\n');
       start++;
