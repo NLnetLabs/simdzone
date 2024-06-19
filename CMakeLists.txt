@@ -165,6 +165,11 @@ target_include_directories(
                      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 target_link_libraries(zone-bench PRIVATE zone)
 
+check_include_file(endian.h HAVE_ENDIAN_H)
+if (HAVE_ENDIAN_H)
+    add_definitions(-DHAVE_ENDIAN_H=1)
+endif()
+
 check_include_file(unistd.h HAVE_UNISTD_H)
 if(NOT HAVE_UNISTD_H)
   target_include_directories(
