@@ -70,9 +70,10 @@ static really_inline const char *scan_contiguous(
   while (start < end) {
     if (likely(classify[ (uint8_t)*start ] == CONTIGUOUS)) {
       if (unlikely(*start == '\\')) {
-        if ((parser->file->state.is_escaped = (++start == end)))
-          break;
+	start++;
 escaped:
+        if ((parser->file->state.is_escaped = (start == end)))
+          break;
         assert(start < end);
         parser->file->newlines.tail[0] += (*start == '\n');
       }
