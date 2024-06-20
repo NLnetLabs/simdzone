@@ -11,6 +11,7 @@
 /configure~
 /libzone.a
 /make.dep
+/.depend
 /Makefile
 /include/zone/export.h
 /src/config.h.in~
