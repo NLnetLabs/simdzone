@@ -286,14 +286,18 @@ static int32_t open_file(
   file->fields.tape[0] = &file->buffer.data[0];
   file->fields.tape[1] = &file->buffer.data[0];
 
-  const char *includer = "";
-  if (file != &parser->first)
-    includer = parser->file->path;
-  if(strcmp(file->name, "-") == 0) {
-    if(!(file->path = strdup(file->name)))
-      return ZONE_OUT_OF_MEMORY;
-  } else if ((code = resolve_path(includer, file->name, &file->path)))
-    return (void)close_file(parser, file), code;
+  if(0) {
+    const char *includer = "";
+    if (file != &parser->first)
+      includer = parser->file->path;
+    if ((code = resolve_path(includer, file->name, &file->path))) {
+      return (void)close_file(parser, file), code;
+    }
+  } else {
+    file->path = strdup(file->name);
+    if(!file->path)
+      return (void)close_file(parser, file), ZONE_OUT_OF_MEMORY;
+  }
 
   if(strcmp(file->path, "-") == 0) {
     file->handle = stdin;
