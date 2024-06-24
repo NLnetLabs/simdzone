@@ -290,7 +290,10 @@ static int32_t open_file(
     const char *includer = "";
     if (file != &parser->first)
       includer = parser->file->path;
-    if ((code = resolve_path(includer, file->name, &file->path))) {
+    if(strcmp(file->name, "-") == 0) {
+      if(!(file->path = strdup(file->name)))
+        return (void)close_file(parser, file), ZONE_OUT_OF_MEMORY;
+    } else if ((code = resolve_path(includer, file->name, &file->path))) {
       return (void)close_file(parser, file), code;
     }
   } else {
