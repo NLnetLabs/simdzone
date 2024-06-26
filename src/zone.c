@@ -39,6 +39,10 @@ static const char not_a_file[] = "<string>";
 #include "config.h"
 #include "isadetection.h"
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 #if HAVE_HASWELL
 extern int32_t zone_haswell_parse(parser_t *);
 #endif

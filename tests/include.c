@@ -25,6 +25,10 @@
 #include "zone.h"
 #include "diagnostic.h"
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 typedef struct input input_t;
 struct input {
   struct {
