@@ -15,6 +15,11 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <stddef.h>
+#if _WIN32
+#  include <direct.h>
+#else
+#  include <unistd.h>
+#endif
 
 #include "zone.h"
 
@@ -33,6 +38,10 @@ static const char not_a_file[] = "<string>";
 
 #include "config.h"
 #include "isadetection.h"
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 #if HAVE_HASWELL
 extern int32_t zone_haswell_parse(parser_t *);
@@ -140,23 +149,16 @@ static int32_t resolve_path(
   // support relative non-rooted paths only
   if (*includer && is_relative(include) && !is_rooted(include)) {
     assert(!is_relative(includer));
-    const char *separator = include;
-    for (const char *p = include; *p; p++)
-      if (is_separator((unsigned char)*p))
-        separator = p;
-    if (separator - include > INT_MAX)
-      return ZONE_OUT_OF_MEMORY;
     char buffer[16];
-    int offset = (int)(separator - includer);
     int length = snprintf(
-      buffer, sizeof(buffer), "%.*s/%s", offset, includer, include);
+      buffer, sizeof(buffer), "%s/%s", includer, include);
     if (length < 0)
       return ZONE_OUT_OF_MEMORY;
     char *absolute;
     if (!(absolute = malloc(length + 1)))
       return ZONE_OUT_OF_MEMORY;
     (void)snprintf(
-      absolute, (size_t)length + 1, "%.*s/%s", offset, includer, include);
+      absolute, (size_t)length + 1, "%s/%s", includer, include);
     *path = _fullpath(NULL, absolute, 0);
     free(absolute);
   } else {
@@ -174,20 +176,16 @@ static int32_t resolve_path(
 {
   if (*includer && *include != '/') {
     assert(*includer == '/');
-    const char *separator = strrchr(includer, '/');
-    if (separator - include > INT_MAX)
-      return ZONE_OUT_OF_MEMORY;
     char buffer[16];
-    int offset = (int)(separator - includer);
     int length = snprintf(
-      buffer, sizeof(buffer), "%.*s/%s", offset, includer, include);
+      buffer, sizeof(buffer), "%s/%s", includer, include);
     if (length < 0)
       return ZONE_OUT_OF_MEMORY;
     char *absolute;
     if (!(absolute = malloc((size_t)length + 1)))
       return ZONE_OUT_OF_MEMORY;
     (void)snprintf(
-      absolute, (size_t)length + 1, "%.*s/%s", offset, includer, include);
+      absolute, (size_t)length + 1, "%s/%s", includer, include);
     *path = realpath(absolute, NULL);
     free(absolute);
   } else {
@@ -286,14 +284,23 @@ static int32_t open_file(
   file->fields.tape[0] = &file->buffer.data[0];
   file->fields.tape[1] = &file->buffer.data[0];
 
-  const char *includer = "";
-  if (file != &parser->first)
-    includer = parser->file->path;
-  if(strcmp(file->name, "-") == 0) {
+  if(file == &parser->first && strcmp(file->name, "-") == 0) {
     if(!(file->path = strdup(file->name)))
-      return ZONE_OUT_OF_MEMORY;
-  } else if ((code = resolve_path(includer, file->name, &file->path)))
-    return (void)close_file(parser, file), code;
+      return (void)close_file(parser, file), ZONE_OUT_OF_MEMORY;
+  } else {
+    /* The file is resolved relative to the working directory. */
+    char workdir[PATH_MAX];
+#if _WIN32
+    if(!_getcwd(workdir, sizeof(workdir)))
+      return (void)close_file(parser, file), ZONE_NOT_A_FILE;
+#else
+    if(!getcwd(workdir, sizeof(workdir)))
+      return (void)close_file(parser, file), ZONE_NOT_A_FILE;
+#endif
+    if ((code = resolve_path(workdir, file->name, &file->path))) {
+      return (void)close_file(parser, file), code;
+    }
+  }
 
   if(strcmp(file->path, "-") == 0) {
     file->handle = stdin;

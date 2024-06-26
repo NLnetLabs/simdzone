@@ -787,9 +787,12 @@ void bad_includes(void **state)
   int result = fputs(include, handle);
   assert_true(result >= 0);
   (void)fclose(handle);
-  free(path);
   code = parse(include, &count);
+
+  remove_include(path);
+  free(path);
   free(include);
+
   assert_int_equal(code, ZONE_SYNTAX_ERROR);
 }
 
