@@ -13,8 +13,11 @@
 #include <stdlib.h>
 #include <cmocka.h>
 #include <limits.h>
+#include <sys/stat.h>
+#include <errno.h>
 #if _WIN32
 #include <process.h>
+#include <direct.h>
 #else
 #include <unistd.h>
 #endif
@@ -159,6 +162,14 @@ static char *generate_include(const char *text)
   }
   return NULL;
 }
+
+diagnostic_push()
+msvc_diagnostic_ignored(4996)
+static void remove_include(const char *path)
+{
+  unlink(path);
+}
+diagnostic_pop()
 
 static int32_t parse(
   const zone_options_t *options, const char *text, void *user_data)
@@ -451,6 +462,8 @@ void in_too_deep(void **state)
   assert_int_equal(code, ZONE_SUCCESS);
   assert_int_equal(records, 1u);
 
+  remove_include(deep);
+  remove_include(deeper);
   free(inception);
   free(deep);
   free(deeper);
@@ -487,8 +500,10 @@ void been_there_done_that(void **state)
   int result = fputs(include, handle);
   assert_true(result >= 0);
   (void)fclose(handle);
-  free(path);
   code = parse(&options, include, &count);
+
+  remove_include(path);
+  free(path);
   free(include);
   assert_int_equal(code, ZONE_SEMANTIC_ERROR);
 }
@@ -497,3 +512,101 @@ void been_there_done_that(void **state)
 // x. test $INCLUDE is denied for files if disabled all together
 //
 
+/*!cmocka */
+void include_relative(void **state)
+{
+  (void)state;
+  /* Test with a $INCLUDE from a subdirectory. Is it resolved relative
+   * to the working directory, and not relative to the includer file. */
+
+  zone_parser_t parser;
+  zone_options_t options;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+
+  memset(&options, 0, sizeof(options));
+  options.accept.callback = &no_such_file_accept;
+  options.log.callback = &no_such_file_log;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+  options.include_limit = 1;
+
+#if _WIN32
+  int pid = _getpid();
+#else
+  pid_t pid = getpid();
+#endif
+
+  char* inc1file = "content.inc";
+  char* inc2file = "example.com.zone";
+  char dir1[128], dir2[128];
+  snprintf(dir1, sizeof(dir1), "testdir.1.%d", (int)pid);
+  snprintf(dir2, sizeof(dir2), "testdir.2.%d", (int)pid);
+
+  if(
+#if _WIN32
+    _mkdir(dir1)
+#else
+    mkdir(dir1, 0755)
+#endif
+    != 0) {
+    printf("mkdir %s failed: %s\n", dir1, strerror(errno));
+    fail();
+  }
+  if(
+#if _WIN32
+    _mkdir(dir2)
+#else
+    mkdir(dir2, 0755)
+#endif
+    != 0) {
+    printf("mkdir %s failed: %s\n", dir2, strerror(errno));
+    fail();
+  }
+
+  char fname1[PATH_MAX], fname2[PATH_MAX];
+  snprintf(fname1, sizeof(fname1), "%s/%s", dir1, inc1file);
+  snprintf(fname2, sizeof(fname2), "%s/%s", dir2, inc2file);
+
+  FILE* handle = fopen(fname1, "wb");
+  assert_non_null(handle);
+  int result = fputs(
+"www A 1.2.3.4\n",
+    handle);
+  assert_true(result >= 0);
+  (void)fclose(handle);
+
+  handle = fopen(fname2, "wb");
+  assert_non_null(handle);
+  char zonetext[1024+PATH_MAX];
+  snprintf(zonetext, sizeof(zonetext),
+"; perform relative include\n"
+"example.com. IN SOA ns host 1 3600 300 7200 3600\n"
+"$INCLUDE %s\n"
+"mail A 1.2.3.5\n",
+    fname1);
+  result = fputs(zonetext, handle);
+  assert_true(result >= 0);
+  (void)fclose(handle);
+
+  no_file_test_t test;
+  memset(&test, 0, sizeof(test));
+  int32_t code;
+  code = zone_parse(&parser, &options, &buffers, fname2, &test);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_true(test.log_count == 0);
+  assert_true(test.accept_count == 3);
+
+  remove_include(fname1);
+  remove_include(fname2);
+#if _WIN32
+  (void)_rmdir(dir1);
+  (void)_rmdir(dir2);
+#else
+  (void)rmdir(dir1);
+  (void)rmdir(dir2);
+#endif
+}
