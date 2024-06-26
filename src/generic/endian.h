@@ -9,6 +9,8 @@
 #ifndef ENDIAN_H
 #define ENDIAN_H
 
+#include "config.h"
+
 #if _WIN32
 #include <stdlib.h>
 
@@ -49,13 +51,13 @@
 #elif __APPLE__
 #include <libkern/OSByteOrder.h>
 
-#ifndef BYTE_ORDER
+#if !defined BYTE_ORDER
 # define BYTE_ORDER __BYTE_ORDER__
 #endif
-#ifndef LITTLE_ENDIAN
+#if !defined LITTLE_ENDIAN
 # define LITTLE_ENDIAN __ORDER_LITTLE_ENDIAN__
 #endif
-#ifndef BIG_ENDIAN
+#if !defined BIG_ENDIAN
 # define BIG_ENDIAN __ORDER_BIG_ENDIAN__
 #endif
 
@@ -74,19 +76,27 @@
 #define le64toh(x) OSSwapLittleToHostInt64(x)
 
 #else
-#include "config.h"
-
-#if defined(linux) || defined(__OpenBSD__)
-#  ifdef HAVE_ENDIAN_H
-#    include <endian.h>    /* attempt to define endianness */
-#  else
-#    include <machine/endian.h> /* on older OpenBSD */
-#  endif
-#endif
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
-#include <sys/endian.h> /* attempt to define endianness */
+#if HAVE_ENDIAN_H
+#include <endian.h>
+#elif defined(__OpenBSD__)
+// endian.h was added in OpenBSD 5.6. machine/endian.h exports optimized
+// bswap routines for use in sys/endian.h, which it includes.
+#include <machine/endian.h>
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+#include <sys/endian.h>
 #endif
 
+#if !defined BYTE_ORDER
+#error "missing definition of BYTE_ORDER"
+#endif
+
+#if !defined LITTLE_ENDIAN
+#error "missing definition of LITTLE_ENDIAN"
+#endif
+
+#if !defined BIG_ENDIAN
+#error "missing definition of BIG_ENDIAN"
+#endif
 #endif
 
 #endif // ENDIAN_H
