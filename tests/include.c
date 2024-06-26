@@ -557,7 +557,11 @@ void include_relative(void **state)
     mkdir(dir1, 0755)
 #endif
     != 0) {
+#if _WIN32
+    printf("mkdir %s failed\n", dir1);
+#else
     printf("mkdir %s failed: %s\n", dir1, strerror(errno));
+#endif
     fail();
   }
   if(
@@ -567,7 +571,11 @@ void include_relative(void **state)
     mkdir(dir2, 0755)
 #endif
     != 0) {
+#if _WIN32
+    printf("mkdir %s failed\n", dir2);
+#else
     printf("mkdir %s failed: %s\n", dir2, strerror(errno));
+#endif
     fail();
   }
 
@@ -583,8 +591,8 @@ void include_relative(void **state)
   assert_true(result >= 0);
   (void)fclose(handle);
 
-  handle = fopen(fname2, "wb");
-  assert_non_null(handle);
+  FILE* handle2 = fopen(fname2, "wb");
+  assert_non_null(handle2);
   char zonetext[1024+PATH_MAX];
   snprintf(zonetext, sizeof(zonetext),
 "; perform relative include\n"
@@ -592,9 +600,9 @@ void include_relative(void **state)
 "$INCLUDE %s\n"
 "mail A 1.2.3.5\n",
     fname1);
-  result = fputs(zonetext, handle);
+  result = fputs(zonetext, handle2);
   assert_true(result >= 0);
-  (void)fclose(handle);
+  (void)fclose(handle2);
 
   no_file_test_t test;
   memset(&test, 0, sizeof(test));
