@@ -224,7 +224,7 @@ endif()
 # Autoconf is supported for easy inclusion of simdzone in NSD. To avoid having
 # to maintain multiple configuration headers, instead of using configure_file,
 # read config.h.in and replace occurences of "#undef XYZ".
-file(READ src/config.h.in template)
+file(READ src/cm_config.h.in template)
 
 set(expression "(^|\n)[ \t]*#[ \t]*undef[ \t]([a-zA-Z0-9_]+)[ \t]*(\n|$)")
 string(REGEX MATCHALL "${expression}" matches "${template}")
