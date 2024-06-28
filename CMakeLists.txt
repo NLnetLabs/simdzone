@@ -188,7 +188,27 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
   check_c_compiler_flag("-march=westmere" HAVE_MARCH_WESTMERE)
   check_c_compiler_flag("-march=haswell" HAVE_MARCH_HASWELL)
 
-  if(WESTMERE AND HAVE_IMMINTRIN_H AND HAVE_MARCH_WESTMERE)
+  # Check if the arch instruction set support includes the simd instructions.
+  if(HAVE_IMMINTRIN_H AND HAVE_MARCH_WESTMERE)
+    try_compile(MARCH_WESTMERE_WORKS ${CMAKE_BINARY_DIR}/temp
+      SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_westmere.c
+      COMPILE_DEFINITIONS "-march=westmere"
+      OUTPUT_VARIABLE MARCH_WESTMERE_OUTPUT)
+  endif()
+  #message(CONFIGURE_LOG "MARCH_WESTMERE_WORKS ${MARCH_WESTMERE_WORKS}")
+  #message(CONFIGURE_LOG "MARCH_WESTMERE_OUTPUT ${MARCH_WESTMERE_OUTPUT}")
+
+  if(HAVE_IMMINTRIN_H AND HAVE_MARCH_HASWELL)
+    try_compile(MARCH_HASWELL_WORKS ${CMAKE_BINARY_DIR}/temp2
+      SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_haswell.c
+      COMPILE_DEFINITIONS "-march=haswell"
+      OUTPUT_VARIABLE MARCH_HASWELL_OUTPUT)
+  endif()
+  #message(CONFIGURE_LOG "MARCH_HASWELL_WORKS ${MARCH_HASWELL_WORKS}")
+  #message(CONFIGURE_LOG "MARCH_HASWELL_OUTPUT ${MARCH_HASWELL_OUTPUT}")
+
+  if(WESTMERE AND HAVE_IMMINTRIN_H AND HAVE_MARCH_WESTMERE AND
+    MARCH_WESTMERE_WORKS)
     set(HAVE_WESTMERE TRUE)
     set_source_files_properties(
       src/westmere/parser.c PROPERTIES COMPILE_FLAGS "-march=westmere")
@@ -198,7 +218,8 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
     target_sources(zone-bench PRIVATE src/westmere/bench.c)
   endif()
 
-  if(HASWELL AND HAVE_IMMINTRIN_H AND HAVE_MARCH_HASWELL)
+  if(HASWELL AND HAVE_IMMINTRIN_H AND HAVE_MARCH_HASWELL AND
+    MARCH_HASWELL_WORKS)
     set(HAVE_HASWELL TRUE)
     set_source_files_properties(
       src/haswell/parser.c PROPERTIES COMPILE_FLAGS "-march=haswell")
