@@ -13,6 +13,7 @@
 #include <cmocka.h>
 
 #include "zone.h"
+#include "attributes.h"
 #include "generic/endian.h"
 
 static int32_t add_rr(

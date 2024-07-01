@@ -13,7 +13,12 @@
 #include <stdint.h>
 
 static inline bool add_overflow(uint64_t value1, uint64_t value2, uint64_t *result) {
+#if has_builtin(__builtin_uaddll_overflow)
   return __builtin_uaddll_overflow(value1, value2, (unsigned long long *)result);
+#else
+  *result = value1 + value2;
+  return *result < value1;
+#endif
 }
 
 static inline uint64_t count_ones(uint64_t input_num) {
@@ -21,8 +26,16 @@ static inline uint64_t count_ones(uint64_t input_num) {
 }
 
 no_sanitize_undefined
-static inline uint64_t trailing_zeroes(uint64_t input_num) {
-  return (uint64_t)__builtin_ctzll(input_num);
+static inline uint64_t trailing_zeroes(uint64_t mask) {
+#if has_builtin(__builtin_ctzll)
+  return (uint64_t)__builtin_ctzll(mask);
+#else
+  uint64_t result;
+  asm("bsfq %[mask], %[result]"
+      : [result] "=r" (result)
+      : [mask] "mr" (mask));
+  return result;
+#endif
 }
 
 // result might be undefined when input_num is zero
@@ -30,8 +43,16 @@ static inline uint64_t clear_lowest_bit(uint64_t input_num) {
   return input_num & (input_num-1);
 }
 
-static inline uint64_t leading_zeroes(uint64_t input_num) {
-  return (uint64_t)__builtin_clzll(input_num);
+static inline uint64_t leading_zeroes(uint64_t mask) {
+#if has_builtin(__builtin_clzll)
+  return (uint64_t)__builtin_clzll(mask);
+#else
+  uint64_t result;
+  asm("bsrq %[mask], %[result]" :
+      [result] "=r" (result) :
+      [mask] "mr" (mask));
+  return 63 ^ (int)result;
+#endif
 }
 
 static inline uint64_t prefix_xor(const uint64_t bitmask) {

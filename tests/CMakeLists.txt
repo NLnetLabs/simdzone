@@ -14,7 +14,7 @@ add_custom_command(
 add_custom_target(generate_xbounds_c DEPENDS "${xbounds_c}")
 
 target_link_libraries(zone-tests PRIVATE zone)
-target_sources(zone-tests PRIVATE "${xbounds_c}")
+target_sources(zone-tests PRIVATE "${xbounds_c}" tools.c)
 add_dependencies(zone-tests generate_xbounds_c)
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   target_compile_options(zone-tests PRIVATE -Wno-missing-prototypes -Wno-deprecated-declarations)

@@ -13,6 +13,7 @@
 #include <cmocka.h>
 
 #include "zone.h"
+#include "tools.h"
 
 // indexer(s) scans in 64-byte chunks, use white space for positioning
 
@@ -228,7 +229,7 @@ void contiguous_on_buffer_boundary(void **state)
   zone_buffers_t buffers = { 1, &owner, &rdata };
 
   // generate zone file to parse
-  char *path = tempnam(NULL, "xbounds");
+  char *path = get_tempnam(NULL, "xbounds");
   assert_non_null(path);
   FILE *handle = fopen(path, "wb");
   assert_non_null(handle);

@@ -59,8 +59,13 @@ static bool sse_parse_time(const char *date_string, uint32_t *time_in_second) {
   // or if months are in the range 12 to 19.
   __m128i abide_by_limits = _mm_subs_epu8(v, limit); // must be all zero
 
+#if defined __SUNPRO_C
+  __m128i byteflip = _mm_setr_epi64((__m64){0x0607040502030001ULL},
+                                    (__m64){0x0e0f0c0d0a0b0809ULL});
+#else
   __m128i byteflip = _mm_setr_epi64((__m64)0x0607040502030001ULL,
                                     (__m64)0x0e0f0c0d0a0b0809ULL);
+#endif
 
   __m128i little_endian = _mm_shuffle_epi8(v, byteflip);
   __m128i limit16 = _mm_setr_epi16(0x0909, 0x0909, 0x0102, 0x0301, 0x0203,
