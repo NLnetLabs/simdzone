@@ -19,6 +19,7 @@
 
 #include "zone.h"
 #include "diagnostic.h"
+#include "tools.h"
 
 #define PAD(literal) \
   literal \
@@ -592,7 +593,7 @@ static int32_t parse(const char *text, size_t *count)
 
 static char *generate_include(const char *text)
 {
-  char *path = tempnam(NULL, "zone");
+  char *path = get_tempnam(NULL, "zone");
   if (path) {
     FILE *handle = fopen(path, "wbx");
     if (handle) {

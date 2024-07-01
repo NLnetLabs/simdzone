@@ -2,6 +2,7 @@ find_package(cmocka REQUIRED)
 cmocka_add_tests(zone-tests types.c include.c ip4.c time.c base32.c svcb.c syntax.c eui.c)
 
 target_link_libraries(zone-tests PRIVATE zone)
+target_sources(zone-tests PRIVATE tools.c)
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   target_compile_options(zone-tests PRIVATE -Wno-missing-prototypes -Wno-deprecated-declarations)
 elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
