@@ -10,7 +10,7 @@
 #define BASE32_H
 
 #include <stdint.h>
-#include <x86intrin.h> // update if we need to support Windows.
+#include <immintrin.h>
 
 
 //////////////////////////
@@ -37,7 +37,7 @@ static size_t base32hex_sse(uint8_t *dst, const uint8_t *src) {
     unsigned int m = (unsigned)_mm_movemask_epi8(check);
 
     if (m) {
-      int length = __builtin_ctz(m);
+      int length = (int)trailing_zeroes(m);
       if (length == 0) {
         break;
       }

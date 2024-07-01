@@ -32,6 +32,8 @@ typedef zone_file_t file_t;
 #if _MSC_VER
 # define strcasecmp(s1, s2) _stricmp(s1, s2)
 # define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+#else
+#include <strings.h>
 #endif
 
 static const char not_a_file[] = "<string>";

@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if _WIN32
+#if !defined(HAVE_GETOPT)
 # include "getopt.h"
 #else
 # include <unistd.h>

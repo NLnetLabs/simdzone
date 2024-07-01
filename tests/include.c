@@ -24,6 +24,7 @@
 
 #include "zone.h"
 #include "diagnostic.h"
+#include "tools.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -52,13 +53,13 @@ int teardown(void **state)
   if (input->includer.handle) {
     (void)fclose(input->includer.handle);
     assert(input->includer.path);
-    unlink(input->includer.path);
+    remove(input->includer.path);
   }
 
   if (input->include.handle) {
     (void)fclose(input->include.handle);
     assert(input->include.path);
-    unlink(input->include.path);
+    remove(input->include.path);
   }
 
   if (input->includer.path)
@@ -86,7 +87,7 @@ int setup(void **state)
   for (int i=0; i < 100 && !input->includer.handle; i++) {
     if (input->includer.path)
       free(input->includer.path);
-    input->includer.path = tempnam(NULL, "zone");
+    input->includer.path = get_tempnam(NULL, "zone");
     if (!input->includer.path)
       goto err;
     input->includer.handle = fopen(input->includer.path, "wbx");
@@ -98,7 +99,7 @@ int setup(void **state)
   for (int i=0; i < 100 && !input->include.handle; i++) {
     if (input->include.path)
       free(input->include.path);
-    input->include.path = tempnam(NULL, "zone");
+    input->include.path = get_tempnam(NULL, "zone");
     if (!input->includer.path)
       goto err;
     input->include.handle = fopen(input->include.path, "wbx");
@@ -135,23 +136,10 @@ err:
   return -1;
 }
 
-static char *temporary_name(void)
-{
-#if _WIN32
-  int pid = _getpid();
-#else
-  pid_t pid = getpid();
-#endif
-
-  char format[128];
-  snprintf(format, sizeof(format), "zone.%d", pid);
-  return tempnam(NULL, format);
-}
-
 static char *generate_include(const char *text)
 {
   for (int i=0; i < 100; i++) {
-    char *path = temporary_name();
+    char *path = get_tempnam(NULL, "zone");
     if (path) {
       FILE *handle = fopen(path, "wbx");
       if (handle) {
@@ -326,7 +314,7 @@ void the_file_that_wasnt(void **state)
 
   (void)state;
 
-  char *non_file = temporary_name();
+  char *non_file = get_tempnam(NULL, "zone");
   assert_non_null(non_file);
 
   memset(&test, 0, sizeof(test));
@@ -356,7 +344,7 @@ void the_include_that_wasnt(void **state)
 
   (void)state;
 
-  char *non_include = temporary_name();
+  char *non_include = get_tempnam(NULL, "zone");
   assert_non_null(non_include);
 
   char buffer[16];

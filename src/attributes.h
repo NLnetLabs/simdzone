@@ -24,6 +24,12 @@
 # define unlikely(params) (params)
 
 #else // _MSC_VER
+#if defined __has_builtin
+# define has_builtin(params) __has_builtin(params)
+#else
+# define has_builtin(params) (0)
+#endif
+
 # if (zone_has_attribute(always_inline) || zone_has_gnuc(3, 1)) && ! defined __NO_INLINE__
     // Compilation using GCC 4.2.1 without optimizations fails.
     //   sorry, unimplemented: inlining failed in call to ...
@@ -52,7 +58,7 @@
 #   define no_sanitize_undefined __attribute__((no_sanitize("undefined")))
 # elif zone_has_attribute(no_sanitize_undefined)
     // GCC 4.9.0 added the UndefinedBehaviorSanitizer (ubsan) and the
-		// no_sanitize_undefined function attribute.
+    // no_sanitize_undefined function attribute.
 #   define no_sanitize_undefined
 # else
 #   define no_sanitize_undefined

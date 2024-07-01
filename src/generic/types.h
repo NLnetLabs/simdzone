@@ -66,15 +66,8 @@ static really_inline int32_t parse_text(
 #define UNKNOWN_TYPE(code) \
   { { { "", 0 }, code }, 0, false, false, { 0, NULL }, check_generic_rr, parse_unknown_rdata }
 
-#if _WIN32
-// FIXME: check functions can be simplified as int32_t is wide enough to
-//        represent errors and the maximum length of rdata.
-#include <basetsd.h>
-typedef SSIZE_T ssize_t;
-#endif
-
 nonnull((1,2,3,4))
-static really_inline ssize_t check_bytes(
+static really_inline int32_t check_bytes(
   parser_t *parser,
   const type_info_t *type,
   const rdata_info_t *field,
@@ -85,7 +78,7 @@ static really_inline ssize_t check_bytes(
   (void)data;
   if (length < size)
     SYNTAX_ERROR(parser, "Missing %s in %s", NAME(field), NAME(type));
-  return (ssize_t)size;
+  return (int32_t)size;
 }
 
 #define check_int8(...) check_bytes(__VA_ARGS__, sizeof(uint8_t))
@@ -101,7 +94,7 @@ static really_inline ssize_t check_bytes(
 #define check_ilnp64(...) check_bytes(__VA_ARGS__, sizeof(uint64_t))
 
 nonnull((1,2,3,4))
-static really_inline ssize_t check_ttl(
+static really_inline int32_t check_ttl(
   parser_t *parser,
   const type_info_t *type,
   const rdata_info_t *field,
@@ -123,57 +116,57 @@ static really_inline ssize_t check_ttl(
 }
 
 zone_nonnull((1,2,3,4))
-static really_inline ssize_t check_name(
+static really_inline int32_t check_name(
   parser_t *parser,
   const type_info_t *type,
   const rdata_info_t *field,
   const uint8_t *data,
   const size_t length)
 {
-  size_t label = 0, count = 0;
-  while (count < length) {
+  int32_t label = 0, count = 0;
+  while (count < (int32_t)length) {
     label = data[count];
     count += 1 + label;
     if (!label)
       break;
   }
 
-  if (!count || count > length)
+  if (!count || count > (int32_t)length)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  return (ssize_t)count;
+  return count;
 }
 
 zone_nonnull((1,2,3,4))
-static really_inline ssize_t check_string(
+static really_inline int32_t check_string(
   parser_t *parser,
   const type_info_t *type,
   const rdata_info_t *field,
   const uint8_t *data,
   const size_t length)
 {
-  size_t count;
+  int32_t count;
 
-  if (!length || (count = 1 + (size_t)data[0]) > length)
+  if (!length || (count = 1 + (int32_t)data[0]) > (int32_t)length)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  return (ssize_t)count;
+  return count;
 }
 
 zone_nonnull((1,2,3,4))
-static really_inline ssize_t check_nsec(
+static really_inline int32_t check_nsec(
   parser_t *parser,
   const type_info_t *type,
   const rdata_info_t *field,
   const uint8_t *data,
   const size_t length)
 {
-  size_t count = 0;
+  int32_t count = 0;
   int32_t last_window = -1;
 
-  while ((count + 2) < length) {
+  while ((count + 2) < (int32_t)length) {
     const int32_t window = (int32_t)data[0];
-    const size_t blocks = (size_t)data[1];
+    const int32_t blocks = (int32_t)data[1];
     if (window <= last_window)
       SYNTAX_ERROR(parser, "Invalid %s in %s, windows are out-of-order",
                    NAME(field), NAME(type));
@@ -184,17 +177,17 @@ static really_inline ssize_t check_nsec(
     last_window = window;
   }
 
-  if (count != length)
+  if (count != (int32_t)length)
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(field), NAME(type));
 
-  return (ssize_t)count;
+  return count;
 }
 
 zone_nonnull((1))
-static really_inline int32_t check(size_t *length, ssize_t count)
+static really_inline int32_t check(size_t *length, int32_t count)
 {
   if (count < 0)
-    return (int32_t)count;
+    return count;
   *length += (size_t)count;
   return 0;
 }

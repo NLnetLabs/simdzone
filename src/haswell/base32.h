@@ -10,8 +10,6 @@
 #define BASE32_H
 
 #include <stdint.h>
-#include <x86intrin.h> // update if we need to support Windows.
-
 
 //////////////////////////
 /// Source: Wojciech Muła, Daniel Lemire, Faster Base64 Encoding and Decoding Using AVX2 Instructions,
@@ -44,7 +42,7 @@ static size_t base32hex_avx(uint8_t *dst, const uint8_t *src) {
     unsigned int m = (unsigned)_mm256_movemask_epi8(check);
 
     if (m) {
-      int length = __builtin_ctz(m);
+      int length = (int)trailing_zeroes(m);
       if (length == 0) {
         break;
       }
