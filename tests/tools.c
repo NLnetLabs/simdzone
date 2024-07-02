@@ -58,17 +58,17 @@ char *get_tempnam(const char *dir, const char *pfx)
 
   static unsigned int count = 0;
 
-  srand(getpid() + count++);
+  srand((unsigned int)getpid() + count++);
 
   for (unsigned int i = 0; i < 1000; i++) {
     char tmp[16];
     int rnd = rand();
     int len = snprintf(tmp, sizeof(tmp), "%s/%s.%d", tmpdir, pfx, rnd);
-    assert(len != -1);
-    char *tmpfile = malloc(len + 1);
+    assert(len >= 0);
+    char *tmpfile = malloc((unsigned int)len + 1);
     if (!tmpfile)
       return NULL;
-    (void)snprintf(tmpfile, len + 1, "%s/%s.%d", tmpdir, pfx, rnd);
+    (void)snprintf(tmpfile, (unsigned int)len + 1, "%s/%s.%d", tmpdir, pfx, rnd);
     struct stat sb;
     if (stat(tmpfile, &sb) == -1)
       return tmpfile;
