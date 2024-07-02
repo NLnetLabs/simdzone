@@ -1,7 +1,17 @@
 find_package(cmocka REQUIRED)
-cmocka_add_tests(zone-tests types.c include.c ip4.c time.c base32.c svcb.c syntax.c eui.c)
+if(HAVE_WESTMERE)
+  set(sources ${sources} westmere/bits.c)
+  set_source_files_properties(westmere/bits.c PROPERTIES COMPILE_FLAGS "-march=westmere")
+endif()
+if(HAVE_HASWELL)
+  set(sources ${sources} haswell/bits.c)
+  set_source_files_properties(haswell/bits.c PROPERTIES COMPILE_FLAGS "-march=haswell")
+endif()
+
+cmocka_add_tests(zone-tests types.c include.c ip4.c time.c base32.c svcb.c syntax.c eui.c bits.c)
 
 target_link_libraries(zone-tests PRIVATE zone)
+target_sources(zone-tests PRIVATE tools.c fallback/bits.c ${sources})
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   target_compile_options(zone-tests PRIVATE -Wno-missing-prototypes -Wno-deprecated-declarations)
 elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")

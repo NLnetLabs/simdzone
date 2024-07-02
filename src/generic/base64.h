@@ -575,7 +575,13 @@ static really_inline int base64_stream_decode(
   // Duff's device again:
   switch (st.bytes)
   {
+#if defined(__SUNPRO_C)
+#pragma error_messages(off, E_STATEMENT_NOT_REACHED)
+#endif
     for (;;)
+#if defined(__SUNPRO_C)
+#pragma error_messages(default, E_STATEMENT_NOT_REACHED)
+#endif
     {
     case 0:
       dec_loop_generic_32(&s, &slen, &o, &olen);

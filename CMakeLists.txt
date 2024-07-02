@@ -62,6 +62,7 @@ if(CMAKE_VERSION VERSION_LESS 3.20)
 endif()
 include(CheckIncludeFile)
 include(CheckCCompilerFlag)
+include(CheckSymbolExists)
 include(GenerateExportHeader)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
@@ -168,7 +169,8 @@ target_link_libraries(zone-bench PRIVATE zone)
 check_include_file(endian.h HAVE_ENDIAN_H)
 
 check_include_file(unistd.h HAVE_UNISTD_H)
-if(NOT HAVE_UNISTD_H)
+check_symbol_exists(getopt unistd.h HAVE_GETOPT)
+if(NOT HAVE_UNISTD_H OR NOT HAVE_GETOPT)
   target_include_directories(
     zone-bench PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/compat>)
   target_sources(zone-bench PRIVATE compat/getopt.c)
@@ -222,7 +224,7 @@ foreach(match ${matches})
     set(prefix "${CMAKE_MATCH_1}")
     set(variable "${CMAKE_MATCH_2}")
     set(suffix "${CMAKE_MATCH_3}")
-    if(NOT DEFINED ${variable} OR
+    if(NOT DEFINED ${variable} OR NOT ${variable} OR
        ${variable} MATCHES "^[Ff][Aa][Ll][Ss][Ee]$" OR
        ${variable} MATCHES "^[Oo][Ff][Ff]")
       set(replace "${prefix}/* #undef ${variable} */${suffix}")
