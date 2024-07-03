@@ -11,6 +11,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <immintrin.h>
 
 static inline bool add_overflow(uint64_t value1, uint64_t value2, uint64_t *result) {
 #if has_builtin(__builtin_uaddll_overflow)
