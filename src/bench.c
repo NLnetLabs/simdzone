@@ -14,7 +14,6 @@
 # include "getopt.h"
 #else
 # include <unistd.h>
-# include <strings.h>
 #endif
 
 #include "zone.h"
@@ -26,6 +25,8 @@
 #if _MSC_VER
 #define strcasecmp(s1, s2) _stricmp(s1, s2)
 #define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
+#else
+#include <strings.h>
 #endif
 
 typedef zone_parser_t parser_t;

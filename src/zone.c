@@ -293,8 +293,10 @@ static int32_t open_file(
   file->fields.tape[1] = &file->buffer.data[0];
 
   if(file == &parser->first && strcmp(file->name, "-") == 0) {
-    if(!(file->path = strdup(file->name)))
+    if (!(file->path = malloc(2)))
       return (void)close_file(parser, file), ZONE_OUT_OF_MEMORY;
+    file->path[0] = '-';
+    file->path[1] = '\0';
   } else {
     /* The file is resolved relative to the working directory. */
     char workdir[PATH_MAX];
