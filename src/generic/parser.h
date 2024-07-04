@@ -295,6 +295,8 @@ static int32_t refill(parser_t *parser)
       OUT_OF_MEMORY(parser, "Not enough memory to allocate buffer of %zu", size);
     parser->file->buffer.size = size;
     parser->file->buffer.data = data;
+    // update reference to partial token
+    parser->file->fields.head[0] = data;
   }
 
   size_t count = fread(
