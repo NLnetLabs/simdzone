@@ -69,9 +69,10 @@ static really_inline const char *scan_contiguous(
     goto escaped;
 
   while (start < end) {
-    if (likely(classify[ (uint8_t)*start ] == CONTIGUOUS)) {
+    // null-byte is considered contiguous by the indexer (for now)
+    if (likely((classify[ (uint8_t)*start ] & ~CONTIGUOUS) == 0)) {
       if (unlikely(*start == '\\')) {
-	start++;
+        start++;
 escaped:
         if ((parser->file->state.is_escaped = (start == end)))
           break;
@@ -105,7 +106,8 @@ static really_inline void scan(
     const int32_t code = classify[(uint8_t)*start];
     if (code == BLANK) {
       start++;
-    } else if (code == CONTIGUOUS) {
+    } else if ((code & ~CONTIGUOUS) == 0) {
+      // null-byte is considered contiguous by the indexer (for now)
       *parser->file->fields.tail++ = start;
       start = scan_contiguous(parser, start, end);
     } else if (code == LINE_FEED) {
