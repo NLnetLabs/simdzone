@@ -48,7 +48,8 @@ static const tuple_t services[] = {
   { "ftps-data", 989 },
   { "ftps", 990 },
   { "imaps", 993 },
-  { "pop3s", 995 }
+  { "pop3s", 995 },
+  { "time", 37 }
 };
 
 const uint64_t original_magic = 138261570llu; // established after first run
