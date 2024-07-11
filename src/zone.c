@@ -176,9 +176,11 @@ nonnull_all
 static int32_t resolve_path(
   const char *includer, const char *include, char **path)
 {
+  char *resolved;
+  char buffer[PATH_MAX + 1];
+
   if (*includer && *include != '/') {
     assert(*includer == '/');
-    char buffer[16];
     int length = snprintf(
       buffer, sizeof(buffer), "%s/%s", includer, include);
     if (length < 0)
@@ -188,15 +190,21 @@ static int32_t resolve_path(
       return ZONE_OUT_OF_MEMORY;
     (void)snprintf(
       absolute, (size_t)length + 1, "%s/%s", includer, include);
-    *path = realpath(absolute, NULL);
+    resolved = realpath(absolute, buffer);
     free(absolute);
   } else {
-    *path = realpath(include, NULL);
+    resolved = realpath(include, buffer);
   }
 
-  if (*path)
-    return 0;
-  return (errno == ENOMEM) ? ZONE_OUT_OF_MEMORY : ZONE_NOT_A_FILE;
+  if (!resolved)
+    return (errno == ENOMEM) ? ZONE_OUT_OF_MEMORY : ZONE_NOT_A_FILE;
+  assert(resolved == buffer);
+  size_t length = strlen(buffer);
+  if (!(resolved = malloc(length + 1)))
+    return ZONE_OUT_OF_MEMORY;
+  memcpy(resolved, buffer, length + 1);
+  *path = resolved;
+  return 0;
 }
 #endif
 
@@ -280,6 +288,7 @@ static int32_t open_file(
 
   initialize_file(parser, file);
 
+  file->path = NULL;
   if (!(file->name = malloc(length + 1)))
     return ZONE_OUT_OF_MEMORY;
   memcpy(file->name, include, length);
