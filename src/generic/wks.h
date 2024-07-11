@@ -1,5 +1,5 @@
 /*
- * wks.c -- Well known services RDATA parser
+ * wks.c -- Well-Known Services (WKS) RDATA parser
  *
  * Copyright (c) 2023, NLnet Labs. All rights reserved.
  *
@@ -20,11 +20,18 @@
 // getprotobyname_r exist on most BSDs and Linux, but not Windows.
 // The list of known protocols and services also differs between operating
 // systems and no list covers all IANA (links below) registered protocols
-// and services, which may cause compatibility issues.
+// and services, which may cause compatibility issues. Furthermore, even
+// getprotobyname_r and getservbyname_r are marked locale, meaning the locale
+// object is read without any form of synchronization, which may be an issue
+// for a library.
 //
 // https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml
 // https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
 //
+// https://www.gnu.org/software/libc/manual/html_node/Protocols-Database.html
+// https://www.gnu.org/software/libc/manual/html_node/Services-Database.html
+// https://www.gnu.org/software/libc/manual/html_node/POSIX-Safety-Concepts.html
+// https://www.gnu.org/software/libc/manual/html_node/Other-Safety-Remarks.html
 //
 // WKS RRs are rarely used and a document to deprecate the RRTYPE (among
 // others) has been drafted (WKS removed from the second draft).
@@ -36,11 +43,25 @@
 // WKS RRs have been said to be deprecated in an informational document (NOT
 // a standard), although it wrongly claims WKS RRs are in fact deprecated.
 //
-// RFC1912 section 2.6.1:
+// RFC1912 section 2.6.1 (informational):
 // WKS records are deprecated in [RFC 1123].  They serve no known useful
 // function, except internally among LISP machines.  Don't use them.
 //
 // https://datatracker.ietf.org/doc/html/rfc1912
+//
+// RFC1123 section 2.2 (standard):
+// An application SHOULD NOT rely on the ability to locate a WKS record
+// containing an accurate listing of all services at a particular host
+// address, since the WKS RR type is not often used by Internet sites.
+// To confirm that a service is present, simply attempt to use it.
+//
+// https://datatracker.ietf.org/doc/html/rfc1123
+//
+// RFC1127 section 2 (informational):
+// WKS Records Detracted   [AS 2.2, 5.2.12, 6.1.3.6]
+// Recommend against using WKS records from DNS.
+//
+// https://datatracker.ietf.org/doc/html/rfc1127
 //
 //
 // Rather than supporting any protocol registered by IANA, support a small
