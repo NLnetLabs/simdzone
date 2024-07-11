@@ -170,7 +170,7 @@ target_link_libraries(zone-bench PRIVATE zone)
 check_include_file(endian.h HAVE_ENDIAN_H)
 
 check_include_file(unistd.h HAVE_UNISTD_H)
-check_symbol_exists(getopt unistd.h HAVE_GETOPT)
+check_symbol_exists(getopt "stdio.h;unistd.h" HAVE_GETOPT)
 if(NOT HAVE_UNISTD_H OR NOT HAVE_GETOPT)
   target_include_directories(
     zone-bench PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/compat>)
