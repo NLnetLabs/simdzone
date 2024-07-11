@@ -64,8 +64,13 @@
 #   define no_sanitize_undefined
 # endif
 
-# define likely(params) __builtin_expect(!!(params), 1)
-# define unlikely(params) __builtin_expect(!!(params), 0)
+# if has_builtin(__builtin_expect)
+#   define likely(params) __builtin_expect(!!(params), 1)
+#   define unlikely(params) __builtin_expect(!!(params), 0)
+# else
+#   define likely(params) (params)
+#   define unlikely(params) (params)
+# endif
 #endif
 
 #endif // ATTRIBUTES_H
