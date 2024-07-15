@@ -223,33 +223,39 @@ endif()
 
 # Autoconf is supported for easy inclusion of simdzone in NSD. To avoid having
 # to maintain multiple configuration headers, instead of using configure_file,
-# read config.h.in and replace occurences of "#undef XYZ".
-file(READ src/cm_config.h.in template)
+# read configure.ac and replace occurences of "AC_SUBST([<define>])". If an
+# instance of AC_SUBST does not match expectations, throw an error.
+file(READ configure.ac template)
 
-set(expression "(^|\n)[ \t]*#[ \t]*undef[ \t]([a-zA-Z0-9_]+)[ \t]*(\n|$)")
-string(REGEX MATCHALL "${expression}" matches "${template}")
+set(pattern "(^|\n)[ \t]*AC_SUBST\([^\n]*)[ \t]*(\n|$)")
+string(REGEX MATCHALL "${pattern}" matches "${template}")
 foreach(match ${matches})
-  if(match MATCHES "${expression}")
-    set(prefix "${CMAKE_MATCH_1}")
-    set(variable "${CMAKE_MATCH_2}")
-    set(suffix "${CMAKE_MATCH_3}")
-    if(NOT DEFINED ${variable} OR NOT ${variable} OR
-       ${variable} MATCHES "^[Ff][Aa][Ll][Ss][Ee]$" OR
-       ${variable} MATCHES "^[Oo][Ff][Ff]")
-      set(replace "${prefix}/* #undef ${variable} */${suffix}")
-    elseif(${variable} MATCHES "^[Tt][Rr][Uu][Ee]$" OR
-           ${variable} MATCHES "^[Oo][Nn]$")
-      set(replace "${prefix}#define ${variable} 1${suffix}")
-    elseif(${variable} MATCHES "^[01234567890]+$")
-      set(replace "${prefix}#define ${variable} ${${variable}}${suffix}")
+  if (match MATCHES "[ \t]*AC_SUBST\\(\\[([a-zA-Z0-9_]+)\\]\\)[ \t]*")
+    set(variable "${CMAKE_MATCH_1}")
+    # Ignore any variables that do not start with HAVE_
+    if (variable MATCHES "^HAVE_")
+      if(NOT DEFINED ${variable} OR NOT ${variable} OR
+         ${variable} MATCHES "^[Ff][Aa][Ll][Ss][Ee]$" OR
+         ${variable} MATCHES "^[Oo][Ff][Ff]")
+        string(APPEND header "/* #undef ${variable} */\n")
+      elseif(${variable} MATCHES "^[Tt][Rr][Uu][Ee]$" OR
+             ${variable} MATCHES "^[Oo][Nn]$")
+        string(APPEND header "#define ${variable} 1\n")
+      elseif(${variable} MATCHES "^[01234567890]+$")
+        string(APPEND header "#define ${variable} ${${variable}}\n")
+      else()
+        string(APPEND header "#define ${variable} \"${${variable}}\"\n")
+      endif()
     else()
-      set(replace "${prefix}#define ${variable} \"${${variable}}\"")
+      continue()
     endif()
+
+  else()
+    message(FATAL_ERROR "Found AC_SUBST that not match expression")
   endif()
-  string(REPLACE "${match}" "${replace}" template "${template}")
 endforeach()
 
-file(GENERATE OUTPUT config.h CONTENT "${template}")
+file(GENERATE OUTPUT config.h CONTENT "${header}")
 
 if(BUILD_TESTING)
   add_subdirectory(tests)

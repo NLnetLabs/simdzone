@@ -88,6 +88,7 @@ if test $x86_64 = "yes"; then
   fi
 fi
 
+AC_SUBST([HAVE_ENDIAN_H])
 AC_SUBST([HAVE_WESTMERE])
 AC_SUBST([HAVE_HASWELL])
 
