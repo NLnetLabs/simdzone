@@ -1,3 +1,11 @@
+/*
+ * haswell.test.c -- test if -march=haswell works
+ *
+ * Copyright (c) 2024, NLnet Labs. All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ */
 #include <stdint.h>
 #include <immintrin.h>
 
