@@ -210,6 +210,11 @@ static void close_file(
   assert(!is_string || file->handle == NULL);
   (void)parser;
 
+  const bool is_stdin = file->name &&
+                        file->name != not_a_file &&
+                        strcmp(file->name, "-") == 0;
+  assert(!is_stdin || (!file->handle || file->handle == stdin));
+
   if (file->buffer.data && !is_string)
     free(file->buffer.data);
   file->buffer.data = NULL;
@@ -219,7 +224,8 @@ static void close_file(
   if (file->path && file->path != not_a_file)
     free((char *)file->path);
   file->path = NULL;
-  if (file->handle)
+  // stdin is not opened, it must not be closed
+  if (file->handle && file->handle != stdin)
     (void)fclose(file->handle);
   file->handle = NULL;
 }
@@ -297,9 +303,8 @@ static int32_t open_file(
     if(!getcwd(workdir, sizeof(workdir)))
       return (void)close_file(parser, file), ZONE_NOT_A_FILE;
 #endif
-    if ((code = resolve_path(workdir, file->name, &file->path))) {
+    if ((code = resolve_path(workdir, file->name, &file->path)))
       return (void)close_file(parser, file), code;
-    }
   }
 
   if(strcmp(file->path, "-") == 0) {
