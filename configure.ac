@@ -57,21 +57,11 @@ if test $x86_64 = "yes"; then
   if test $enable_westmere != "no" -a \
           $ax_cv_check_cflags__Werror__march_westmere = "yes" -a \
           $ac_cv_header_immintrin_h = "yes" ; then
-    AC_MSG_CHECKING(Whether -march=westmere works)
+    AC_MSG_CHECKING(whether -march=westmere works)
     BAKCFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS -march=westmere"
-    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-#include <stdint.h>
-#include <immintrin.h>
-
-int main(int argc, char *argv[])
-{
-  (void)argv;
-	uint64_t ones = _mm_popcnt_u64((uint64_t)argc);
-	return ones == 11;
-}
-]])],
-[
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE(`cat cmake/westmere.test.c`)
+],[
     AC_DEFINE(HAVE_WESTMERE, 1, [Wether or not to compile support for SSE4.2])
     HAVE_WESTMERE=WESTMERE
     AC_MSG_RESULT(yes)
@@ -84,22 +74,11 @@ int main(int argc, char *argv[])
   if test $enable_haswell != "no" -a \
           $ax_cv_check_cflags__Werror__march_haswell = "yes" -a \
           $ac_cv_header_immintrin_h = "yes" ; then
-    AC_MSG_CHECKING(Whether -march=haswell works)
+    AC_MSG_CHECKING(whether -march=haswell works)
     BAKCFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS -march=haswell"
-    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-#include <stdint.h>
-#include <immintrin.h>
-
-int main(int argc, char *argv[])
-{
-  (void)argv;
-  int argc32x8[8] = { argc, 0, 0, 0, 0, 0, 0, 0 };
-  __m256i argc256 = _mm256_loadu_si256((__m256i *)argc32x8);
-  return _mm256_testz_si256(argc256, _mm256_set1_epi8(11));
-}
-]])],
-[
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE(`cat cmake/haswell.test.c`)
+],[
     AC_DEFINE(HAVE_HASWELL, 1, [Wether or not to compile support for AVX2])
     HAVE_HASWELL=HASWELL
     AC_MSG_RESULT(yes)
