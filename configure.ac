@@ -12,7 +12,7 @@
 
 AC_INIT([simdzone],[0.1.0],[https://github.com/NLnetLabs/simdzone/issues])
 
-AC_CONFIG_HEADERS([config.h:src/config.h.in])
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 
 m4_include(m4/ax_check_compile_flag.m4)
