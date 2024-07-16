@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
+#include <stdio.h>
 #include <stdarg.h>
 #include <setjmp.h>
 #include <string.h>
@@ -238,6 +239,7 @@ void contiguous_on_buffer_boundary(void **state)
   (void)fclose(handle);
   size_t count = 0;
   int32_t code = zone_parse(&parser, &options, &buffers, path, &count);
+  remove(path);
   assert_int_equal(code, ZONE_SUCCESS);
   assert_int_equal(count, 3);
   free(path);
