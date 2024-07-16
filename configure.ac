@@ -18,7 +18,7 @@ AC_CONFIG_FILES([Makefile])
 m4_include(m4/ax_check_compile_flag.m4)
 m4_version_prereq([2.70], [AC_PROG_CC], [AC_PROG_CC_STDC])
 
-AC_CHECK_HEADER(endian.h, AC_DEFINE(HAVE_ENDIAN_H, 1, [Wether or not have the <endian.h> header file]))
+AC_CHECK_HEADER(endian.h, AC_DEFINE(HAVE_ENDIAN_H, 1, [Define to 1 if you have the <endian.h> header file.]))
 
 AC_ARG_ENABLE(westmere, AS_HELP_STRING([--disable-westmere],[Disable Westmere (SSE4.2) kernel]))
 case "$enable_westmere" in
@@ -95,8 +95,17 @@ if test $x86_64 = "yes"; then
   fi
 fi
 
+AC_CHECK_FUNCS([realpath],,[AC_MSG_ERROR([realpath is not available])])
+
 AC_SUBST([HAVE_ENDIAN_H])
 AC_SUBST([HAVE_WESTMERE])
 AC_SUBST([HAVE_HASWELL])
+
+AH_BOTTOM([
+/* Defines _XOPEN_SOURCE and _POSIX_C_SOURCE implicitly in features.h */
+#ifndef _DEFAULT_SOURCE
+# define _DEFAULT_SOURCE 1
+#endif
+])
 
 AC_OUTPUT

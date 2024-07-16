@@ -526,11 +526,10 @@ void include_relative(void **state)
   options.default_class = 1;
   options.include_limit = 1;
 
-#if _WIN32
-  int pid = _getpid();
-#else
-  pid_t pid = getpid();
-#endif
+diagnostic_push()
+msvc_diagnostic_ignored(4996)
+  unsigned int pid = (unsigned int)getpid();
+diagnostic_pop()
 
   char* inc1file = "content.inc";
   char* inc2file = "example.com.zone";
