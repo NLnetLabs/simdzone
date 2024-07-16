@@ -168,13 +168,25 @@ target_include_directories(
 target_link_libraries(zone-bench PRIVATE zone)
 
 check_include_file(endian.h HAVE_ENDIAN_H)
-
 check_include_file(unistd.h HAVE_UNISTD_H)
-check_symbol_exists(getopt "stdio.h;unistd.h" HAVE_GETOPT)
-if(NOT HAVE_UNISTD_H OR NOT HAVE_GETOPT)
+
+set(CMAKE_REQUIRED_DEFINITIONS "-D_DEFAULT_SOURCE=1")
+check_symbol_exists(getopt "stdlib.h;unistd.h" HAVE_GETOPT)
+unset(CMAKE_REQUIRED_DEFINITIONS)
+if(NOT HAVE_GETOPT)
   target_include_directories(
     zone-bench PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/compat>)
   target_sources(zone-bench PRIVATE compat/getopt.c)
+endif()
+
+if(NOT WIN32)
+  # _fullpath is used on Microsoft Windows.
+  set(CMAKE_REQUIRED_DEFINITIONS "-D_DEFAULT_SOURCE=1")
+  check_symbol_exists(realpath "stdlib.h" HAVE_REALPATH)
+  unset(CMAKE_REQUIRED_DEFINITIONS)
+  if(NOT HAVE_REALPATH)
+    message(FATAL_ERROR "realpath is not available")
+  endif()
 endif()
 
 # Multiple instruction sets may be supported by a specific architecture.
@@ -223,41 +235,7 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
 endif()
 
 
-# Autoconf is supported for easy inclusion of simdzone in NSD. To avoid having
-# to maintain multiple configuration headers, instead of using configure_file,
-# read configure.ac and replace occurences of "AC_SUBST([<define>])". If an
-# instance of AC_SUBST does not match expectations, throw an error.
-file(READ configure.ac template)
-
-set(pattern "(^|\n)[ \t]*AC_SUBST\([^\n]*)[ \t]*(\n|$)")
-string(REGEX MATCHALL "${pattern}" matches "${template}")
-foreach(match ${matches})
-  if (match MATCHES "[ \t]*AC_SUBST\\(\\[([a-zA-Z0-9_]+)\\]\\)[ \t]*")
-    set(variable "${CMAKE_MATCH_1}")
-    # Ignore any variables that do not start with HAVE_
-    if (variable MATCHES "^HAVE_")
-      if(NOT DEFINED ${variable} OR NOT ${variable} OR
-         ${variable} MATCHES "^[Ff][Aa][Ll][Ss][Ee]$" OR
-         ${variable} MATCHES "^[Oo][Ff][Ff]")
-        string(APPEND header "/* #undef ${variable} */\n")
-      elseif(${variable} MATCHES "^[Tt][Rr][Uu][Ee]$" OR
-             ${variable} MATCHES "^[Oo][Nn]$")
-        string(APPEND header "#define ${variable} 1\n")
-      elseif(${variable} MATCHES "^[01234567890]+$")
-        string(APPEND header "#define ${variable} ${${variable}}\n")
-      else()
-        string(APPEND header "#define ${variable} \"${${variable}}\"\n")
-      endif()
-    else()
-      continue()
-    endif()
-
-  else()
-    message(FATAL_ERROR "Found AC_SUBST that not match expression")
-  endif()
-endforeach()
-
-file(GENERATE OUTPUT config.h CONTENT "${header}")
+configure_file(src/config.h.in config.h)
 
 if(BUILD_TESTING)
   add_subdirectory(tests)

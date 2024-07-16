@@ -11,6 +11,8 @@
 
 #include "config.h"
 
+// https://www.austingroupbugs.net/view.php?id=162#c665
+
 #if _WIN32
 #include <stdlib.h>
 

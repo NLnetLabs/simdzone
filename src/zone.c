@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  */
+#include "config.h"
+
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
@@ -38,7 +40,6 @@ typedef zone_file_t file_t;
 
 static const char not_a_file[] = "<string>";
 
-#include "config.h"
 #include "isadetection.h"
 
 #ifndef PATH_MAX
