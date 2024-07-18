@@ -45,6 +45,11 @@ distclean: clean
 realclean: distclean
 	@rm -rf autom4te*
 
+maintainer-clean: realclean
+
+devclean:
+	@rm -rf config.h.in configure
+
 libzone.a: $(EXPORT_HEADER) $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 	$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 
