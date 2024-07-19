@@ -37,7 +37,7 @@ all: libzone.a
 
 clean:
 	@rm -f .depend
-	@rm -f libzone.a $(OBJECTS)
+	@rm -f libzone.a $(OBJECTS) $(EXPORT_HEADER)
 
 distclean: clean
 	@rm -f Makefile config.h config.log config.status
