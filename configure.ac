@@ -92,6 +92,7 @@ if test $x86_64 = "yes"; then
 ],[
     AC_MSG_RESULT(no)
 ])
+    CFLAGS="$BAKCFLAGS"
   fi
 fi
 
