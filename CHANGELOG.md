@@ -5,11 +5,14 @@ All notable changes to simdzone will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.1] - 2024-07-19
 
 ### Added
 
 - Test to verify configure.ac and Makefile.in are correct.
+- Add support for reading from stdin if filename is "-".
+- Add support for building with Oracle Developer Studio 12.6.
+- Add support for "time" service for Well-Know Services (WKS) RR.
 
 ### Fixed
 
@@ -17,6 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix makefile to use source directory for build dependencies.
 - Fix changelog to reflect v0.1.0 release.
 - Update makefile to not use target-specific variables.
+- Fix makefile clean targets.
+- Fix state keeping in fallback scanner for contiguous and quoted.
+- Fix bug in name scanner.
+- Fix type mnemonic parsing in fallback parser.
+- Fix endian.h to include machine/endian.h on OpenBSD releases before 5.6.
+- Fix use after free on buffer resize.
+
+### Changed
+
+- Make relative includes relative to current working directory.
 
 ## [0.1.0] - 2024-04-16
 
