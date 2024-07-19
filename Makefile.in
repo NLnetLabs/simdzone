@@ -50,22 +50,22 @@ maintainer-clean: realclean
 devclean:
 	@rm -rf config.h.in configure
 
-libzone.a: $(EXPORT_HEADER) $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
+libzone.a: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 	$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 
 $(EXPORT_HEADER):
 	@mkdir -p include/zone
 	@echo "#define ZONE_EXPORT" > include/zone/export.h
 
-$(WESTMERE_OBJECTS): .depend
+$(WESTMERE_OBJECTS): $(EXPORT_HEADER) .depend
 	@mkdir -p src/westmere
 	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $(SOURCE)/$(@:.o=.c)
 
-$(HASWELL_OBJECTS): .depend
+$(HASWELL_OBJECTS): $(EXPORT_HEADER) .depend
 	@mkdir -p src/haswell
 	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $(SOURCE)/$(@:.o=.c)
 
-$(OBJECTS): .depend
+$(OBJECTS): $(EXPORT_HEADER) .depend
 	@mkdir -p src/fallback
 	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(SOURCE)/$(@:.o=.c)
 	@touch $@
