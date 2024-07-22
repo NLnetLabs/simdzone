@@ -29,6 +29,11 @@ NO_OBJECTS =
 
 DEPENDS = $(SOURCES:.c=.d) $(WESTMERE_SOURCES:.c=.d) $(HASWELL_SOURCES:.c=.d)
 
+# The export header automatically defines visibility macros. These macros are
+# required for standalone builds on Windows. I.e., exported functions must be
+# declared with __declspec(dllexport) for dynamic link libraries (.dll) and
+# __declspec(dllimport) for statically linked libraries (.lib). Define dummy
+# macros for compatibility.
 EXPORT_HEADER = include/zone/export.h
 
 .PHONY: all clean
@@ -55,7 +60,7 @@ libzone.a: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 
 $(EXPORT_HEADER):
 	@mkdir -p include/zone
-	@echo "#define ZONE_EXPORT" > include/zone/export.h
+	@echo "#define ZONE_EXPORT" > $(EXPORT_HEADER)
 
 $(WESTMERE_OBJECTS): $(EXPORT_HEADER) .depend
 	@mkdir -p src/westmere
