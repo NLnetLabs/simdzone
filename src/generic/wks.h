@@ -75,12 +75,11 @@
 # define TCP (0x7463700000000000llu)
 # define UDP (0x7564700000000000llu)
 #else
-#error
 # error "byte order unknown"
 #endif
 
 static really_inline int32_t scan_protocol(
-  const char *name, size_t length)
+  const char *name, size_t length, uint8_t *protocol)
 {
   static const int8_t zero_masks[48] = {
     -1, -1, -1, -1, -1, -1, -1, -1,
@@ -101,22 +100,11 @@ static really_inline int32_t scan_protocol(
   key &= mask;
 
   if (key == TCP)
-    return 6;
-  if (key == UDP)
-    return 17;
-
-  if (length > 3) // protocol numbers must be between 0 and 255
-    return -1;
-
-  uint8_t digit;
-  int32_t number = 0;
-  size_t index = 0;
-  while ((digit = (uint8_t)name[index++] - '0') <= 9)
-    number = number * 10 + digit;
-
-  if (index != length || number > 255)
-    return -1;
-  return number;
+    return (void)(*protocol = 6), 1;
+  else if (key == UDP)
+    return (void)(*protocol = 17), 1;
+  else
+    return scan_int8(name, length, protocol);
 }
 
 typedef struct service service_t;
@@ -131,7 +119,6 @@ struct service {
 #define UNKNOWN_SERVICE() { { "", 0 }, 0 }
 #define SERVICE(name, port) { { name, sizeof(name) - 1 }, port }
 
-// FIXME: state we're not interested in reverse lookup for wks!
 static const service_t services[64] = {
   UNKNOWN_SERVICE(),
   SERVICE("snmptrap", 162),

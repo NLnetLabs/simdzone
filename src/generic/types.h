@@ -386,11 +386,11 @@ static int32_t parse_wks_rdata(
   if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
     return code;
 
-  int32_t protocol = scan_protocol(token->data, token->length);
-  if (protocol == -1)
+  uint8_t protocol;
+  if (!scan_protocol(token->data, token->length, &protocol))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[1]), NAME(type));
 
-  *rdata->octets++ = (uint8_t)protocol;
+  *rdata->octets++ = protocol;
   uint8_t *bitmap = rdata->octets;
   int32_t highest_port = -1;
 
