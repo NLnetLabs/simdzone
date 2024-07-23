@@ -67,7 +67,19 @@ if test $x86_64 = "yes"; then
     AC_MSG_CHECKING(whether -march=westmere works)
     BAKCFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS -march=westmere"
-    AC_COMPILE_IFELSE([AC_LANG_SOURCE(`cat cmake/westmere.test.c`)
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+AC_INCLUDES_DEFAULT
+[
+#include <stdint.h>
+#include <immintrin.h>
+
+int main(int argc, char *argv[])
+{
+  (void)argv;
+  uint64_t popcnt = _mm_popcnt_64((uint64_t)argc);
+  return popcnt == 11;
+}
+]])
 ],[
     AC_DEFINE(HAVE_WESTMERE, 1, [Wether or not to compile support for SSE4.2])
     HAVE_WESTMERE=WESTMERE
@@ -84,7 +96,20 @@ if test $x86_64 = "yes"; then
     AC_MSG_CHECKING(whether -march=haswell works)
     BAKCFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS -march=haswell"
-    AC_COMPILE_IFELSE([AC_LANG_SOURCE(`cat cmake/haswell.test.c`)
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+AC_INCLUDES_DEFAULT
+[
+#include <stdint.h>
+#include <immintrin.h>
+
+int main(int argc, char *argv[])
+{
+  (void)argv;
+  int argc32x8[8] = { argc, 0, 0, 0, 0, 0, 0, 0 };
+  __m256i argc256 = _mm256_loadu_si256((__m256i *)argc32x8);
+  return _mm256_testz_si256(argc256, _mm256_set1_epi8(11));
+}
+]])
 ],[
     AC_DEFINE(HAVE_HASWELL, 1, [Wether or not to compile support for AVX2])
     HAVE_HASWELL=HASWELL
