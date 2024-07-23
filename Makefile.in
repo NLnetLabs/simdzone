@@ -52,7 +52,7 @@ realclean: distclean
 
 maintainer-clean: realclean
 
-devclean:
+devclean: realclean
 	@rm -rf config.h.in configure
 
 libzone.a: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
