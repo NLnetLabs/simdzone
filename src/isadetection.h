@@ -3,6 +3,7 @@
  *
  * Slightly modified version of isadetection.h in simdjson.
  *
+ * Copyright (c) 2024      NLnet Labs               (Jeroen Koekkoek)
  * Copyright (c) 2020-     simdjson                 (Daniel Lemire,
  *                                                   Geoff Langdale,
  *                                                   John Keiser)
@@ -54,10 +55,12 @@
 #ifndef ISADETECTION_H
 #define ISADETECTION_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #if defined(_MSC_VER)
 #include <intrin.h>
+#include <immintrin.h>
 #elif defined(HAVE_CPUID)
 #include <cpuid.h>
 #endif
@@ -107,20 +110,22 @@ static inline uint32_t detect_supported_architectures() {
 #elif defined(__x86_64__) || defined(_M_AMD64) // x64
 
 // Can be found on Intel ISA Reference for CPUID
-static const uint32_t cpuid_avx2_bit = 1 << 5;         ///< @private Bit 5 of EBX for EAX=0x7
-static const uint32_t cpuid_bmi1_bit = 1 << 3;         ///< @private bit 3 of EBX for EAX=0x7
-static const uint32_t cpuid_bmi2_bit = 1 << 8;         ///< @private bit 8 of EBX for EAX=0x7
-static const uint32_t cpuid_avx512f_bit = 1 << 16;     ///< @private bit 16 of EBX for EAX=0x7
-static const uint32_t cpuid_avx512dq_bit = 1 << 17;    ///< @private bit 17 of EBX for EAX=0x7
-static const uint32_t cpuid_avx512ifma_bit = 1 << 21;  ///< @private bit 21 of EBX for EAX=0x7
-static const uint32_t cpuid_avx512pf_bit = 1 << 26;    ///< @private bit 26 of EBX for EAX=0x7
-static const uint32_t cpuid_avx512er_bit = 1 << 27;    ///< @private bit 27 of EBX for EAX=0x7
-static const uint32_t cpuid_avx512cd_bit = 1 << 28;    ///< @private bit 28 of EBX for EAX=0x7
-static const uint32_t cpuid_avx512bw_bit = 1 << 30;    ///< @private bit 30 of EBX for EAX=0x7
-static const uint32_t cpuid_avx512vl_bit = 1U << 31;   ///< @private bit 31 of EBX for EAX=0x7
-static const uint32_t cpuid_avx512vbmi2_bit = 1 << 6;  ///< @private bit 6 of ECX for EAX=0x7
-static const uint32_t cpuid_sse42_bit = 1 << 20;       ///< @private bit 20 of ECX for EAX=0x1
-static const uint32_t cpuid_pclmulqdq_bit = 1 << 1;    ///< @private bit  1 of ECX for EAX=0x1
+static const uint32_t cpuid_avx2_bit = 1 << 5;          ///< @private Bit  5 of EBX for EAX=0x7
+static const uint32_t cpuid_bmi1_bit = 1 << 3;          ///< @private bit  3 of EBX for EAX=0x7
+static const uint32_t cpuid_bmi2_bit = 1 << 8;          ///< @private bit  8 of EBX for EAX=0x7
+static const uint32_t cpuid_avx512f_bit = 1 << 16;      ///< @private bit 16 of EBX for EAX=0x7
+static const uint32_t cpuid_avx512dq_bit = 1 << 17;     ///< @private bit 17 of EBX for EAX=0x7
+static const uint32_t cpuid_avx512ifma_bit = 1 << 21;   ///< @private bit 21 of EBX for EAX=0x7
+static const uint32_t cpuid_avx512pf_bit = 1 << 26;     ///< @private bit 26 of EBX for EAX=0x7
+static const uint32_t cpuid_avx512er_bit = 1 << 27;     ///< @private bit 27 of EBX for EAX=0x7
+static const uint32_t cpuid_avx512cd_bit = 1 << 28;     ///< @private bit 28 of EBX for EAX=0x7
+static const uint32_t cpuid_avx512bw_bit = 1 << 30;     ///< @private bit 30 of EBX for EAX=0x7
+static const uint32_t cpuid_avx512vl_bit = 1U << 31;    ///< @private bit 31 of EBX for EAX=0x7
+static const uint32_t cpuid_avx512vbmi2_bit = 1 << 6;   ///< @private bit  6 of ECX for EAX=0x7
+static const uint32_t cpuid_sse42_bit = 1 << 20;        ///< @private bit 20 of ECX for EAX=0x1
+static const uint32_t cpuid_pclmulqdq_bit = 1 << 1;     ///< @private bit  1 of ECX for EAX=0x1
+static const uint32_t cpuid_have_xgetbv_bit = 1 << 27;  ///< @private bit 27 of ECX for EAX=0x1
+static const uint32_t cpuid_have_avx_bit = 1 << 28;     ///< @private bit 28 of ECX for EAX=0x1
 
 static inline void cpuid(
   uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
@@ -145,17 +150,27 @@ static inline void cpuid(
 #endif
 }
 
-static inline uint32_t detect_supported_architectures(void) {
+static inline uint64_t xgetbv(uint32_t ecx)
+{
+#if defined(_MSC_VER)
+  return _xgetbv(ecx);
+#else
+  uint32_t a, c = ecx, d;
+  asm volatile("xgetbv\n\t" : "=d"(d), "=a"(a) : "c"(c));
+  uint64_t xcr0 = ((uint64_t)d << 32) | (uint64_t)a;
+  return xcr0;
+#endif
+}
+
+static inline uint32_t detect_supported_architectures(void)
+{
   uint32_t eax, ebx, ecx, edx;
-  uint32_t host_isa = 0x0;
+  uint32_t host_isa = 0x0, host_avx_isa = 0x0;
 
   // ECX for EAX=0x7
   eax = 0x7;
   ecx = 0x0;
   cpuid(&eax, &ebx, &ecx, &edx);
-  if (ebx & cpuid_avx2_bit) {
-    host_isa |= AVX2;
-  }
   if (ebx & cpuid_bmi1_bit) {
     host_isa |= BMI1;
   }
@@ -164,52 +179,81 @@ static inline uint32_t detect_supported_architectures(void) {
     host_isa |= BMI2;
   }
 
+  if (ebx & cpuid_avx2_bit) {
+    host_avx_isa |= AVX2;
+  }
+
   if (ebx & cpuid_avx512f_bit) {
-    host_isa |= AVX512F;
+    host_avx_isa |= AVX512F;
   }
 
   if (ebx & cpuid_avx512dq_bit) {
-    host_isa |= AVX512DQ;
+    host_avx_isa |= AVX512DQ;
   }
 
   if (ebx & cpuid_avx512ifma_bit) {
-    host_isa |= AVX512IFMA;
+    host_avx_isa |= AVX512IFMA;
   }
 
   if (ebx & cpuid_avx512pf_bit) {
-    host_isa |= AVX512PF;
+    host_avx_isa |= AVX512PF;
   }
 
   if (ebx & cpuid_avx512er_bit) {
-    host_isa |= AVX512ER;
+    host_avx_isa |= AVX512ER;
   }
 
   if (ebx & cpuid_avx512cd_bit) {
-    host_isa |= AVX512CD;
+    host_avx_isa |= AVX512CD;
   }
 
   if (ebx & cpuid_avx512bw_bit) {
-    host_isa |= AVX512BW;
+    host_avx_isa |= AVX512BW;
   }
 
   if (ebx & cpuid_avx512vl_bit) {
-    host_isa |= AVX512VL;
+    host_avx_isa |= AVX512VL;
   }
 
   if (ecx & cpuid_avx512vbmi2_bit) {
-    host_isa |= AVX512VBMI2;
+    host_avx_isa |= AVX512VBMI2;
   }
+
+  bool have_avx = false, have_xgetbv = false;
 
   // EBX for EAX=0x1
   eax = 0x1;
   cpuid(&eax, &ebx, &ecx, &edx);
-
   if (ecx & cpuid_sse42_bit) {
     host_isa |= SSE42;
   }
 
   if (ecx & cpuid_pclmulqdq_bit) {
     host_isa |= PCLMULQDQ;
+  }
+
+  // Correct detection of AVX2 support requires more than checking the CPUID
+  // bit. Peter Cordes provides an excellent answer on Stack Overflow
+  // (https://stackoverflow.com/a/34071400) quoting the article Introduction
+  // to Intel Advanced Vector Extensions (search Wayback Machine).
+  //
+  // 1. Verify that the operating system supports XGETBV using
+  //    CPUID.1:ECX.OSXSAVE bit 27 = 1.
+  // 2. Verify the processor supports the AVX instruction extensions using:
+  //    CPUID.1:ECX bit 28 = 1.
+  // 3. Issue XGETBV, and verify that the feature-enabled mask at bits 1 and 2
+  //    are 11b (XMM state and YMM state enabled by the operating system).
+
+
+  // Determine if the CPU supports AVX
+  have_avx = (ecx & cpuid_have_avx_bit) != 0;
+  // Determine if the Operating System supports XGETBV
+  have_xgetbv = (ecx & cpuid_have_xgetbv_bit) != 0;
+
+  if (have_avx && have_xgetbv) {
+    uint64_t xcr0 = xgetbv(0x0);
+    if ((xcr0 & 0x6) == 0x6)
+      host_isa |= host_avx_isa;
   }
 
   return host_isa;
