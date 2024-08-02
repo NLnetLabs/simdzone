@@ -26,10 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix type mnemonic parsing in fallback parser.
 - Fix endian.h to include machine/endian.h on OpenBSD releases before 5.6.
 - Fix use after free on buffer resize.
+- Fix parsing of numeric protocols in WKS RRs.
+- Make devclean target depend on realclean target.
+- Fix detection of AVX2 support by checking generic AVX support by the
+  processor and operating system (#222).
 
 ### Changed
 
 - Make relative includes relative to current working directory.
+- Split Autoconf and CMake compiler tests for supported SIMD instructions.
 
 ## [0.1.0] - 2024-04-16
 
