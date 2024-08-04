@@ -76,7 +76,7 @@ AC_INCLUDES_DEFAULT
 int main(int argc, char *argv[])
 {
   (void)argv;
-  uint64_t popcnt = _mm_popcnt_64((uint64_t)argc);
+  uint64_t popcnt = _mm_popcnt_u64((uint64_t)argc);
   return popcnt == 11;
 }
 ]])
