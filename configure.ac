@@ -66,7 +66,7 @@ if test $x86_64 = "yes"; then
           $ac_cv_header_immintrin_h = "yes" ; then
     AC_MSG_CHECKING(whether -march=westmere works)
     BAKCFLAGS="$CFLAGS"
-    CFLAGS="$CFLAGS -march=westmere"
+    CFLAGS="-march=westmere $CFLAGS"
     AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 AC_INCLUDES_DEFAULT
 [
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
           $ac_cv_header_immintrin_h = "yes" ; then
     AC_MSG_CHECKING(whether -march=haswell works)
     BAKCFLAGS="$CFLAGS"
-    CFLAGS="$CFLAGS -march=haswell"
+    CFLAGS="-march=haswell $CFLAGS"
     AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 AC_INCLUDES_DEFAULT
 [
