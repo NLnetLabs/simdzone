@@ -1291,8 +1291,26 @@ static int32_t check_ds_rr(
       (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))))
     return r;
 
-  // FIXME: can implement checking for digest length based on algorithm here.
-  //        e.g. SHA-1 digest is 20 bytes, see RFC3658 section 2.4
+  const uint8_t digest_algorithm = parser->rdata->octets[3];
+
+  if ((digest_algorithm & 0x7) == digest_algorithm) {
+    // https://www.iana.org/assignments/ds-rr-types
+    static const uint8_t digest_sizes[8] = {
+      0,  // 0: Reserved
+      20, // 1: SHA-1
+      32, // 2: SHA-256
+      32, // 3: GOST R 34.11-94
+      48, // 4: SHA-384
+      48, // 5: GOST R 34.10-2012
+      48, // 6: SM3
+      0   // 7: Unassigned
+    };
+
+    const uint8_t digest_size = digest_sizes[ digest_algorithm ];
+
+    if (digest_size && n - 4 != digest_size)
+      SEMANTIC_ERROR(parser, "Invalid digest in %s", NAME(type));
+  }
 
   if (c >= n)
     SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
@@ -1321,6 +1339,28 @@ static int32_t parse_ds_rdata(
   take(parser, token);
   if ((code = parse_base16_sequence(parser, type, &fields[3], rdata, token)) < 0)
     return code;
+
+  const uint8_t digest_algorithm = parser->rdata->octets[3];
+
+  if ((digest_algorithm & 0x7) == digest_algorithm) {
+    // https://www.iana.org/assignments/ds-rr-types
+    static const uint8_t digest_sizes[8] = {
+      0,  // 0: Reserved
+      20, // 1: SHA-1
+      32, // 2: SHA-256
+      32, // 3: GOST R 34.11-94
+      48, // 4: SHA-384
+      48, // 5: GOST R 34.10-2012
+      48, // 6: SM3
+      0   // 7: Unassigned
+    };
+
+    const uint8_t digest_size = digest_sizes[ digest_algorithm ];
+    size_t length = (uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets;
+
+    if (digest_size && length - 4 != digest_size)
+      SEMANTIC_ERROR(parser, "Invalid digest in %s", NAME(type));
+  }
 
   return accept_rr(parser, type, rdata);
 }
@@ -2005,10 +2045,32 @@ nonnull_all
 static int32_t check_zonemd_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
-  // FIXME: RDATA contains digests, do extra checks?
-  assert(rdata->octets >= parser->rdata->octets);
-  if ((uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets < 6)
-    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  int32_t r;
+  size_t c = 0;
+  const size_t n = (uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets;
+  const uint8_t *o = parser->rdata->octets;
+  const rdata_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int32(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))))
+    return r;
+
+  const uint8_t digest_algorithm = parser->rdata->octets[5];
+  if ((digest_algorithm & 0x3) == digest_algorithm) {
+    // https://www.iana.org/assignments/dns-parameters#zonemd-hash-algorithms
+    static const uint8_t digest_sizes[4] = {
+      0,  // 0: Reserved
+      48, // 1: SHA-384
+      64, // 2: SHA-512
+      0   // 3: Unassigned
+    };
+
+    const uint8_t digest_size = digest_sizes[ digest_algorithm ];
+    if (digest_size && n - 6 != digest_size)
+      SEMANTIC_ERROR(parser, "Invalid digest in %s", NAME(type));
+  }
+
   return accept_rr(parser, type, rdata);
 }
 
@@ -2034,6 +2096,22 @@ static int32_t parse_zonemd_rdata(
   take(parser, token);
   if ((code = parse_base16_sequence(parser, type, &fields[3], rdata, token)) < 0)
     return code;
+
+  const uint8_t digest_algorithm = parser->rdata->octets[5];
+  if ((digest_algorithm & 0x3) == digest_algorithm) {
+    // https://www.iana.org/assignments/dns-parameters#zonemd-hash-algorithms
+    static const uint8_t digest_sizes[4] = {
+      0,  // 0: Reserved
+      48, // 1: SHA-384
+      64, // 2: SHA-512
+      0   // 3: Unassigned
+    };
+
+    const uint8_t digest_size = digest_sizes[ digest_algorithm ];
+    size_t length = (uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets;
+    if (digest_size && length - 6 != digest_size)
+      SEMANTIC_ERROR(parser, "Invalid digest in %s", NAME(type));
+  }
 
   return accept_rr(parser, type, rdata);
 }
