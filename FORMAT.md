@@ -10,10 +10,13 @@ document aims to clarify the format by listing (some of) the relevant
 specifications and then proceed to explain why certain design decisions were
 made in simdzone.
 
-* [RFC1035 Section 5](https://datatracker.ietf.org/doc/html/rfc1035#section-5)
-* [RFC2308 Section 4](https://datatracker.ietf.org/doc/html/rfc2308#section-4)
-* [RFC3597 Section 5](https://datatracker.ietf.org/doc/html/rfc3597#section-5)
-* [draft-ietf-dnsop-svcb-https Section 2.1](https://www.ietf.org/archive/id/draft-ietf-dnsop-svcb-https-12.html#name-zone-file-presentation-form)
+* [RFC 1034 Section 3.6.1][rfc1034#3.6.1]
+* [RFC 1035 Section 5][rfc1035#5]
+* [RFC 2065 Section 4.5][rfc2065#4.5]
+* [RFC 2181 Section 8][rfc2181#8]
+* [RFC 2308 Section 4][rfc2308#4]
+* [RFC 3597 Section 5][rfc3597#5]
+* [RFC 9460 Section 2.1][rfc9460#2.1]
 
 
 ## Clarification (work-in-progress)
@@ -22,7 +25,7 @@ made in simdzone.
 
 Historically, master files where edited by hand, which is reflected in the
 syntax. Consider the format a tabular serialization format with provisions
-for easier editing. i.e. the owner, class and ttl fields may be omitted
+for convenient editing. i.e. the owner, class and ttl fields may be omitted
 (provided the line starts with \<blank\> for the owner) and $INCLUDE directives
 can be used for templating.
 
@@ -31,12 +34,13 @@ may represent either a type, class or ttl and a symbolic constant, e.g. A
 or NS, may have a different meaning if specified as an RDATA field.
 
 The DNS is intentionally extensible. The specification is not explicit about
-how that affects syntax, but it may explain why no specific notation for
-data-types is enforced. To make it easier for data-types to be added at a later
-stage the syntax cannot enforce a certain notation (or the scanner would need
-to be revised). As such, it seems logical for the scanner to only identify
-character strings, which can be expressed as either a contiguous set of
-characters without interior spaces, or as a quoted string.
+how that affects syntax, but it explains why no specific notation for
+data-types can be enforced by RFC 1035. To make it easier for data-types to
+be added at a later stage the syntax cannot enforce a certain notation (or
+the scanner would need to be revised). Consequently, the scanner only
+identifies items (or fields) and structural characters, which can be
+expressed as either a contiguous set of characters without interior spaces,
+or as a quoted string.
 
 The format allows for including structural characters in fields by means of
 escaping the actual character or enclosing the field in quotes. The example
@@ -45,40 +49,35 @@ The dot is normally a label separator, replaced by the length of the label
 on the wire. If a domain name includes an actual ASCII dot, the character
 must be escaped in the textual representation (`\X` or `\DDD`).
 
-Note that ASCII dot characters must be escaped whether the name is contained
-in a quoted section or not. The same is not true for newlines and parentheses.
+Note that ASCII dot characters strictly speaking do not have to be escaped
+in a quoted string. RFC 1035 clearly states labels in domain names are
+expressed as character strings. However, behavior differs across
+implementations, so support for quoted labels is best dropped (see below).
 
-Going by the specification, integer values like the TTL may be written as
-a plain number, contain escape sequences (\DDD can encode an ASCII digit) or
-may be enclosed in quotes. However, going by common sense, writing it down as
-anything but a plain number only requires more space and needlessly
-complicates things (impacting parsing performance). The pragmatic approach is
-to allow escape sequences only in fields that may actually contain data that
-needs escaping (domain names and text strings).
+RFC 1035 states both \<contiguous\> and \<quoted\> are \<character-string\>.
+Meaning, items can be either \<contiguous\> or \<quoted\>. Wether a specific
+item is interpreted as a \<character-string\> depends on type of value for
+that item. E.g., TTLs are decimal integers and therefore cannot be expressed
+as \<quoted\> as it is not a \<character-string\>. Similarly, base64
+sequences are encoded binary blobs, not \<character-string\>s and therefore
+cannot be expressed as such. Escape sequences are valid only in
+\<character-string\>s.
 
-RFC1035 states both \<contiguous\> and \<quoted\> are \<character-string\>.
-However, it makes little sense to quote e.g. a TTL because it cannot contain
-characters that overlap with any structural characters and in practice, it
-really never happens. The same applies to base64 sequences, which was
-specifically designed to encode binary data in printable ASCII characters. To
-quote a field and include whitespace is more-or-less instructing the parser
-to not ignore it. Fields that cannot contain structural characters, i.e.
-anything other than domain names and text strings, MUST not be quoted.
+* Mnemonics are NOT character strings.
 
-> BIND does not accept quoted fields for A or NS RDATA. TTL values in SOA
-> RDATA, base64 Signature in DNSKEY RDATA, as well as type, class and TTL
-> header fields all result in a syntax error too if quoted.
+  > BIND does not accept quoted fields for A or NS RDATA. TTL values in SOA
+  > RDATA, base64 Signature in DNSKEY RDATA, as well as type, class and TTL
+  > header fields all result in a syntax error too if quoted.
 
-
-* Some integer fields allow for using symbolic values. e.g. the algorithm
+* Some integer fields allow for using mnemonics too. E.g., the algorithm
   field in RRSIG records.
 
-* RFC1035 states: A freestanding @ denotes the current origin.
+* RFC 1035 states: A freestanding @ denotes the current origin.
   There has been discussion in which locations @ is interpreted as the origin.
   e.g. how is a freestanding @ be interpreted in the RDATA section of a TXT RR.
   Note that there is no mention of text expansion in the original text. A
   freestanding @ denotes the origin. As such, it stands to reason that it's
-  use is limited to locations where domain names are expected, which also
+  use is limited to locations where domain names are expressed, which also
   happens to be the most practical way to implement the functionality.
 
   > This also seems to be the behavior that other name servers implement (at
@@ -111,24 +110,24 @@ anything other than domain names and text strings, MUST not be quoted.
 
 * The encoding is non-ASCII. Some characters have special meaning, but users
   are technically allowed to put in non-printable octets outside the ASCII
-  range without custom encoding.
-  Of course, this rarely occurs in practice and users are encouraged to use
-  the \DDD encoding for "special".
+  range without custom encoding. Of course, this rarely occurs in practice
+  and users are encouraged to use the \DDD encoding for "special".
 
 * Parenthesis may not be nested.
 
 * $ORIGIN must be an absolute domain.
 
-* Escape sequences must not be unescaped in the lexer as is common with
+* Escape sequences must NOT be unescaped in the scanner as is common with
   programming languages like C that have a preprocessor. Instead, the
-  original text is necessary in the parsing stage to distinguish between dots.
+  original text is necessary in the parsing stage to distinguish between
+  label separators (dots).
 
-* RFC1035 specifies that the current origin should be restored after an
+* RFC 1035 specifies that the current origin should be restored after an
   $INCLUDE, but it is silent on whether the current domain name should also be
   restored. BIND 9 restores both of them. This could be construed as a
   deviation from RFC 1035, a feature, or both.
 
-* RFC1035 states: and text literals can contain CRLF within the text.
+* RFC 1035 states: and text literals can contain CRLF within the text.
   BIND, however, does not allow newlines in text (escaped or not). For
   performance reasons, we may adopt the same behavior as that would relieve
   the need to keep track of possibly embedded newlines.
@@ -148,14 +147,66 @@ anything other than domain names and text strings, MUST not be quoted.
   > the number of includes to 10 by default (compile option). For security, it
   > must be possible to set a hard limit.
 
-* Should quoting of domain names be supported?
-  RFC1035: The labels in the domain name are expressed as character strings
-  and separated by dots.
-  RFC1035: \<character-string\> is expressed in one or two ways:
-  as \<contiguous\> (characters without interior spaces), or as \<quoted\>.
+* Default values for TTLs can be quite complicated.
 
-  However, quoted domain names are very uncommon. Implementations handle
-  quoted names both in OWNER and RDATA very differently.
+  A [commit to ldns](https://github.com/NLnetLabs/ldns/commit/cb101c9) by
+  @wtoorop nicely sums it up in code.
+
+  RFC 1035 section 5.1:
+  > Omitted class and TTL values are default to the last explicitly stated
+  > values.
+
+  This behavior is updated by RFC 2308 section 4:
+  > All resource records appearing after the directive, and which do not
+  > explicitly include a TTL value, have their TTL set to the TTL given
+  > in the $TTL directive.  SIG records without a explicit TTL get their
+  > TTL from the "original TTL" of the SIG record [RFC 2065 Section 4.5].
+
+  The TTL rules for `SIG` RRs stated in RFC 2065 Section 4.5:
+  > If the original TTL, which applies to the type signed, is the same as
+  > the TTL of the SIG RR itself, it may be omitted.  The date field
+  > which follows it is larger than the maximum possible TTL so there is
+  > no ambiguity.
+
+  The same applies applies to `RRSIG` RRs, although not stated as explicitly
+  in RFC 4034 Section 3:
+  > The TTL value of an RRSIG RR MUST match the TTL value of the RRset it
+  > covers.  This is an exception to the [RFC2181] rules for TTL values
+  > of individual RRs within a RRset: individual RRSIG RRs with the same
+  > owner name will have different TTL values if the RRsets they cover
+  > have different TTL values.
+
+  Logic spanning RRs must not be handled during deserialization. The order in
+  which RRs appear in the zone file is not relevant and keeping a possibly
+  infinite backlog of RRs to handle it "automatically" is inefficient. As
+  the name server retains RRs in a database already it seems most elegant to
+  signal the TTL value was omitted and a default was used so that it may be
+  updated in some post processing step.
+
+  [RFC 2181 Section 8][rfc2181#8] contains additional notes on the maximum
+  value for TTLs. During deserialization, any value exceeding 2147483647 is
+  considered an error in primary mode, or a warning in secondary mode.
+  [RFC 8767 Section 4][rfc8767#4] updates the text, but the update does not
+  update handling during deserialization.
+
+  [RFC 2181 Section 5][rfc2181#5.2] states the TTLs of all RRs in an RRSet
+  must be the same. As with default values for `SIG` and `RRSIG` RRs, this
+  must NOT be handled during deserialization. Presumably, the application
+  should transparently fix TTLs (NLnetLabs/nsd#178).
+
+* Do NOT allow for quoted labels in domain names.
+  [RFC 1035 Section 5][rfc1035#5] states:
+  > The labels in the domain name are expressed as character strings and
+  > separated by dots.
+
+  [RFC 1035 section 5][rfc1035#5] states:
+  > \<character-string\> is expressed in one or two ways: as a contiguous set
+  > of characters without interior spaces, or as string beginning with a " and
+  > ending with a ".
+
+  However, quoted labels in domain names are very uncommon and implementations
+  handle quoted names both in OWNER and RDATA very differently. The Flex+Bison
+  based parser used in NSD before was the only parser that got it right.
 
   * BIND
     * owner: yes, interpreted as quoted
@@ -185,17 +236,14 @@ anything other than domain names and text strings, MUST not be quoted.
       example.com.  xxx  IN  NS  \"quoted.example.com.\".example.com.
       ```
 
-  > The text "The labels in the domain name" can be confusing as one might
-  > interpret that as stating that each label can individually can be quoted,
-  > that is however not the case. NSD and BIND both print a syntax error if
-  > such a construct occurs.
-
   > [libzscanner](https://github.com/CZ-NIC/knot/tree/master/src/libzscanner),
   > the (standalone) zone parser used by Knot seems mosts consistent.
 
+  Drop support for quoted labels or domain names for consistent behavior.
+
 * Should any domain names that are not valid host names as specified by
-  RFC1123 section 2, i.e. use characters not in the preferred naming syntax
-  as specified by RFC1035 section 2.3.1, be accepted? RFC2181 section 11 is
+  RFC 1123 section 2, i.e. use characters not in the preferred naming syntax
+  as specified by RFC 1035 section 2.3.1, be accepted? RFC 2181 section 11 is
   very specific on this topic, but it merely states that labels may contain
   characters outside the set on the wire, it does not address what is, or is
   not, allowed in zone files.
@@ -205,11 +253,11 @@ anything other than domain names and text strings, MUST not be quoted.
   additionally accepts `-`, `_` and `/` according to
   [NOTES](https://github.com/CZ-NIC/knot/blob/master/src/libzscanner/NOTES).
 
-  * [RFC1123 section 2](https://datatracker.ietf.org/doc/html/rfc1123#section-2)
-  * [RFC1035 section 2.3.1](https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1)
-  * [RFC2181 section 11](https://datatracker.ietf.org/doc/html/rfc2181#section-11)
+  * [RFC1035 Section 2.3.1][rfc1035#2.3.1]
+  * [RFC1123 Section 2][rfc1123#2]
+  * [RFC2181 Section 11][rfc2181#11]
 
-* RFC1035 specifies two control directives "$INCLUDE" and "$ORIGIN". RFC2308
+* RFC 1035 specifies two control directives "$INCLUDE" and "$ORIGIN". RFC 2308
   specifies the "$TTL" directive. BIND additionally implements the "$DATE" and
   "$GENERATE" directives. Since "$" (dollar sign) is not reserved, both
   "$DATE" and "$GENERATE" (and "$TTL" before RFC2308) are considered valid
@@ -236,4 +284,28 @@ anything other than domain names and text strings, MUST not be quoted.
   strings longer than 255 characters. Others (BIND, simdzone) will throw a
   syntax error.
 
-* Leading zeroes in integers appear to be allowed judging by the zone file generated for the [socket10kxfr](https://github.com/NLnetLabs/nsd/blob/86a6961f2ca64f169d7beece0ed8a5e1dd1cd302/tpkg/long/socket10kxfr.tdir/socket10kxfr.pre#L64) test in NSD. BIND and Knot (and the old parser in NSD) all parsed it without problems.
+* How do we handle the corner case where the first record does not have a TTL
+  when the file does not define a zone? (from @shane-kerr).
+
+  At this point in time, the application provides a default TTL value before
+  parsing. Whether that is the right approach is unclear, but it is what NSD
+  did before.
+
+* Leading zeroes in integers appear to be allowed judging by the zone file
+  generated for the [socket10kxfr][socket10kxfr.pre#L64] test in NSD. BIND
+  and Knot parsed it without problems too.
+
+[rfc1034#3.6.1]: https://datatracker.ietf.org/doc/html/rfc1034#section-3.6.1
+[rfc1035#5]: https://datatracker.ietf.org/doc/html/rfc1035#section-5
+[rfc1035#2.3.1]: https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1
+[rfc1123#2]: https://datatracker.ietf.org/doc/html/rfc1123#section-2
+[rfc2065#4.5]: https://datatracker.ietf.org/doc/html/rfc2065#section-4.5
+[rfc2181#5.2]: https://datatracker.ietf.org/doc/html/rfc2181#section-5.2
+[rfc2181#8]: https://datatracker.ietf.org/doc/html/rfc2181#section-8
+[rfc2181#11]: https://datatracker.ietf.org/doc/html/rfc2181#section-11
+[rfc2308#4]: https://datatracker.ietf.org/doc/html/rfc2308#section-4
+[rfc3597#5]: https://datatracker.ietf.org/doc/html/rfc3597#section-5
+[rfc8767#4]: https://www.rfc-editor.org/rfc/rfc8767#section-4
+[rfc9460#2.1]: https://datatracker.ietf.org/doc/html/rfc9460#section-2.1
+
+[socket10kxfr.pre#L64]: https://github.com/NLnetLabs/nsd/blob/86a6961f2ca64f169d7beece0ed8a5e1dd1cd302/tpkg/long/socket10kxfr.tdir/socket10kxfr.pre#L64
