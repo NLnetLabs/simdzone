@@ -255,14 +255,24 @@ static void initialize_file(
            parser->options.origin.length);
     file->origin.length = parser->options.origin.length;
     file->last_class = parser->options.default_class;
+    file->dollar_ttl = parser->options.default_ttl;
     file->last_ttl = parser->options.default_ttl;
+    file->ttl = file->default_ttl = &file->last_ttl;
   } else {
     assert(parser->file);
     file->includer = parser->file;
     memcpy(&file->origin, &parser->file->origin, sizeof(file->origin));
-    // retain class and TTL
+    // Retain class and TTL values.
     file->last_class = parser->file->last_class;
+    file->dollar_ttl = parser->file->dollar_ttl;
     file->last_ttl = parser->file->last_ttl;
+    // RRs appearing after the $TTL directive that do not explicitly include
+    // a TTL value, have their TTL set to the TTL in the $TTL directive. RRs
+    // appearing before a $TTL directive use the last explicitly stated value.
+    if (parser->file->default_ttl == &parser->file->last_ttl)
+      file->ttl = file->default_ttl = &file->last_ttl;
+    else
+      file->ttl = file->default_ttl = &file->dollar_ttl;
   }
 
   file->line = 1;

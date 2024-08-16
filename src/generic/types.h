@@ -216,7 +216,7 @@ static really_inline int32_t accept_rr(
     &(zone_name_t){ (uint8_t)parser->owner->length, parser->owner->octets },
     parser->file->last_type,
     parser->file->last_class,
-    parser->file->last_ttl,
+    *parser->file->ttl,
     (uint16_t)length,
     parser->rdata->octets,
     parser->user_data);
