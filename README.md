@@ -84,3 +84,5 @@ $ cmake --build .
 ## Contributing
 Contributions in any way, shape or form are very welcome! Please see
 [CONTRIBUTING.md](CONTRIBUTING.md) to find out how you can help.
+
+Design decisions and notes on the [FORMAT](FORMAT.md).
