@@ -161,11 +161,13 @@ static really_inline int32_t parse_rr(
 
   int32_t code;
   const type_info_t *descriptor;
+  const mnemonic_t *mnemonic;
   rdata_t rdata = { parser->rdata->octets, parser->rdata->octets + 65535 };
 
-  const mnemonic_t *mnemonic;
+  parser->file->ttl = parser->file->default_ttl;
 
   if ((uint8_t)token->data[0] - '0' < 10) {
+    parser->file->ttl = &parser->file->last_ttl;
     if (!scan_ttl(token->data, token->length, parser->options.pretty_ttls, &parser->file->last_ttl))
       SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[3]), NAME(&rr));
     if (parser->file->last_ttl & (1u << 31))
@@ -187,6 +189,7 @@ ttl_or_type:
   if ((code = take_contiguous(parser, &rr, &fields[1], token)) < 0)
     return code;
   if ((uint8_t)token->data[0] - '0' < 10) {
+    parser->file->ttl = &parser->file->last_ttl;
     if (!scan_ttl(token->data, token->length, parser->options.pretty_ttls, &parser->file->last_ttl))
       SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[3]), NAME(&rr));
     if (parser->file->last_ttl & (1u << 31))
@@ -337,14 +340,14 @@ static really_inline int32_t parse_dollar_ttl(
 
   if ((code = take_contiguous(parser, &ttl, &fields[0], token)) < 0)
     return code;
-  if (!scan_ttl(token->data, token->length, parser->options.pretty_ttls, &parser->file->default_ttl))
+  if (!scan_ttl(token->data, token->length, parser->options.pretty_ttls, &parser->file->dollar_ttl))
     SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[0]), NAME(&ttl));
-  if (parser->file->default_ttl & (1u << 31))
+  if (parser->file->dollar_ttl & (1u << 31))
     SEMANTIC_ERROR(parser, "Invalid %s in %s", NAME(&fields[0]), NAME(&ttl));
   if ((code = take_delimiter(parser, &ttl, token)) < 0)
     return code;
 
-  parser->file->last_ttl = parser->file->default_ttl;
+  parser->file->ttl = parser->file->default_ttl = &parser->file->dollar_ttl;
   adjust_line_count(parser->file);
   return 0;
 }

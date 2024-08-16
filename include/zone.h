@@ -279,8 +279,6 @@ struct zone_rdata_buffer {
  */
 #define ZONE_TAPE_SIZE ((100 * ZONE_BLOCK_SIZE) + ZONE_BLOCK_SIZE)
 
-// @private
-
 typedef struct zone_file zone_file_t;
 struct zone_file {
   /** @private */
@@ -289,12 +287,19 @@ struct zone_file {
   zone_name_buffer_t origin, owner;
   /** @private */
   uint16_t last_type;
-  /** @private */
-  uint32_t last_ttl, default_ttl;
+  /** Last stated TTL. */
+  uint32_t last_ttl;
+  /** Last parsed TTL in $TTL entry. */
+  uint32_t dollar_ttl;
+  /** TTL passed to accept callback. */
+  uint32_t *ttl;
+  /** Default TTL passed to accept. */
+  /** Last stated TTL is used as default unless $TTL entry was found. */
+  uint32_t *default_ttl;
   /** @private */
   uint16_t last_class;
   /** Number of lines spanned by RR. */
-  /** non-terminating line feeds, i.e. escaped line feeds, line feeds in
+  /** Non-terminating line feeds, i.e. escaped line feeds, line feeds in
       quoted sections or within parentheses, are counted, but deferred for
       consistency in error reports */
   size_t span;
