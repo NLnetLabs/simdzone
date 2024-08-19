@@ -9,7 +9,7 @@ if(HAVE_HASWELL)
   set_source_files_properties(haswell/bits.c PROPERTIES COMPILE_FLAGS "-march=haswell")
 endif()
 
-cmocka_add_tests(zone-tests types.c include.c ip4.c time.c base32.c svcb.c syntax.c semantics.c eui.c bounds.c bits.c)
+cmocka_add_tests(zone-tests types.c include.c ip4.c time.c base32.c svcb.c syntax.c semantics.c eui.c bounds.c bits.c ttl.c)
 
 set(xbounds ${CMAKE_CURRENT_SOURCE_DIR}/zones/xbounds.zone)
 set(xbounds_c "${CMAKE_CURRENT_BINARY_DIR}/xbounds.c")
