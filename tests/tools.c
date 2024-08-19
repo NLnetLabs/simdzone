@@ -45,7 +45,7 @@ diagnostic_pop()
 #else
   tmpdir = getenv("TMPDIR");
 #endif
-  if (is_dir(tmpdir))
+  if (tmpdir && is_dir(tmpdir))
     return tmpdir;
   if (dir && is_dir(tmpdir))
     return dir;
