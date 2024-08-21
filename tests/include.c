@@ -609,3 +609,113 @@ diagnostic_pop()
   (void)rmdir(dir2);
 #endif
 }
+
+
+struct file_list {
+  size_t index;
+  size_t count;
+  char **paths;
+};
+
+static int32_t track_include_cb(
+  zone_parser_t *parser,
+  const char *name,
+  const char *path,
+  void *user_data)
+{
+  struct file_list *list = (struct file_list *)user_data;
+
+  (void)parser;
+  (void)path;
+
+  fprintf(stderr, "INCLUDED: %s (%s)\n", name, path);
+
+  if (list->index >= list->count)
+    return ZONE_SYNTAX_ERROR;
+  if (strcmp(name, list->paths[list->index++]) != 0)
+    return ZONE_SYNTAX_ERROR;
+  return 0;
+}
+
+static int32_t track_accept_cb(
+  zone_parser_t *parser,
+  const zone_name_t *owner,
+  uint16_t type,
+  uint16_t class,
+  uint32_t ttl,
+  uint16_t rdlength,
+  const uint8_t *rdata,
+  void *user_data)
+{
+  (void)parser;
+  (void)owner;
+  (void)type;
+  (void)class;
+  (void)ttl;
+  (void)rdlength;
+  (void)rdata;
+  (void)user_data;
+  return 0;
+}
+
+/*!cmocka */
+void track_includes(void **state)
+{
+  char *paths[2] = { NULL, NULL };
+  FILE *handles[2] = { NULL, NULL };
+  struct file_list list = { 0, 2, paths };
+  (void)state;
+
+  static const char fmt[] =
+    "$INCLUDE \"%s\"\n"
+    "example A 192.0.2.1\n";
+
+diagnostic_push()
+msvc_diagnostic_ignored(4996)
+  paths[0] = get_tempnam(NULL, "zone");
+  assert_non_null(paths[0]);
+  handles[0] = fopen(paths[0], "wb");
+  assert_non_null(handles[0]);
+  paths[1] = get_tempnam(NULL, "zone");
+  assert_non_null(paths[1]);
+  handles[1] = fopen(paths[1], "wb");
+  assert_non_null(handles[1]);
+diagnostic_pop()
+
+  fprintf(handles[0], fmt, paths[1]);
+  (void)fflush(handles[0]);
+  (void)fclose(handles[0]);
+  fputs("example A 192.0.2.1\n", handles[1]);
+  (void)fflush(handles[1]);
+  (void)fclose(handles[1]);
+
+  char buf[128];
+  int len = snprintf(buf, sizeof(buf), fmt, paths[0]);
+  assert_true(len > 0);
+
+  char *str = malloc((size_t)len + ZONE_BLOCK_SIZE + 1);
+  assert_non_null(str);
+  (void)snprintf(str, (size_t)len+1, fmt, paths[0]);
+
+  zone_parser_t parser;
+  zone_options_t options;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+
+  memset(&options, 0, sizeof(options));
+  options.include.callback = &track_include_cb;
+  options.accept.callback = &track_accept_cb;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+
+  int32_t code = zone_parse_string(&parser, &options, &buffers, str, (size_t)len, &list);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_int_equal(list.index, 2);
+
+  free(str);
+  free(paths[0]);
+  free(paths[1]);
+}
