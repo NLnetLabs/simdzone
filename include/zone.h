@@ -380,6 +380,18 @@ typedef int32_t(*zone_accept_t)(
   void *); // user data
 
 /**
+ * @brief Signature of callback function invoked on $INCLUDE.
+ *
+ * Signal file name in $INCLUDE directive to application. Useful for
+ * dependency tracking, etc.
+ */
+typedef int32_t(*zone_include_t)(
+  zone_parser_t *,
+  const char *, // name in $INCLUDE entry
+  const char *, // fully qualified path
+  void *); // user data
+
+/**
  * @brief Available configuration options.
  */
 typedef struct {
@@ -411,6 +423,10 @@ typedef struct {
     /** Callback invoked for each RR. */
     zone_accept_t callback;
   } accept;
+  struct {
+    /** Callback invoked for each $INCLUDE entry. */
+    zone_include_t callback;
+  } include;
 } zone_options_t;
 
 /**

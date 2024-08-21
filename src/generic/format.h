@@ -299,6 +299,16 @@ static really_inline int32_t parse_dollar_include(
     }
   }
 
+  // signal $INCLUDE to application
+  if (parser->options.include.callback) {
+    code = parser->options.include.callback(
+      parser, file->name, file->path, parser->user_data);
+    if (code) {
+      zone_close_file(parser, file);
+      return code;
+    }
+  }
+
   adjust_line_count(parser->file);
   parser->file = file;
   return 0;
