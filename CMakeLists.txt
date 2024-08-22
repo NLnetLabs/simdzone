@@ -168,7 +168,15 @@ target_include_directories(
 target_link_libraries(zone-bench PRIVATE zone)
 
 check_include_file(endian.h HAVE_ENDIAN_H)
+check_include_file(sys/endian.h HAVE_SYS_ENDIAN_H)
 check_include_file(unistd.h HAVE_UNISTD_H)
+set(ENDIAN_INCLUDES "endian.h")
+if(HAVE_SYS_ENDIAN_H)
+  set(ENDIAN_INCLUDES "${ENDIAN_INCLUDES};sys/endian.h")
+endif()
+check_symbol_exists(bswap16 ${ENDIAN_INCLUDES} HAVE_DECL_BSWAP16)
+check_symbol_exists(bswap32 ${ENDIAN_INCLUDES} HAVE_DECL_BSWAP32)
+check_symbol_exists(bswap64 ${ENDIAN_INCLUDES} HAVE_DECL_BSWAP64)
 
 set(CMAKE_REQUIRED_DEFINITIONS "-D_DEFAULT_SOURCE=1")
 check_symbol_exists(getopt "stdlib.h;unistd.h" HAVE_GETOPT)
