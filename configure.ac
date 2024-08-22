@@ -18,7 +18,16 @@ AC_CONFIG_FILES([Makefile])
 m4_include(m4/ax_check_compile_flag.m4)
 m4_version_prereq([2.70], [AC_PROG_CC], [AC_PROG_CC_STDC])
 
-AC_CHECK_HEADER(endian.h, AC_DEFINE(HAVE_ENDIAN_H, 1, [Define to 1 if you have the <endian.h> header file.]))
+AC_CHECK_HEADERS([endian.h sys/endian.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_DECLS([bswap16,bswap32,bswap64], [], [], [
+AC_INCLUDES_DEFAULT
+#ifdef HAVE_ENDIAN_H
+#include <endian.h>
+#endif
+#ifdef HAVE_SYS_ENDIAN_H
+#include <sys/endian.h>
+#endif
+])
 
 AC_ARG_ENABLE(westmere, AS_HELP_STRING([--disable-westmere],[Disable Westmere (SSE4.2) kernel]))
 case "$enable_westmere" in
