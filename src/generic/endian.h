@@ -122,6 +122,7 @@
 # endif
 #endif
 
+#if !HAVE_DECL_BSWAP16
 static really_inline uint16_t bswap16(uint16_t x)
 {
   // Copied from src/common/lib/libc/gen/bswap16.c in NetBSD
@@ -129,7 +130,9 @@ static really_inline uint16_t bswap16(uint16_t x)
   // Public domain.
   return ((x << 8) & 0xff00) | ((x >> 8) & 0x00ff);
 }
+#endif
 
+#if !HAVE_DECL_BSWAP32
 static really_inline uint32_t bswap32(uint32_t x)
 {
   // Copied from src/common/lib/libc/gen/bswap32.c in NetBSD
@@ -140,7 +143,9 @@ static really_inline uint32_t bswap32(uint32_t x)
          ( (x >>  8) & 0x0000ff00 ) |
          ( (x >> 24) & 0x000000ff );
 }
+#endif
 
+#if !HAVE_DECL_BSWAP64
 static really_inline uint64_t bswap64(uint64_t x)
 {
   // Copied from src/common/lib/libc/gen/bswap64.c in NetBSD
@@ -155,6 +160,7 @@ static really_inline uint64_t bswap64(uint64_t x)
          ( (x >> 40) & 0x000000000000ff00ull ) |
          ( (x >> 56) & 0x00000000000000ffull );
 }
+#endif
 
 # if BYTE_ORDER == LITTLE_ENDIAN
 #   define htobe(bits, x) bswap ## bits((x))
