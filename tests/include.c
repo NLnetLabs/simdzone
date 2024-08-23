@@ -712,6 +712,8 @@ diagnostic_pop()
   options.default_class = 1;
 
   int32_t code = zone_parse_string(&parser, &options, &buffers, str, (size_t)len, &list);
+  remove(paths[0]);
+  remove(paths[1]);
   assert_int_equal(code, ZONE_SUCCESS);
   assert_int_equal(list.index, 2);
 
