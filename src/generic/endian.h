@@ -88,6 +88,12 @@
 #include <sys/endian.h>
 #endif
 
+#if defined(__NetBSD__)
+/* Bring bswap{16,32,64} into scope: */
+#include <sys/types.h>
+#include <machine/bswap.h>
+#endif
+
 #if !defined(LITTLE_ENDIAN)
 # if defined(__ORDER_LITTLE_ENDIAN__)
 #   define LITTLE_ENDIAN __ORDER_LITTLE_ENDIAN__
@@ -121,6 +127,8 @@
 #   error "missing definition of BYTE_ORDER"
 # endif
 #endif
+
+#if !defined(__NetBSD__)
 
 #if !HAVE_DECL_BSWAP16
 static really_inline uint16_t bswap16(uint16_t x)
@@ -161,6 +169,8 @@ static really_inline uint64_t bswap64(uint64_t x)
          ( (x >> 56) & 0x00000000000000ffull );
 }
 #endif
+
+#endif /* !defined(__NetBSD__) */
 
 # if BYTE_ORDER == LITTLE_ENDIAN
 #   define htobe(bits, x) bswap ## bits((x))
