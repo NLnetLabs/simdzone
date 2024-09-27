@@ -68,7 +68,7 @@ static const kernel_t kernels[] = {
   { "haswell", AVX2, &zone_haswell_parse },
 #endif
 #if HAVE_WESTMERE
-  { "westmere", SSE42, &zone_westmere_parse },
+  { "westmere", SSE42|PCLMULQDQ, &zone_westmere_parse },
 #endif
   { "fallback", DEFAULT, &zone_fallback_parse }
 };

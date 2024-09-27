@@ -55,20 +55,20 @@ extern void test_fallback_leading_zeroes(void **);
 
 static const struct kernel kernels[] = {
 #if HAVE_HASWELL
-  { "haswell", AVX2,     &test_haswell_trailing_zeroes,
-                         &test_haswell_leading_zeroes,
-                         &test_haswell_prefix_xor,
-                         &test_haswell_add_overflow },
+  { "haswell", AVX2,             &test_haswell_trailing_zeroes,
+                                 &test_haswell_leading_zeroes,
+                                 &test_haswell_prefix_xor,
+                                 &test_haswell_add_overflow },
 #endif
 #if HAVE_WESTMERE
-  { "westmere", SSE42,   &test_westmere_trailing_zeroes,
-                         &test_westmere_leading_zeroes,
-                         &test_westmere_prefix_xor,
-                         &test_westmere_add_overflow },
+  { "westmere", SSE42|PCLMULQDQ, &test_westmere_trailing_zeroes,
+                                 &test_westmere_leading_zeroes,
+                                 &test_westmere_prefix_xor,
+                                 &test_westmere_add_overflow },
 #endif
-  { "fallback", DEFAULT, &test_fallback_trailing_zeroes,
-                         &test_fallback_leading_zeroes,
-                         0, 0 }
+  { "fallback", DEFAULT,         &test_fallback_trailing_zeroes,
+                                 &test_fallback_leading_zeroes,
+                                 0, 0 }
 };
 
 static inline const struct kernel *
