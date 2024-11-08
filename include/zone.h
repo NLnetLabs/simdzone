@@ -221,8 +221,10 @@ extern "C" {
 #define ZONE_SVC_PARAM_KEY_IPV6HINT (6u)
 /** URI template in relative form @rfc{9461} */
 #define ZONE_SVC_PARAM_KEY_DOHPATH (7u)
-/** Target is an Oblivious HTTP service @draft{ohai,svcb-config} */
+/** Target is an Oblivious HTTP service @rfc{9540} */
 #define ZONE_SVC_PARAM_KEY_OHTTP (8u)
+/** Supported groups in TLS @draft{ietf, tls-key-share-prediction} */
+#define ZONE_SVC_PARAM_KEY_TLS_SUPPORTED_GROUPS (9u)
 /** Reserved ("invalid key") @rfc{9460} */
 #define ZONE_SVC_PARAM_KEY_INVALID_KEY (65535u)
 /** @} */

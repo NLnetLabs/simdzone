@@ -367,6 +367,51 @@ static int32_t parse_unknown(
 }
 
 nonnull_all
+static int32_t parse_tls_supported_groups(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  uint16_t key,
+  const svc_param_info_t *param,
+  rdata_t *rdata,
+  const token_t *token)
+{
+  const char *t = token->data, *te = token->data + token->length;
+  const uint8_t *rdata_start = rdata->octets;
+
+  (void)field;
+  (void)key;
+  (void)param;
+
+  do {
+    uint64_t number = 0;
+    for (;; t++) {
+      const uint64_t digit = (uint8_t)*t - '0';
+      if (digit > 9)
+        break;
+      number = number * 10 + digit;
+    }
+
+    uint16_t group = (uint16_t)number;
+    group = htobe16(group);
+    memcpy(rdata->octets, &group, 2);
+    rdata->octets += 2;
+    if (number > 65535)
+      SYNTAX_ERROR(parser, "Invalid tls-supported-group in %s", NAME(type));
+
+    const uint8_t *g;
+    for (g = rdata_start; g < rdata->octets - 2; g += 2) {
+      if (memcmp(g, &group, 2) == 0)
+        SEMANTIC_ERROR(parser, "Duplicate group in tls-supported-groups in %s", NAME(type));
+    }
+  } while (t < te && *t++ == ',');
+
+  if (t != te || rdata->octets > rdata->limit)
+    SYNTAX_ERROR(parser, "Invalid tls-supported-groups in %s", NAME(type));
+  return 0;
+}
+
+nonnull_all
 static int32_t parse_mandatory_lax(
   parser_t *parser,
   const type_info_t *type,
@@ -421,7 +466,13 @@ static const svc_param_info_t svc_params[] = {
   //   If the "alpn" SvcParam indicates support for HTTP, "dohpath" MUST be
   //   present.
   SVC_PARAM("dohpath", 7u, MANDATORY_VALUE, parse_dohpath, parse_dohpath),
-  SVC_PARAM("ohttp", 8u, 0u, 0, 0),
+  // RFC9540 section 4.
+  //   Both the presentation and wire-format values for the "ohttp" parameter
+  //   MUST be empty.
+  SVC_PARAM("ohttp", 8u, NO_VALUE, parse_unknown, parse_unknown),
+  // draft-ietf-tls-key-share-prediction-01 section 3.1
+  SVC_PARAM("tls-supported-groups", 9u, MANDATORY_VALUE,
+            parse_tls_supported_groups, parse_tls_supported_groups),
 };
 
 static const svc_param_info_t unknown_svc_param =
@@ -485,6 +536,8 @@ static really_inline size_t scan_svc_param(
     return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_DOHPATH)]), 7;
   else if (memcmp(data, "ohttp", 5) == 0)
     return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_OHTTP)]), 5;
+  else if (memcmp(data, "tls-supported-groups", 20) == 0)
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_TLS_SUPPORTED_GROUPS)]), 20;
   else if (memcmp(data, "key", 3) == 0)
     return scan_unknown_svc_param_key(data, key, param);
   else

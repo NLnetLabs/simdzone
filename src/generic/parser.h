@@ -49,7 +49,7 @@ struct string {
 typedef struct mnemonic mnemonic_t;
 struct mnemonic {
   struct {
-    char data[16];
+    char data[24];
     size_t length;
   } key;
   uint32_t value;
