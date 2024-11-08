@@ -383,7 +383,7 @@ static int32_t parse_tls_supported_groups(
   (void)key;
   (void)param;
 
-  do {
+  while (t < te && rdata->octets+2 <= rdata->limit) {
     uint64_t number = 0;
     for (;; t++) {
       const uint64_t digit = (uint8_t)*t - '0';
@@ -404,7 +404,9 @@ static int32_t parse_tls_supported_groups(
       if (memcmp(g, &group, 2) == 0)
         SEMANTIC_ERROR(parser, "Duplicate group in tls-supported-groups in %s", NAME(type));
     }
-  } while (t < te && *t++ == ',');
+    if (*t++ != ',')
+      break;
+  }
 
   if (t != te || rdata->octets > rdata->limit)
     SYNTAX_ERROR(parser, "Invalid tls-supported-groups in %s", NAME(type));
