@@ -404,8 +404,10 @@ static int32_t parse_tls_supported_groups(
       if (memcmp(g, &group, 2) == 0)
         SEMANTIC_ERROR(parser, "Duplicate group in tls-supported-groups in %s", NAME(type));
     }
-    if (*t++ != ',')
+    if (*t != ',')
       break;
+    else
+      t++;
   }
 
   if (t != te || rdata->octets > rdata->limit)
