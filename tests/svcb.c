@@ -690,6 +690,80 @@ static const rdata_t nsd_s09_rdata =
     0x00, 0x01, 0x00, 0x03, 2, 'h', '2',
     0x00, 0x07, 0x00, 0x12, '/', 'd', 'n', 's', '-', 'q', 'u', 'e', 'r', 'y', '{', 0xc3, 0xa9, '?', 'd', 'n', 's', '}');
 
+// From RFC9540 Section 4.1
+static const char ohttp_s1_text[] =
+  PAD("ohttp-s1 HTTPS 1 . ( alpn=h2 ohttp )");
+static const rdata_t ohttp_s1_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    0x00, // target
+    0x00, 0x01, 0x00, 0x03, 2, 'h', '2', // alpn=h2
+    0x00, 0x08, 0x00, 0x00 // ohttp
+    );
+
+static const char ohttp_s2_text[] =
+  PAD("ohttp-s2 HTTPS 1 . ( mandatory=ohttp ohttp )");
+static const rdata_t ohttp_s2_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    0x00, // target
+    0x00, 0x00, 0x00, 0x02, 0x00, 0x08, // mandatory=ohttp
+    0x00, 0x08, 0x00, 0x00 // ohttp
+    );
+
+// From RFC9540 Section 4.2.1
+static const char ohttp_s3_text[] =
+  PAD("ohttp-s3  SVCB  1 doh.example.net. ( alpn=h2 dohpath=/dns-query{?dns} ohttp )");
+static const rdata_t ohttp_s3_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    3, 'd', 'o', 'h', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'n', 'e', 't', 0, // target
+    0x00, 0x01, 0x00, 0x03, 2, 'h', '2', // alpn=h2
+    0x00, 0x07, 0x00, 0x10, '/', 'd', 'n', 's', '-', 'q', 'u', 'e', 'r', 'y', '{', '?', 'd', 'n', 's', '}',
+    0x00, 0x08, 0x00, 0x00 // ohttp
+    );
+
+// From RFC9540 Section 4:
+//   Both the presentation and wire-format values for the "ohttp" parameter
+//   MUST be empty.
+static const char ohttp_f1_text[] =
+  PAD("ohttp-f1 HTTPS 1 . ( alpn=h2 ohttp=hopsa )");
+
+#if 0
+// wire-format non-empty value for the "ohttp" parameter does not fail yet
+static const char ohttp_f2_generic_text[] =
+  PAD("ohttp-f2 SVCB \\# 19 (\n"
+      "00 01                      ; priority\n"
+      "00                         ; target\n"
+      "00 01 00 03 02 68 32       ; alpn=h2\n"
+      "00 08 00 05 68 6f 70 73 61 ; ohttp=hopsa\n"
+      ")");
+#endif
+
+// From draft-ietf-tls-key-share-prediction-01 Section 3.1
+static const char tsg_s1_text[] =
+  PAD("tsg-s1 7200  IN SVCB 3 server.example.net. (\n"
+      "port=\"8004\" tls-supported-groups=29,23 )");
+static const rdata_t tsg_s1_rdata =
+  RDATA(
+    0x00, 0x03, // priority
+    6, 's', 'e', 'r', 'v', 'e', 'r', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'n', 'e', 't', 0, // target
+    0x00, 0x03, 0x00, 0x02, 0x1f, 0x44, // port="8004"
+    0x00, 0x09, 0x00, 0x04, 0x00, 0x1d, 0x00, 0x17 // tls-supported-groups=29,23
+    );
+
+// From draft-ietf-tls-key-share-prediction-01 Section 3.1:
+//   An empty list of values is invalid
+static const char tsg_f1_text[] =
+  PAD("tsg-f1 7200  IN SVCB 3 server.example.net. (\n"
+      "port=\"8004\" tls-supported-groups )");
+
+// From draft-ietf-tls-key-share-prediction-01 Section 3.1:
+//   An list containing duplicates is invalid
+static const char tsg_f2_text[] =
+  PAD("tsg-f2 7200  IN SVCB 3 server.example.net. (\n"
+      "port=\"8004\" tls-supported-groups=29,23,29 )");
+
 // FIXME: make a test that verifies correct behavior for no-default-alpn="some value"
 
 typedef struct test test_t;
@@ -777,7 +851,14 @@ static const test_t tests[] = {
   { true, ZONE_TYPE_HTTPS, 0, nsd_s05_https_text, &nsd_s05_https_secondary_rdata },
   { false, ZONE_TYPE_HTTPS, 0, nsd_s06_text, &nsd_s06_rdata },
   { false, ZONE_TYPE_HTTPS, 0, nsd_s08_text, &nsd_s08_rdata },
-  { false, ZONE_TYPE_HTTPS, 0, nsd_s09_text, &nsd_s09_rdata }
+  { false, ZONE_TYPE_HTTPS, 0, nsd_s09_text, &nsd_s09_rdata },
+  { false, ZONE_TYPE_HTTPS, 0, ohttp_s1_text, &ohttp_s1_rdata },
+  { false, ZONE_TYPE_HTTPS, 0, ohttp_s2_text, &ohttp_s2_rdata },
+  { false, ZONE_TYPE_SVCB, 0, ohttp_s3_text, &ohttp_s3_rdata },
+  { false, ZONE_TYPE_HTTPS, ZONE_SEMANTIC_ERROR, ohttp_f1_text, NULL },
+  { false, ZONE_TYPE_SVCB, 0, tsg_s1_text, &tsg_s1_rdata },
+  { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, tsg_f1_text, NULL },
+  { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, tsg_f2_text, NULL }
 };
 
 static int32_t add_rr(
