@@ -49,7 +49,7 @@ struct string {
 typedef struct mnemonic mnemonic_t;
 struct mnemonic {
   struct {
-    char data[24];
+    char data[16]; /* MUST be 16 because of usage with SIMD cmpeq */
     size_t length;
   } key;
   uint32_t value;
@@ -78,7 +78,13 @@ typedef int32_t (*parse_svc_param_t)(
   const token_t *);
 
 struct svc_param_info {
-  mnemonic_t name;
+  struct {
+    struct {
+      char data[24];
+      size_t length;
+    } key;
+    uint32_t value;
+  } name;
   uint32_t has_value;
   parse_svc_param_t parse, parse_lax;
 };
