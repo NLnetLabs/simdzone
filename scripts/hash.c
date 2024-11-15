@@ -74,6 +74,8 @@ static const tuple_t types_and_classes[] = {
   { "TLSA", 52, true },
   { "SMIMEA", 53, true },
   { "HIP", 55, true },
+  { "NINFO", 56, true },
+  { "RKEY", 57, true },
   { "CDS", 59, true },
   { "CDNSKEY", 60, true },
   { "OPENPGPKEY", 61, true },
@@ -91,6 +93,10 @@ static const tuple_t types_and_classes[] = {
   { "URI", 256, true },
   { "CAA", 257, true },
   { "AVC", 258, true },
+  { "RESINFO", 261, true },
+  { "WALLET", 262, true },
+  { "CLA", 263, true },
+  { "TA", 32768, true },
   { "DLV", 32769, true }
 };
 
@@ -117,10 +123,21 @@ static void print_table(uint64_t magic)
 
   printf("static const symbol_t *hash_to_symbol[256] = {\n");
   for (size_t i=0; i < 256; ) {
+    printf(" ");
     for (size_t j=i+8; i < j; i++) {
-      uint16_t code = keys[i].code;
-      char macro = !code || keys[i].type ? 'T' : 'C';
-      printf("%c(%u), ", macro, code);
+      uint16_t code;
+      switch(keys[i].code) {
+      case 32768: code = 265; // index of  TA in types array in generic/types.h
+                  break;
+      case 32769: code = 266; // index of DLV in types array in generic/types.h
+                  break;
+      default   : code = keys[i].code;
+                  break;
+      }
+      char macro = !code ? 'V' : keys[i].type ? 'T' : 'C';
+      char s[10];
+      snprintf(s, sizeof(s), " %c(%u)", macro, code);
+      printf("%7s%s", s, (i < 255 ? "," : ""));
     }
     printf("\n");
   }
