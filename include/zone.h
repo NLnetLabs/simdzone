@@ -157,6 +157,10 @@ extern "C" {
 #define ZONE_TYPE_SMIMEA (53u)
 /** Host Identity Protocol @rfc{8005} */
 #define ZONE_TYPE_HIP (55u)
+/** NINFO */
+#define ZONE_TYPE_NINFO (56u)
+/** RKEY */
+#define ZONE_TYPE_RKEY (57u)
 /** Child DS @rfc{7344} */
 #define ZONE_TYPE_CDS (59u)
 /** DNSKEY(s) the Child wants reflected in DS @rfc{7344} */
@@ -191,7 +195,15 @@ extern "C" {
 #define ZONE_TYPE_CAA (257u)
 /** DNS Authoritative Source (DNS-AS) */
 #define ZONE_TYPE_AVC (258u)
-/** DNSSEC Lookaside Validation @rfc{4431} */
+/** Resolver Information as Key/Value Pairs @rfc{9606} */
+#define ZONE_TYPE_RESINFO (261u)
+/** Public wallet address */
+#define ZONE_TYPE_WALLET (262u)
+/** BP Convergence Layer Adapter */
+#define ZONE_TYPE_CLA (263u)
+/** DNSSEC Trust Authorities */
+#define ZONE_TYPE_TA (32768u)
+/** DNSSEC Lookaside Validation @rfc{4431} @obsolete */
 #define ZONE_TYPE_DLV (32769u)
 /** @} */
 

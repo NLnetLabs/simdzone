@@ -2805,6 +2805,19 @@ static const rdata_info_t hip_rdata_fields[] = {
   FIELD("Rendezvous Servers")
 };
 
+// https://www.iana.org/assignments/dns-parameters/NINFO/ninfo-completed-template
+static const rdata_info_t ninfo_rdata_fields[] = {
+  FIELD("text")
+};
+
+// https://www.iana.org/assignments/dns-parameters/RKEY/rkey-completed-template
+static const rdata_info_t rkey_rdata_fields[] = {
+  FIELD("flags"),
+  FIELD("protocol"),
+  FIELD("algorithm"),
+  FIELD("publickey")
+};
+
 static const rdata_info_t openpgpkey_rdata_fields[] = {
   FIELD("key")
 };
@@ -2884,6 +2897,28 @@ static const rdata_info_t caa_rdata_fields[] = {
 // https://www.iana.org/assignments/dns-parameters/AVC/avc-completed-template
 static const rdata_info_t avc_rdata_fields[] = {
   FIELD("text")
+};
+
+// RFC 9606
+static const rdata_info_t resinfo_rdata_fields[] = {
+  FIELD("text")
+};
+
+// https://www.iana.org/assignments/dns-parameters/WALLET/wallet-completed-template
+static const rdata_info_t wallet_rdata_fields[] = {
+  FIELD("text")
+};
+
+// https://www.iana.org/assignments/dns-parameters/CLA/cla-completed-template
+static const rdata_info_t cla_rdata_fields[] = {
+  FIELD("text")
+};
+
+static const rdata_info_t ta_rdata_fields[] = {
+  FIELD("key"),
+  FIELD("algorithm"),
+  FIELD("type"),
+  FIELD("digest")
 };
 
 static const rdata_info_t dlv_rdata_fields[] = {
@@ -3010,9 +3045,11 @@ static const type_info_t types[] = {
 
   TYPE("HIP", ZONE_TYPE_HIP, ZONE_CLASS_ANY, FIELDS(hip_rdata_fields),
               check_hip_rr, parse_hip_rdata),
+  TYPE("NINFO", ZONE_TYPE_NINFO, ZONE_CLASS_ANY, FIELDS(ninfo_rdata_fields),
+              check_txt_rr, parse_txt_rdata),
+  TYPE("RKEY", ZONE_TYPE_RKEY, ZONE_CLASS_ANY, FIELDS(rkey_rdata_fields),
+                 check_dnskey_rr, parse_dnskey_rdata),
 
-  UNKNOWN_TYPE(56),
-  UNKNOWN_TYPE(57),
   UNKNOWN_TYPE(58),
 
   TYPE("CDS", ZONE_TYPE_CDS, ZONE_CLASS_ANY, FIELDS(cds_rdata_fields),
@@ -3238,6 +3275,23 @@ static const type_info_t types[] = {
               check_caa_rr, parse_caa_rdata),
   TYPE("AVC", ZONE_TYPE_AVC, ZONE_CLASS_ANY, FIELDS(avc_rdata_fields),
               check_txt_rr, parse_txt_rdata),
+
+  UNKNOWN_TYPE(259),
+  UNKNOWN_TYPE(260),
+
+  TYPE("RESINFO", ZONE_TYPE_RESINFO, ZONE_CLASS_ANY, FIELDS(resinfo_rdata_fields),
+              check_txt_rr, parse_txt_rdata),
+  TYPE("WALLET", ZONE_TYPE_WALLET, ZONE_CLASS_ANY, FIELDS(wallet_rdata_fields),
+              check_txt_rr, parse_txt_rdata),
+  TYPE("CLA", ZONE_TYPE_CLA, ZONE_CLASS_ANY, FIELDS(cla_rdata_fields),
+              check_txt_rr, parse_txt_rdata),
+
+  UNKNOWN_TYPE(264),
+
+  /* Map 32768 in hash.c to 265 */
+  TYPE("TA", ZONE_TYPE_TA, ZONE_CLASS_ANY, FIELDS(ta_rdata_fields), // obsolete
+              check_ds_rr, parse_ds_rdata),
+  /* Map 32769 in hash.c to 266 */
   TYPE("DLV", ZONE_TYPE_DLV, ZONE_CLASS_ANY, FIELDS(dlv_rdata_fields), // obsolete
               check_ds_rr, parse_ds_rdata)
 };
