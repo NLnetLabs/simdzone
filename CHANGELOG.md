@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - tls-supported-groups SvcParam support
+- Check iana registries for unimplemented (new) RR types and SvcParamKeys
 
 ## [0.1.1] - 2024-07-19
 
