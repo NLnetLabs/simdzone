@@ -13,7 +13,7 @@ TOIMPLEMENT=0
 TEMPFILE=`mktemp --suffix=.xml`
 wget --quiet --output-document $TEMPFILE https://www.iana.org/assignments/dns-svcb/dns-svcb.xml
 #TEMPFILE=dns-svcb.xml
-RECORDS=`xmlstarlet select --template --match "/_:registry/_:registry[@id='dns-svcparamkeys']/_:record[_:value<65280]" --value-of "_:name" --output "#" --value-of "_:value" --output "#" --value-of "_:xref[last()]/@type" --output "#" --value-of "_:xref[last()]/@data" --output "#" --value-of "_:file[@type='template']" --nl ${TEMPFILE}`
+RECORDS=`xmlstarlet select --template --match "/_:registry/_:registry[@id='dns-svcparamkeys']/_:record[_:value<65280]" --value-of "_:name" --output "#" --value-of "_:value" --output "#" --value-of "_:xref[last()]/@type" --output "#" --value-of "_:xref[last()]/@data" --nl ${TEMPFILE}`
 rm ${TEMPFILE}
 for RECORD in ${RECORDS}
 do
