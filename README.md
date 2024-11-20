@@ -21,7 +21,7 @@ simdzone by reading the [documentation](https://simdzone.docs.nlnetlabs.nl/).
 
 ## Research paper
 
-* Jeroen Koekkoek and Daniel Lemire, [Parsing Millions of DNS Records per Second](https://www.techrxiv.org/doi/full/10.22541/au.172559703.36231063), Software: Practice and Experience (to appear)
+* Jeroen Koekkoek and Daniel Lemire, [Parsing Millions of DNS Records per Second](https://arxiv.org/abs/2411.12035), Software: Practice and Experience (to appear)
 
 
 
