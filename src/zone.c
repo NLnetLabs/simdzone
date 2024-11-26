@@ -115,89 +115,28 @@ diagnostic_push()
 msvc_diagnostic_ignored(4996)
 
 #if _WIN32
-nonnull_all
-static bool is_separator(int c)
-{
-  return c == '\\' || c == '/';
-}
-
-nonnull_all
-static bool is_rooted(const char *s)
-{
-  if ((s[0] >= 'A' && s[0] <= 'Z') || (s[0] >= 'a' && s[0] <= 'z'))
-    return s[1] == ':';
-  return false;
-}
-
-nonnull_all
-static bool is_relative(const char *s)
-{
-  // rooted paths can be relative, e.g. C:foo
-  if (is_rooted(s))
-    return !is_separator((unsigned char)s[2]);
-  if (is_separator((unsigned char)s[0]))
-    return !(s[1] == '?' || is_separator((unsigned char)s[1]));
-  return false;
-}
-
 // The Win32 API offers PathIsRelative, but it requires linking with shlwapi.
 // Rewriting a relative path is not too complex, unlike correct conversion of
 // Windows paths in general (https://googleprojectzero.blogspot.com/2016/02/).
 // Rooted paths, relative or not, unc and extended paths are never resolved
 // relative to the includer.
-nonnull((2,3))
-static int32_t resolve_path(
-  const char *includer, const char *include, char **path)
+nonnull_all
+static int32_t resolve_path(const char *include, char **path)
 {
-  // support relative non-rooted paths only
-  if (*includer && is_relative(include) && !is_rooted(include)) {
-    assert(!is_relative(includer));
-    char buffer[16];
-    int length = snprintf(
-      buffer, sizeof(buffer), "%s/%s", includer, include);
-    if (length < 0)
-      return ZONE_OUT_OF_MEMORY;
-    char *absolute;
-    if (!(absolute = malloc(length + 1)))
-      return ZONE_OUT_OF_MEMORY;
-    (void)snprintf(
-      absolute, (size_t)length + 1, "%s/%s", includer, include);
-    *path = _fullpath(NULL, absolute, 0);
-    free(absolute);
-  } else {
-    *path = _fullpath(NULL, include, 0);
-  }
-
-  if (*path)
+  if ((*path = _fullpath(NULL, include, 0)))
     return 0;
   return (errno == ENOMEM) ? ZONE_OUT_OF_MEMORY : ZONE_NOT_A_FILE;
 }
 #else
 nonnull_all
-static int32_t resolve_path(
-  const char *includer, const char *include, char **path)
+static int32_t resolve_path(const char *include, char **path)
 {
   char *resolved;
   char buffer[PATH_MAX + 1];
 
-  if (*includer && *include != '/') {
-    assert(*includer == '/');
-    int length = snprintf(
-      buffer, sizeof(buffer), "%s/%s", includer, include);
-    if (length < 0)
-      return ZONE_OUT_OF_MEMORY;
-    char *absolute;
-    if (!(absolute = malloc((size_t)length + 1)))
-      return ZONE_OUT_OF_MEMORY;
-    (void)snprintf(
-      absolute, (size_t)length + 1, "%s/%s", includer, include);
-    resolved = realpath(absolute, buffer);
-    free(absolute);
-  } else {
-    resolved = realpath(include, buffer);
-  }
+  resolved = realpath(include, buffer);
 
-  if (!resolved)
+  if (!(resolved = realpath(include, buffer)))
     return (errno == ENOMEM) ? ZONE_OUT_OF_MEMORY : ZONE_NOT_A_FILE;
   assert(resolved == buffer);
   size_t length = strlen(buffer);
@@ -318,16 +257,12 @@ static int32_t open_file(
     file->path[0] = '-';
     file->path[1] = '\0';
   } else {
-    /* The file is resolved relative to the working directory. */
-    char workdir[PATH_MAX];
-#if _WIN32
-    if(!_getcwd(workdir, sizeof(workdir)))
-      return (void)close_file(parser, file), ZONE_NOT_A_FILE;
-#else
-    if(!getcwd(workdir, sizeof(workdir)))
-      return (void)close_file(parser, file), ZONE_NOT_A_FILE;
-#endif
-    if ((code = resolve_path(workdir, file->name, &file->path)))
+    // The file is resolved relative to the working directory. The absolute
+    // path is used to protect against recusive includes. Not for opening the
+    // file as file descriptors for pipes and sockets the entries will be
+    // symoblic links whose content is the file type with the inode.
+    // See NLnetLabs/nsd#380.
+    if ((code = resolve_path(file->name, &file->path)))
       return (void)close_file(parser, file), code;
   }
 
@@ -335,7 +270,7 @@ static int32_t open_file(
     file->handle = stdin;
     return 0;
   } else {
-    if ((file->handle = fopen(file->path, "rb")))
+    if ((file->handle = fopen(file->name, "rb")))
       return 0;
   }
 
