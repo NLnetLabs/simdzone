@@ -134,8 +134,6 @@ static int32_t resolve_path(const char *include, char **path)
   char *resolved;
   char buffer[PATH_MAX + 1];
 
-  resolved = realpath(include, buffer);
-
   if (!(resolved = realpath(include, buffer)))
     return (errno == ENOMEM) ? ZONE_OUT_OF_MEMORY : ZONE_NOT_A_FILE;
   assert(resolved == buffer);
