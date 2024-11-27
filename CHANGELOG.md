@@ -9,9 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- tls-supported-groups SvcParam support
-- Check iana registries for unimplemented (new) RR types and SvcParamKeys
-- RR types NINFO, RKEY, RESINFO, WALLET, CLA and TA
+- Add semantic checks for DS and ZONEMD digests (NLnetLabs/nsd#205).
+- Support registering a callback for $INCLUDE entries (NLnetLabs/nsd#229).
+- Add tls-supported-groups SvcParam support.
+- Check iana registries for unimplemented (new) RR types and SvcParamKeys.
+- Add support for NINFO, RKEY, RESINFO, WALLET, CLA and TA RR types.
+
+### Fixed
+
+- Prepend -march to CFLAGS to fix architecture detection (NLnetLabs/nsd#372).
+- Fix propagation of implicit TTLs (NLnetLabs/nsd#375).
+- Fix detection of Westmere architecture by checking for CLMUL too.
+- Fix compilation on NetBSD (#233).
+- Fix reading specialized symbolic links (NLnetLabs/nsd#380).
 
 ## [0.1.1] - 2024-07-19
 
