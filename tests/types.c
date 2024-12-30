@@ -790,6 +790,31 @@ static const rdata_t svcb_rdata =
         3, 'f', 'o', 'o', 0,
         0x00, 0x00, 0x00, 0x02, 0x00, 0x10, 0x00, 0x10, 0x00, 0x00);
 
+static const char dsync_text[] =
+  PAD("foo. DSYNC CDS 1 5359 cds-scanner.example.net.");
+static const char dsync_generic_text[] =
+  PAD("foo. DSYNC \\# 30 "
+      /* type */
+      "003b"
+      /* scheme */
+      "01"
+      /* port */
+      "14ef"
+      /* target */
+      "0b6364732d7363616e6e6572 076578616d706c65 036e6574 00");
+static const rdata_t dsync_rdata =
+  RDATA(/* type */
+        0x00, 0x3b,
+        /* scheme */
+        0x01,
+        /* port */
+        0x14, 0xef,
+        /* target */
+        11, 'c', 'd', 's', '-', 's', 'c', 'a', 'n', 'n', 'e', 'r',
+         7, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
+         3, 'n', 'e', 't',
+         0);
+
 static const char spf_text[] =
   PAD("foo. SPF \"v=spf1 +all\"");
 static const char spf_generic_text[] =
@@ -977,6 +1002,8 @@ static const test_t tests[] = {
   { ZONE_TYPE_ZONEMD, zonemd_text, &zonemd_rdata },
   { ZONE_TYPE_ZONEMD, zonemd_generic_text, &zonemd_rdata },
   { ZONE_TYPE_SVCB, svcb_text, &svcb_rdata },
+  { ZONE_TYPE_DSYNC, dsync_text, &dsync_rdata },
+  { ZONE_TYPE_DSYNC, dsync_generic_text, &dsync_rdata },
   { ZONE_TYPE_SPF, spf_text, &spf_rdata },
   { ZONE_TYPE_SPF, spf_generic_text, &spf_rdata },
   { ZONE_TYPE_NID, nid_text, &nid_rdata },

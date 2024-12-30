@@ -2190,6 +2190,71 @@ static int32_t parse_https_rdata(
 }
 
 nonnull_all
+static int32_t check_dsync_rr(
+  parser_t *parser, const type_info_t *type, const rdata_t *rdata)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = (uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets;
+  const uint8_t *o = parser->rdata->octets;
+  const rdata_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int16(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int16(parser, type, &f[2], o+c, n-c))) ||
+      (r = check(&c, check_name(parser, type, &f[3], o+c, n-c))))
+    return r;
+
+  const uint8_t dsync_scheme = o[2];
+  uint16_t dsync_type;
+  memcpy(&dsync_type, o, sizeof(dsync_type));
+  dsync_type = be16toh(dsync_type);
+  if (dsync_scheme == 1 && dsync_type != ZONE_TYPE_CDS
+                        && dsync_type != ZONE_TYPE_CDNSKEY)
+    SEMANTIC_ERROR(parser, "Wrong type for scheme 1 in %s", NAME(type));
+
+  if (c > n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
+static int32_t parse_dsync_rdata(
+  parser_t *parser, const type_info_t *type, rdata_t *rdata, token_t *token)
+{
+  int32_t code;
+  const rdata_info_t *fields = type->rdata.fields;
+
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
+    return code;
+  if ((code = parse_type(parser, type, &fields[0], rdata, token)) < 0)
+    return code;
+  if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
+    return code;
+  if ((code = parse_int8(parser, type, &fields[1], rdata, token)) < 0)
+    return code;
+  if ((code = take_contiguous(parser, type, &fields[2], token)) < 0)
+    return code;
+  if ((code = parse_int16(parser, type, &fields[2], rdata, token)) < 0)
+    return code;
+  if ((code = take_contiguous(parser, type, &fields[3], token)) < 0)
+    return code;
+  if ((code = parse_name(parser, type, &fields[3], rdata, token)) < 0)
+    return code;
+  take(parser, token);
+
+  const uint8_t dsync_scheme = parser->rdata->octets[2];
+  uint16_t dsync_type;
+  memcpy(&dsync_type, parser->rdata->octets, sizeof(dsync_type));
+  dsync_type = be16toh(dsync_type);
+  if (dsync_scheme == 1 && dsync_type != ZONE_TYPE_CDS
+                        && dsync_type != ZONE_TYPE_CDNSKEY)
+    SEMANTIC_ERROR(parser, "Wrong type for scheme 1 in %s", NAME(type));
+
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
 static int32_t check_nid_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
@@ -2847,6 +2912,13 @@ static const rdata_info_t https_rdata_fields[] = {
   FIELD("params")
 };
 
+static const rdata_info_t dsync_rdata_fields[] = {
+  FIELD("rrtype"),
+  FIELD("scheme"),
+  FIELD("port"),
+  FIELD("target")
+};
+
 static const rdata_info_t spf_rdata_fields[] = {
   FIELD("text")
 };
@@ -3066,8 +3138,8 @@ static const type_info_t types[] = {
                check_svcb_rr, parse_svcb_rdata),
   TYPE("HTTPS", ZONE_TYPE_HTTPS, ZONE_CLASS_IN, FIELDS(https_rdata_fields),
                 check_https_rr, parse_https_rdata),
-
-  UNKNOWN_TYPE(66),
+  TYPE("DSYNC", ZONE_TYPE_DSYNC, ZONE_CLASS_ANY, FIELDS(dsync_rdata_fields),
+                check_dsync_rr, parse_dsync_rdata),
   UNKNOWN_TYPE(67),
   UNKNOWN_TYPE(68),
   UNKNOWN_TYPE(69),

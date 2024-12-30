@@ -83,6 +83,7 @@ static const tuple_t types_and_classes[] = {
   { "ZONEMD", 63, true },
   { "SVCB", 64, true },
   { "HTTPS", 65, true },
+  { "DSYNC", 66, true },
   { "SPF", 99, true },
   { "NID", 104, true },
   { "L32", 105, true },
