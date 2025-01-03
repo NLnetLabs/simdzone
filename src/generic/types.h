@@ -2210,7 +2210,7 @@ static int32_t check_dsync_rr(
   memcpy(&dsync_type, o, sizeof(dsync_type));
   dsync_type = be16toh(dsync_type);
   if (dsync_scheme == 1 && dsync_type != ZONE_TYPE_CDS
-                        && dsync_type != ZONE_TYPE_CDNSKEY)
+                        && dsync_type != ZONE_TYPE_CSYNC)
     SEMANTIC_ERROR(parser, "Wrong type for scheme 1 in %s", NAME(type));
 
   if (c > n)
@@ -2248,7 +2248,7 @@ static int32_t parse_dsync_rdata(
   memcpy(&dsync_type, parser->rdata->octets, sizeof(dsync_type));
   dsync_type = be16toh(dsync_type);
   if (dsync_scheme == 1 && dsync_type != ZONE_TYPE_CDS
-                        && dsync_type != ZONE_TYPE_CDNSKEY)
+                        && dsync_type != ZONE_TYPE_CSYNC)
     SEMANTIC_ERROR(parser, "Wrong type for scheme 1 in %s", NAME(type));
 
   return accept_rr(parser, type, rdata);

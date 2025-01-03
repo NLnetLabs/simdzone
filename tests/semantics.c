@@ -196,22 +196,22 @@ void dsync_scheme_types(void **state)
     // Schema 0: Reserved
     { "CDS"    , ZONE_TYPE_CDS    , 0, ZONE_SUCCESS },
     { "TYPE59" , 59 /* CDS */     , 0, ZONE_SUCCESS },
-    { "CDNSKEY", ZONE_TYPE_CDNSKEY, 0, ZONE_SUCCESS },
-    { "TYPE60" , 60 /* CDNSKEY */ , 0, ZONE_SUCCESS },
+    { "CSYNC"  , ZONE_TYPE_CSYNC  , 0, ZONE_SUCCESS },
+    { "TYPE62" , 62 /* CSYNC */   , 0, ZONE_SUCCESS },
     { "TXT"    , ZONE_TYPE_TXT    , 0, ZONE_SUCCESS },
     { "TYPE16" , 16 /* TXT */     , 0, ZONE_SUCCESS },
-    // Scheme 1: only CDS and CDNSKEY
+    // Scheme 1: only CDS and CSYNC
     { "CDS"    , ZONE_TYPE_CDS    , 1, ZONE_SUCCESS },
     { "TYPE59" , 59 /* CDS */     , 1, ZONE_SUCCESS },
-    { "CDNSKEY", ZONE_TYPE_CDNSKEY, 1, ZONE_SUCCESS },
-    { "TYPE60" , 60 /* CDNSKEY */ , 1, ZONE_SUCCESS },
+    { "CSYNC"  , ZONE_TYPE_CSYNC  , 1, ZONE_SUCCESS },
+    { "TYPE62" , 62 /* CSYNC */   , 1, ZONE_SUCCESS },
     { "TXT"    , ZONE_TYPE_TXT    , 1, ZONE_SEMANTIC_ERROR },
     { "TYPE16" , 16 /* TXT */     , 1, ZONE_SEMANTIC_ERROR },
     // Other schemes, anything goes
     { "CDS"    , ZONE_TYPE_CDS    , 2, ZONE_SUCCESS },
     { "TYPE59" , 59 /* CDS */     , 2, ZONE_SUCCESS },
-    { "CDNSKEY", ZONE_TYPE_CDNSKEY, 2, ZONE_SUCCESS },
-    { "TYPE60" , 60 /* CDNSKEY */ , 2, ZONE_SUCCESS },
+    { "CSYNC"  , ZONE_TYPE_CSYNC  , 2, ZONE_SUCCESS },
+    { "TYPE62" , 62 /* CSYNC */   , 2, ZONE_SUCCESS },
     { "TXT"    , ZONE_TYPE_TXT    , 2, ZONE_SUCCESS },
     { "TYPE16" , 16 /* TXT */     , 2, ZONE_SUCCESS }
   };
