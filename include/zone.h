@@ -119,6 +119,10 @@ extern "C" {
 #define ZONE_TYPE_LOC (29u)
 /** Next domain @rfc{3755} @rfc{2535} @obsolete */
 #define ZONE_TYPE_NXT (30u)
+/** Endpoint Identifier */
+#define ZONE_TYPE_EID (31u)
+/** Nimrod Locator */
+#define ZONE_TYPE_NIMLOC (32u)
 /** Server Selection @rfc{2782} */
 #define ZONE_TYPE_SRV (33u)
 /** Naming Authority Pointer @rfc{2915} @rfc{2168} @rfc{3403} */

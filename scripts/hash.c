@@ -55,6 +55,8 @@ static const tuple_t types_and_classes[] = {
   { "AAAA", 28, true },
   { "LOC", 29, true },
   { "NXT", 30, true },
+  { "EID", 31, true },
+  { "NIMLOC", 32, true },
   { "SRV", 33, true },
   { "NAPTR", 35, true },
   { "KX", 36, true },

@@ -1113,6 +1113,27 @@ static int32_t parse_nxt_rdata(
 }
 
 nonnull_all
+static int32_t check_eid_rr(
+  parser_t *parser, const type_info_t *type, const rdata_t *rdata)
+{
+  if ((uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets <= 0)
+    SYNTAX_ERROR(parser, "Invalid %s record", NAME(type));
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
+static int32_t parse_eid_rdata(
+  parser_t *parser, const type_info_t *type, rdata_t *rdata, token_t *token)
+{
+  int32_t code;
+  const rdata_info_t *fields = type->rdata.fields;
+
+  if ((code = parse_base16_sequence(parser, type, &fields[1], rdata, token)) < 0)
+    return code;
+  return check_eid_rr(parser, type, rdata);
+}
+
+nonnull_all
 static int32_t check_srv_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
@@ -2241,7 +2262,6 @@ static int32_t parse_dsync_rdata(
     return code;
   if ((code = parse_name(parser, type, &fields[3], rdata, token)) < 0)
     return code;
-  take(parser, token);
 
   const uint8_t dsync_scheme = parser->rdata->octets[2];
   uint16_t dsync_type;
@@ -2719,6 +2739,14 @@ static const rdata_info_t nxt_rdata_fields[] = {
   FIELD("type bit map")
 };
 
+static const rdata_info_t eid_rdata_fields[] = {
+  FIELD("end point identifier")
+};
+
+static const rdata_info_t nimloc_rdata_fields[] = {
+  FIELD("nimrod locator")
+};
+
 static const rdata_info_t srv_rdata_fields[] = {
   FIELD("priority"),
   FIELD("weight"),
@@ -3064,10 +3092,10 @@ static const type_info_t types[] = {
               check_loc_rr, parse_loc_rdata),
   TYPE("NXT", ZONE_TYPE_NXT, ZONE_CLASS_ANY, FIELDS(nxt_rdata_fields), // obsolete
               check_nxt_rr, parse_nxt_rdata),
-
-  UNKNOWN_TYPE(31),
-  UNKNOWN_TYPE(32),
-
+  TYPE("EID", ZONE_TYPE_EID, ZONE_CLASS_IN, FIELDS(eid_rdata_fields),
+              check_eid_rr, parse_eid_rdata),
+  TYPE("NIMLOC", ZONE_TYPE_NIMLOC, ZONE_CLASS_IN, FIELDS(nimloc_rdata_fields),
+              check_eid_rr, parse_eid_rdata),
   TYPE("SRV", ZONE_TYPE_SRV, ZONE_CLASS_IN, FIELDS(srv_rdata_fields),
               check_srv_rr, parse_srv_rdata),
 

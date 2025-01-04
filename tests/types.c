@@ -313,6 +313,17 @@ static const rdata_t nxt_rdata =
   RDATA(6, 'm', 'e', 'd', 'i', 'u', 'm', 3, 'f', 'o', 'o', 3, 't', 'l', 'd', 0,
         0x40, 0x01, 0x00, 0x82);
 
+static const char eid_text[] =
+  PAD("venera.invalid. EID 813F 4B7C DAB3 4217");
+static const rdata_t eid_rdata =
+  RDATA(0x81, 0x3f, 0x4b, 0x7c, 0xda, 0xb3, 0x42, 0x17);
+
+static const char nimloc_text[] =
+  PAD("venera.invalid. NIMLOC ( 3227 45\n"
+      "                         0A 01 00 34 )");
+static const rdata_t nimloc_rdata =
+  RDATA(0x32, 0x27, 0x45, 0x0a, 0x01, 0x00, 0x34);
+
 static const char naptr_text[] =
   PAD("foo. NAPTR 100 50 \"s\" \"http+I2L+I2C+I2R\" \"\"  _http._tcp.gatech.edu.");
 static const char naptr_generic_text[] =
@@ -968,6 +979,8 @@ static const test_t tests[] = {
   { ZONE_TYPE_PX, px_generic_text, &px_rdata },
   { ZONE_TYPE_LOC, loc_text, &loc_rdata },
   { ZONE_TYPE_NXT, nxt_text, &nxt_rdata },
+  { ZONE_TYPE_EID, eid_text, &eid_rdata },
+  { ZONE_TYPE_NIMLOC, nimloc_text, &nimloc_rdata },
   { ZONE_TYPE_NAPTR, naptr_text, &naptr_rdata },
   { ZONE_TYPE_NAPTR, naptr_generic_text, &naptr_rdata },
   { ZONE_TYPE_KX, kx_text, &kx_rdata },
