@@ -135,6 +135,8 @@ extern "C" {
 #define ZONE_TYPE_A6 (38u)
 /** DNAME @rfc{6672} */
 #define ZONE_TYPE_DNAME (39u)
+/** SINK @draft{eastlake, kitchen-sink} */
+#define ZONE_TYPE_SINK (40u)
 /** Address Prefix List @rfc{3123} */
 #define ZONE_TYPE_APL (42u)
 /** Delegation Signer @rfc{4034} @rfc{3658} */
@@ -165,6 +167,8 @@ extern "C" {
 #define ZONE_TYPE_NINFO (56u)
 /** RKEY */
 #define ZONE_TYPE_RKEY (57u)
+/** Trust Anchor LINK @draft{ietf, dnsop-dnssec-trust-history} */
+#define ZONE_TYPE_TALINK (58u)
 /** Child DS @rfc{7344} */
 #define ZONE_TYPE_CDS (59u)
 /** DNSKEY(s) the Child wants reflected in DS @rfc{7344} */
@@ -201,6 +205,8 @@ extern "C" {
 #define ZONE_TYPE_CAA (257u)
 /** DNS Authoritative Source (DNS-AS) */
 #define ZONE_TYPE_AVC (258u)
+/** Digital Object Architecture @draft{durand, doa-over-dns} */
+#define ZONE_TYPE_DOA (259u)
 /** Resolver Information as Key/Value Pairs @rfc{9606} */
 #define ZONE_TYPE_RESINFO (261u)
 /** Public wallet address */

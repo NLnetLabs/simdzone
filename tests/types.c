@@ -375,6 +375,10 @@ static const char dname_generic_text[] =
   PAD("foo. DNAME \\# 18 04686f7374076578616d706c6503636f6d00");
 static const rdata_t dname_rdata = RDATA(HOST_EXAMPLE_COM);
 
+static const char sink_text[] = PAD("foo. SINK 64 1 TkxuZXRMYWJzLm5s");
+static const rdata_t sink_rdata =
+  RDATA(64, 1, 'N', 'L', 'n', 'e', 't', 'L', 'a', 'b', 's', '.', 'n', 'l');
+
 static const char apl_text[] =
   PAD("foo.example. IN APL 1:192.168.32.0/21 !1:192.168.38.0/28");
 static const rdata_t apl_rdata =
@@ -606,6 +610,12 @@ static const rdata_t hip_rdata =
         // rvs2.example.com
         4, 'r', 'v', 's', '2', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0,
         );
+
+static const char talink_text[] =
+  PAD("example.com. TALINK h0.example.com. h2.example.com.");
+static const rdata_t talink_rdata =
+  RDATA(2, 'h', '0', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0,
+        2, 'h', '2', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0);
 
 static const char cds_text[] =
   PAD("foo. CDS 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
@@ -908,6 +918,38 @@ static const rdata_t avc_rdata =
             'G', '|', 'a', 'p', 'p', '-', 'c', 'l',
             'a', 's', 's', ':', 'O', 'A', 'M');
 
+static const char doa_text[] =
+  PAD("foo. DOA 0 1 2 \"\" bWFpbHRvOmxhYnNAbmxuZXRsYWJzLm5s");
+static const rdata_t doa_rdata =
+  RDATA(/* enterprise */
+        0, 0, 0, 0,
+        /* type */
+        0, 0, 0, 1,
+        /* location */
+        2,
+        /* media type */
+        0,
+        /* data */
+        'm', 'a', 'i', 'l', 't', 'o', ':',
+        'l', 'a', 'b', 's', '@',
+        'n', 'l', 'n', 'e', 't', 'l', 'a', 'b', 's', '.', 'n', 'l'
+        );
+
+static const char doa2_text[] =
+  PAD("foo. DOA 0 100000 200 example/nothing -");
+static const rdata_t doa2_rdata =
+  RDATA(/* enterprise */
+        0, 0, 0, 0,
+        /* type */
+        0, 1, 134, 160,
+        /* location */
+        200,
+        /* media type */
+        15, 'e', 'x', 'a', 'm', 'p', 'l', 'e', '/',
+            'n', 'o', 't', 'h', 'i', 'n', 'g'
+        /* data */
+        );
+
 static const char dlv_text[] =
   PAD("foo. DLV 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
 static const char dlv_generic_text[] =
@@ -988,6 +1030,7 @@ static const test_t tests[] = {
   { ZONE_TYPE_CERT, cert_text, &cert_rdata },
   { ZONE_TYPE_DNAME, dname_text, &dname_rdata },
   { ZONE_TYPE_DNAME, dname_generic_text, &dname_rdata },
+  { ZONE_TYPE_SINK, sink_text, &sink_rdata },
   { ZONE_TYPE_APL, apl_text, &apl_rdata },
   { ZONE_TYPE_SSHFP, sshfp_text, &sshfp_rdata },
   { ZONE_TYPE_SSHFP, sshfp_generic_text, &sshfp_rdata },
@@ -1005,6 +1048,7 @@ static const test_t tests[] = {
   { ZONE_TYPE_SMIMEA, smimea_text, &smimea_rdata },
   { ZONE_TYPE_SMIMEA, smimea_generic_text, &smimea_rdata },
   { ZONE_TYPE_HIP, hip_text, &hip_rdata },
+  { ZONE_TYPE_TALINK, talink_text, &talink_rdata },
   { ZONE_TYPE_CDS, cds_text, &cds_rdata },
   { ZONE_TYPE_CDS, cds_generic_text, &cds_rdata },
   { ZONE_TYPE_CDNSKEY, cdnskey_text, &cdnskey_rdata },
@@ -1037,6 +1081,8 @@ static const test_t tests[] = {
   { ZONE_TYPE_CAA, caa_generic_text, &caa_rdata },
   { ZONE_TYPE_AVC, avc_text, &avc_rdata },
   { ZONE_TYPE_AVC, avc_generic_text, &avc_rdata },
+  { ZONE_TYPE_DOA, doa_text, &doa_rdata },
+  { ZONE_TYPE_DOA, doa2_text, &doa2_rdata },
   { ZONE_TYPE_DLV, dlv_text, &cds_rdata },
   { ZONE_TYPE_DLV, dlv_generic_text, &cds_rdata }
 };

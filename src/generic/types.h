@@ -1267,6 +1267,41 @@ static int32_t parse_cert_rdata(
 }
 
 nonnull_all
+static int32_t check_sink_rr(
+  parser_t *parser, const type_info_t *type, const rdata_t *rdata)
+{
+  // FIXME: implement actual checks
+  (void)type;
+
+  assert(rdata->octets >= parser->rdata->octets);
+  if ((uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets < 3)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
+static int32_t parse_sink_rdata(
+  parser_t *parser, const type_info_t *type, rdata_t *rdata, token_t *token)
+{
+  int32_t code;
+  const rdata_info_t *fields = type->rdata.fields;
+
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
+    return code;
+  if ((code = parse_int8(parser, type, &fields[0], rdata, token)) < 0)
+    return code;
+  if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
+    return code;
+  if ((code = parse_int8(parser, type, &fields[1], rdata, token)) < 0)
+    return code;
+  take(parser, token);
+  if ((code = parse_base64_sequence(parser, type, &fields[3], rdata, token)) < 0)
+    return code;
+
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
 static int32_t check_apl_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
@@ -2524,6 +2559,56 @@ static int32_t parse_caa_rdata(
 }
 
 nonnull_all
+static int32_t check_doa_rr(
+  parser_t *parser, const type_info_t *type, const rdata_t *rdata)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = (uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets;
+  const uint8_t *o = parser->rdata->octets;
+  const rdata_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int32(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int32(parser, type, &f[1], o+c, n-c))) ||
+      (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))) ||
+      (r = check(&c, check_string(parser, type, &f[3], o+c, n-c))))
+    return r;
+  if (c > n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
+static int32_t parse_doa_rdata(
+  parser_t *parser, const type_info_t *type, rdata_t *rdata, token_t *token)
+{
+  int32_t code;
+  const rdata_info_t *fields = type->rdata.fields;
+
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
+    return code;
+  if ((code = parse_int32(parser, type, &fields[0], rdata, token)) < 0)
+    return code;
+  if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
+    return code;
+  if ((code = parse_int32(parser, type, &fields[1], rdata, token)) < 0)
+    return code;
+  if ((code = take_contiguous(parser, type, &fields[2], token)) < 0)
+    return code;
+  if ((code = parse_int8(parser, type, &fields[2], rdata, token)) < 0)
+    return code;
+  if ((code = take_quoted_or_contiguous(parser, type, &fields[3], token)) < 0)
+    return code;
+  if ((code = parse_string(parser, type, &fields[3], rdata, token)) < 0)
+    return code;
+  take(parser, token);
+  if (!(token->length == 1 && (char)*token->data == '-')
+  &&  (code = parse_base64_sequence(parser, type, &fields[4], rdata, token)) < 0)
+    return code;
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
 static int32_t check_generic_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
@@ -2791,6 +2876,12 @@ static const rdata_info_t dname_rdata_fields[] = {
   FIELD("source")
 };
 
+static const rdata_info_t sink_rdata_fields[] = {
+  FIELD("coding"),
+  FIELD("subcoding"),
+  FIELD("data")
+};
+
 static const rdata_info_t apl_rdata_fields[] = {
   FIELD("prefix")
 };
@@ -2911,6 +3002,12 @@ static const rdata_info_t rkey_rdata_fields[] = {
   FIELD("publickey")
 };
 
+// https://www.iana.org/assignments/dns-parameters/TALINK/talink-completed-template
+static const rdata_info_t talink_rdata_fields[] = {
+  FIELD("start or previous"),
+  FIELD("end or next")
+};
+
 static const rdata_info_t openpgpkey_rdata_fields[] = {
   FIELD("key")
 };
@@ -2997,6 +3094,15 @@ static const rdata_info_t caa_rdata_fields[] = {
 // https://www.iana.org/assignments/dns-parameters/AVC/avc-completed-template
 static const rdata_info_t avc_rdata_fields[] = {
   FIELD("text")
+};
+
+// draft-durand-doa-over-dns-02
+static const rdata_info_t doa_rdata_fields[] = {
+  FIELD("enterprise"),
+  FIELD("type"),
+  FIELD("location"),
+  FIELD("media type"),
+  FIELD("data")
 };
 
 // RFC 9606
@@ -3113,7 +3219,8 @@ static const type_info_t types[] = {
   TYPE("DNAME", ZONE_TYPE_DNAME, ZONE_CLASS_ANY, FIELDS(dname_rdata_fields),
                 check_ns_rr, parse_ns_rdata),
 
-  UNKNOWN_TYPE(40),
+  TYPE("SINK", ZONE_TYPE_SINK, ZONE_CLASS_ANY, FIELDS(sink_rdata_fields),
+               check_sink_rr, parse_sink_rdata),
   UNKNOWN_TYPE(41),
 
   TYPE("APL", ZONE_TYPE_APL, ZONE_CLASS_IN, FIELDS(apl_rdata_fields),
@@ -3148,10 +3255,9 @@ static const type_info_t types[] = {
   TYPE("NINFO", ZONE_TYPE_NINFO, ZONE_CLASS_ANY, FIELDS(ninfo_rdata_fields),
               check_txt_rr, parse_txt_rdata),
   TYPE("RKEY", ZONE_TYPE_RKEY, ZONE_CLASS_ANY, FIELDS(rkey_rdata_fields),
-                 check_dnskey_rr, parse_dnskey_rdata),
-
-  UNKNOWN_TYPE(58),
-
+               check_dnskey_rr, parse_dnskey_rdata),
+  TYPE("TALINK", ZONE_TYPE_TALINK, ZONE_CLASS_ANY, FIELDS(talink_rdata_fields),
+                 check_minfo_rr, parse_minfo_rdata),
   TYPE("CDS", ZONE_TYPE_CDS, ZONE_CLASS_ANY, FIELDS(cds_rdata_fields),
               check_ds_rr, parse_ds_rdata),
   TYPE("CDNSKEY", ZONE_TYPE_CDNSKEY, ZONE_CLASS_ANY, FIELDS(cdnskey_rdata_fields),
@@ -3375,8 +3481,9 @@ static const type_info_t types[] = {
               check_caa_rr, parse_caa_rdata),
   TYPE("AVC", ZONE_TYPE_AVC, ZONE_CLASS_ANY, FIELDS(avc_rdata_fields),
               check_txt_rr, parse_txt_rdata),
+  TYPE("DOA", ZONE_TYPE_DOA, ZONE_CLASS_ANY, FIELDS(doa_rdata_fields),
+              check_doa_rr, parse_doa_rdata),
 
-  UNKNOWN_TYPE(259),
   UNKNOWN_TYPE(260),
 
   TYPE("RESINFO", ZONE_TYPE_RESINFO, ZONE_CLASS_ANY, FIELDS(resinfo_rdata_fields),
