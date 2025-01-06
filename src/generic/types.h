@@ -1368,7 +1368,7 @@ static int32_t check_ds_rr(
       SEMANTIC_ERROR(parser, "Invalid digest in %s", NAME(type));
   }
 
-  if (c >= n)
+  if (c > n)
     SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
   return accept_rr(parser, type, rdata);
 }
@@ -1393,7 +1393,8 @@ static int32_t parse_ds_rdata(
   if ((code = parse_int8(parser, type, &fields[2], rdata, token)) < 0)
     return code;
   take(parser, token);
-  if ((code = parse_base16_sequence(parser, type, &fields[3], rdata, token)) < 0)
+  if (!(token->length == 1 && (char)*token->data == '0')
+  &&  (code = parse_base16_sequence(parser, type, &fields[3], rdata, token)) < 0)
     return code;
 
   const uint8_t digest_algorithm = parser->rdata->octets[3];
@@ -1763,7 +1764,7 @@ static int32_t check_dnskey_rr(
       (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))))
     return r;
 
-  if (c >= n)
+  if (c > n)
     SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
   return accept_rr(parser, type, rdata);
 }
@@ -1788,7 +1789,8 @@ static int32_t parse_dnskey_rdata(
   if ((code = parse_algorithm(parser, type, &fields[2], rdata, token)) < 0)
     return code;
   take(parser, token);
-  if ((code = parse_base64_sequence(parser, type, &fields[3], rdata, token)) < 0)
+  if (!(token->length == 1 && (char)*token->data == '0')
+  &&  (code = parse_base64_sequence(parser, type, &fields[3], rdata, token)) < 0)
     return code;
 
   return accept_rr(parser, type, rdata);
@@ -2602,7 +2604,7 @@ static int32_t parse_doa_rdata(
   if ((code = parse_string(parser, type, &fields[3], rdata, token)) < 0)
     return code;
   take(parser, token);
-  if (!(token->length == 1 && (char)*token->data == '-')
+  if (!(token->length == 1 && ((char)*token->data == '0' || (char)*token->data == '-'))
   &&  (code = parse_base64_sequence(parser, type, &fields[4], rdata, token)) < 0)
     return code;
   return accept_rr(parser, type, rdata);

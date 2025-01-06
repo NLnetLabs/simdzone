@@ -629,6 +629,14 @@ static const rdata_t cds_rdata =
         0x12, 0x1e, 0x20, 0x2a, 0x8b, 0x76, 0x6a, 0x6a,
         0x48, 0x37, 0x20, 0x6c);
 
+// RFC 8078 Section 4: "Empty keying material is represented by a single 0"
+static const char cds2_text[] =
+  PAD("foo. CDS 0 0 0 0");
+static const char cds2_generic_text[] =
+  PAD("foo. CDS \\# 4 00000000");
+static const rdata_t cds2_rdata =
+  RDATA(0, 0, 0, 0);
+
 static const char cdnskey_text[] =
   PAD("foo. CDNSKEY 256 3 5 ( AQPSKmynfzW4kyBv015MUG2DeIQ3"
       "                       Cbl+BBZH4b/0PY1kxkmvHjcZc8no"
@@ -682,6 +690,14 @@ static const rdata_t cdnskey_rdata =
         0x21, 0x03, 0x86, 0x6d, 0x92, 0x34, 0xa2, 0xe2,
         0x8d, 0xf5, 0x29, 0xa6, 0x7d, 0x54, 0x68, 0xdb,
         0xef, 0xe3);
+
+// RFC 8078 Section 4: "Empty keying material is represented by a single 0"
+static const char cdnskey2_text[] =
+  PAD("foo. CDNSKEY 0 3 0 0");
+static const char cdnskey2_generic_text[] =
+  PAD("foo. CDNSKEY \\# 4 00000300");
+static const rdata_t cdnskey2_rdata =
+  RDATA(0, 0, 3, 0);
 
 // generated using https://www.huque.com/bin/openpgpkey with
 // input from https://www.ietf.org/archive/id/draft-bre-openpgp-samples-01.html
@@ -920,6 +936,9 @@ static const rdata_t avc_rdata =
 
 static const char doa_text[] =
   PAD("foo. DOA 0 1 2 \"\" bWFpbHRvOmxhYnNAbmxuZXRsYWJzLm5s");
+static const char doa_generic_text[] =
+  PAD("foo. DOA \\# 34 00000000 00000001 02 00 (\n"
+      "                6d61696c746f3a6c616273406e6c6e65746c6162732e6e6c )");
 static const rdata_t doa_rdata =
   RDATA(/* enterprise */
         0, 0, 0, 0,
@@ -937,6 +956,8 @@ static const rdata_t doa_rdata =
 
 static const char doa2_text[] =
   PAD("foo. DOA 0 100000 200 example/nothing -");
+static const char doa2_generic_text[] =
+  PAD("foo. DOA \\# 25 00000000 000186a0 c8 0f6578616d706c652f6e6f7468696e67");
 static const rdata_t doa2_rdata =
   RDATA(/* enterprise */
         0, 0, 0, 0,
@@ -1051,8 +1072,12 @@ static const test_t tests[] = {
   { ZONE_TYPE_TALINK, talink_text, &talink_rdata },
   { ZONE_TYPE_CDS, cds_text, &cds_rdata },
   { ZONE_TYPE_CDS, cds_generic_text, &cds_rdata },
+  { ZONE_TYPE_CDS, cds2_text, &cds2_rdata },
+  { ZONE_TYPE_CDS, cds2_generic_text, &cds2_rdata },
   { ZONE_TYPE_CDNSKEY, cdnskey_text, &cdnskey_rdata },
   { ZONE_TYPE_CDNSKEY, cdnskey_generic_text, &cdnskey_rdata },
+  { ZONE_TYPE_CDNSKEY, cdnskey2_text, &cdnskey2_rdata },
+  { ZONE_TYPE_CDNSKEY, cdnskey2_generic_text, &cdnskey2_rdata },
   { ZONE_TYPE_OPENPGPKEY, openpgpkey_text, &openpgpkey_rdata },
   { ZONE_TYPE_OPENPGPKEY, openpgpkey_generic_text, &openpgpkey_rdata },
   { ZONE_TYPE_CSYNC, csync_text, &csync_rdata },
@@ -1082,7 +1107,9 @@ static const test_t tests[] = {
   { ZONE_TYPE_AVC, avc_text, &avc_rdata },
   { ZONE_TYPE_AVC, avc_generic_text, &avc_rdata },
   { ZONE_TYPE_DOA, doa_text, &doa_rdata },
+  { ZONE_TYPE_DOA, doa_generic_text, &doa_rdata },
   { ZONE_TYPE_DOA, doa2_text, &doa2_rdata },
+  { ZONE_TYPE_DOA, doa2_generic_text, &doa2_rdata },
   { ZONE_TYPE_DLV, dlv_text, &cds_rdata },
   { ZONE_TYPE_DLV, dlv_generic_text, &cds_rdata }
 };
