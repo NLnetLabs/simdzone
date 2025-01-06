@@ -19,7 +19,7 @@ jobs:
             build_tool_options: -j 4
             analyzer: off
             sanitizer: address,undefined
-          - os: macos-12
+          - os: macos-14
             packages: automake
             build_type: Debug
             build_tool_options: -j 4
