@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Cleanup westmere and haswell object files (#24) Thanks @fobser
 - Out of tree builds (NLnetLabs/nsd#415)
+- Fix function declarations for fallback detection routine in isadetection.h.
 
 ## [0.2.0] - 2024-12-12
 
