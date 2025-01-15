@@ -41,6 +41,15 @@ case "$enable_haswell" in
   yes|*) enable_haswell=yes ;;
 esac
 
+AC_ARG_ENABLE(deleg, AS_HELP_STRING([--enable-deleg],[Enables the use of the draft DELEG RR type]))
+case "$enable_deleg" in
+	yes)
+		AC_DEFINE_UNQUOTED([USE_DELEG], [], [Define this to enable DELEG draft RR type])
+		;;
+	no|''|*)
+		;;
+esac
+
 # GCC and Clang
 AX_CHECK_COMPILE_FLAG([-MMD],DEPFLAGS="-MMD -MP")
 # Oracle Developer Studio (no -MP)
