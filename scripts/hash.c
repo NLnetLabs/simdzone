@@ -97,7 +97,8 @@ static const tuple_t types_and_classes[] = {
   { "WALLET", 262, true },
   { "CLA", 263, true },
   { "TA", 32768, true },
-  { "DLV", 32769, true }
+  { "DLV", 32769, true },
+  { "DELEG", 65280, true }
 };
 
 const uint64_t original_magic = 3523216699ull; // original hash from hash.cpp
