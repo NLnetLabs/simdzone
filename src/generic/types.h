@@ -3337,6 +3337,7 @@ static const type_info_t types[] = {
               check_ds_rr, parse_ds_rdata)
     #ifdef USE_DELEG
     ,
+  /* Map 32770 in hash.c to 267 */
   TYPE("DELEG", ZONE_TYPE_DELEG, ZONE_CLASS_IN, FIELDS(deleg_rdata_fields),
              check_deleg_rr, parse_deleg_rdata)
     #endif
