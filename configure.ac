@@ -50,6 +50,15 @@ case "$enable_deleg" in
 		;;
 esac
 
+AC_ARG_ENABLE(drafts, AS_HELP_STRING([--enable-drafts],[Enables the use of the draft RR types]))
+case "$enable_drafts" in
+	yes)
+		AC_DEFINE_UNQUOTED([USE_DRAFTS], [], [Define this to enable draft RR types])
+		;;
+	no|''|*)
+		;;
+esac
+
 # GCC and Clang
 AX_CHECK_COMPILE_FLAG([-MMD],DEPFLAGS="-MMD -MP")
 # Oracle Developer Studio (no -MP)
