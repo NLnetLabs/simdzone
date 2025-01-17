@@ -41,15 +41,6 @@ case "$enable_haswell" in
   yes|*) enable_haswell=yes ;;
 esac
 
-AC_ARG_ENABLE(deleg, AS_HELP_STRING([--enable-deleg],[Enables the use of the draft DELEG RR type]))
-case "$enable_deleg" in
-	yes)
-		AC_DEFINE_UNQUOTED([USE_DELEG], [], [Define this to enable DELEG draft RR type])
-		;;
-	no|''|*)
-		;;
-esac
-
 AC_ARG_ENABLE(drafts, AS_HELP_STRING([--enable-drafts],[Enables the use of the draft RR types]))
 case "$enable_drafts" in
 	yes)
