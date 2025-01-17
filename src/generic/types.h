@@ -2189,7 +2189,7 @@ static int32_t parse_https_rdata(
   return accept_rr(parser, type, rdata);
 }
 
-#ifdef USE_DELEG
+#ifdef USE_DRAFTS
 nonnull_all
 static int32_t check_deleg_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
@@ -3335,10 +3335,10 @@ static const type_info_t types[] = {
   /* Map 32769 in hash.c to 266 */
   TYPE("DLV", ZONE_TYPE_DLV, ZONE_CLASS_ANY, FIELDS(dlv_rdata_fields), // obsolete
               check_ds_rr, parse_ds_rdata)
-    #ifdef USE_DELEG
+    #ifdef USE_DRAFTS
     ,
   /* Map 32770 in hash.c to 267 */
-  TYPE("DELEG", ZONE_TYPE_DELEG, ZONE_CLASS_IN, FIELDS(deleg_rdata_fields),
+  TYPE("IDELEG", ZONE_TYPE_DELEG, ZONE_CLASS_IN, FIELDS(deleg_rdata_fields),
              check_deleg_rr, parse_deleg_rdata)
     #endif
 

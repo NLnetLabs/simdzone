@@ -206,7 +206,7 @@ extern "C" {
 #define ZONE_TYPE_TA (32768u)
 /** DNSSEC Lookaside Validation @rfc{4431} @obsolete */
 #define ZONE_TYPE_DLV (32769u)
-#ifdef USE_DELEG
+#ifdef USE_DRAFTS
 /** DELEG IETF draft */
 #define ZONE_TYPE_DELEG (65280u)
 #endif
