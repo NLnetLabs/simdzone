@@ -125,6 +125,8 @@ extern "C" {
 #define ZONE_TYPE_NIMLOC (32u)
 /** Server Selection @rfc{2782} */
 #define ZONE_TYPE_SRV (33u)
+/** ATM Address */
+#define ZONE_TYPE_ATMA (34u)
 /** Naming Authority Pointer @rfc{2915} @rfc{2168} @rfc{3403} */
 #define ZONE_TYPE_NAPTR (35u)
 /** Key Exchanger @rfc{2230} */

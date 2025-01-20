@@ -1183,6 +1183,32 @@ static int32_t parse_srv_rdata(
 }
 
 nonnull_all
+static int32_t check_atma_rr(
+  parser_t *parser, const type_info_t *type, const rdata_t *rdata)
+{
+  assert(rdata->octets >= parser->rdata->octets);
+  if ((uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets > 2)
+    return accept_rr(parser, type, rdata);
+  SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+}
+
+nonnull_all
+static int32_t parse_atma_rdata(
+  parser_t *parser, const type_info_t *type, rdata_t *rdata, token_t *token)
+{
+  int32_t code;
+  const rdata_info_t *fields = type->rdata.fields;
+
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
+    return code;
+  if ((code = parse_atma(parser, type, &fields[0], rdata, token)) < 0)
+    return code;
+  if ((code = take_delimiter(parser, type, token)) < 0)
+    return code;
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
 static int32_t check_naptr_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
@@ -2841,6 +2867,10 @@ static const rdata_info_t srv_rdata_fields[] = {
   FIELD("target")
 };
 
+static const rdata_info_t atma_rdata_fields[] = {
+  FIELD("address")
+};
+
 static const rdata_info_t naptr_rdata_fields[] = {
   FIELD("order"),
   FIELD("preference"),
@@ -3206,9 +3236,8 @@ static const type_info_t types[] = {
               check_eid_rr, parse_eid_rdata),
   TYPE("SRV", ZONE_TYPE_SRV, ZONE_CLASS_IN, FIELDS(srv_rdata_fields),
               check_srv_rr, parse_srv_rdata),
-
-  UNKNOWN_TYPE(34),
-
+  TYPE("ATMA", ZONE_TYPE_ATMA, ZONE_CLASS_IN, FIELDS(atma_rdata_fields),
+               check_atma_rr, parse_atma_rdata),
   TYPE("NAPTR", ZONE_TYPE_NAPTR, ZONE_CLASS_IN, FIELDS(naptr_rdata_fields),
                 check_naptr_rr, parse_naptr_rdata),
   TYPE("KX", ZONE_TYPE_KX, ZONE_CLASS_IN, FIELDS(kx_rdata_fields),

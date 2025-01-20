@@ -324,6 +324,18 @@ static const char nimloc_text[] =
 static const rdata_t nimloc_rdata =
   RDATA(0x32, 0x27, 0x45, 0x0a, 0x01, 0x00, 0x34);
 
+static const char atma_text[] =
+  PAD("foo. ATMA 39.246f.00.0e7c9c.0312.0001.0001.000012345678.00");
+static const rdata_t atma_rdata =
+  RDATA(0x00, 0x39, 0x24, 0x6f, 0x00, 0x0e, 0x7c, 0x9c,
+        0x03, 0x12, 0x00, 0x01, 0x00, 0x01,
+	0x00, 0x00, 0x12, 0x34, 0x56, 0x78, 0x00);
+
+static const char atma2_text[] =
+  PAD("foo. ATMA +1.908.555.1212");
+static const rdata_t atma2_rdata =
+  RDATA(0x01, 0x31, 0x39, 0x30, 0x38, 0x35, 0x35, 0x35, 0x31, 0x32, 0x31, 0x32);
+
 static const char naptr_text[] =
   PAD("foo. NAPTR 100 50 \"s\" \"http+I2L+I2C+I2R\" \"\"  _http._tcp.gatech.edu.");
 static const char naptr_generic_text[] =
@@ -1044,6 +1056,8 @@ static const test_t tests[] = {
   { ZONE_TYPE_NXT, nxt_text, &nxt_rdata },
   { ZONE_TYPE_EID, eid_text, &eid_rdata },
   { ZONE_TYPE_NIMLOC, nimloc_text, &nimloc_rdata },
+  { ZONE_TYPE_ATMA, atma_text, &atma_rdata },
+  { ZONE_TYPE_ATMA, atma2_text, &atma2_rdata },
   { ZONE_TYPE_NAPTR, naptr_text, &naptr_rdata },
   { ZONE_TYPE_NAPTR, naptr_generic_text, &naptr_rdata },
   { ZONE_TYPE_KX, kx_text, &kx_rdata },
