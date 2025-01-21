@@ -87,6 +87,8 @@ static really_inline int32_t check_bytes(
 
 #define check_int32(...) check_bytes(__VA_ARGS__, sizeof(uint32_t))
 
+#define check_int64(...) check_bytes(__VA_ARGS__, sizeof(uint64_t))
+
 #define check_ip4(...) check_bytes(__VA_ARGS__, 4)
 
 #define check_ip6(...) check_bytes(__VA_ARGS__, 16)
@@ -2781,6 +2783,61 @@ static int32_t parse_amtrelay_rdata(
 }
 
 nonnull_all
+static int32_t check_ipn_rr(
+  parser_t *parser, const type_info_t *type, const rdata_t *rdata)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = (uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets;
+  const uint8_t *o = parser->rdata->octets;
+  const rdata_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int64(parser, type, &f[0], o, n))))
+    return r;
+  if (c > n)
+    SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
+static int32_t parse_ipn_rdata(
+  parser_t *parser, const type_info_t *type, rdata_t *rdata, token_t *token)
+{
+  int32_t code;
+  const rdata_info_t *fields = type->rdata.fields;
+  token_t left, right;
+
+  /* draft-johnson-dns-ipn-cla-07 Section 3.1. IPN:
+   *   Presentation format for these resource records are either a 64 bit
+   *   unsigned decimal integer, or two 32 bit unsigned decimal integers
+   *   delimited by a period with the most significant 32 bits first and least
+   *   significant 32 bits last.
+   */
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
+    return code;
+  if (!(right.data = memchr(token->data, '.', token->length))) {
+    if ((code = parse_int64(parser, type, &fields[0], rdata, token)) < 0)
+      return code;
+    if ((code = take_delimiter(parser, type, token)) < 0)
+      return code;
+    return accept_rr(parser, type, rdata);
+  }
+  left.code = token->code;
+  left.data = token->data;
+  left.length = right.data - token->data;
+  right.code = token->code;
+  right.data += 1;
+  right.length = token->length - left.length - 1;
+  if ((code = parse_int32(parser, type, &fields[0], rdata, &left)) < 0)
+	  return code;
+  if ((code = parse_int32(parser, type, &fields[0], rdata, &right)) < 0)
+	  return code;
+  if ((code = take_delimiter(parser, type, token)) < 0)
+    return code;
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
 static int32_t check_generic_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
@@ -3306,6 +3363,12 @@ static const rdata_info_t cla_rdata_fields[] = {
   FIELD("text")
 };
 
+// https://www.iana.org/assignments/dns-parameters/IPN/ipn-completed-template
+// and https://datatracker.ietf.org/doc/draft-johnson-dns-ipn-cla/07/
+static const rdata_info_t ipn_rdata_fields[] = {
+  FIELD("CBHE Node Number")
+};
+
 static const rdata_info_t ta_rdata_fields[] = {
   FIELD("key"),
   FIELD("algorithm"),
@@ -3676,13 +3739,19 @@ static const type_info_t types[] = {
               check_txt_rr, parse_txt_rdata),
   TYPE("CLA", ZONE_TYPE_CLA, ZONE_CLASS_ANY, FIELDS(cla_rdata_fields),
               check_txt_rr, parse_txt_rdata),
+  TYPE("IPN", ZONE_TYPE_IPN, ZONE_CLASS_ANY, FIELDS(ipn_rdata_fields),
+              check_ipn_rr, parse_ipn_rdata),
 
-  UNKNOWN_TYPE(264),
+  UNKNOWN_TYPE(265),
+  UNKNOWN_TYPE(266),
+  UNKNOWN_TYPE(267),
+  UNKNOWN_TYPE(268),
+  UNKNOWN_TYPE(269),
 
-  /* Map 32768 in hash.c to 265 */
+  /* Map 32768 in hash.c to 270 */
   TYPE("TA", ZONE_TYPE_TA, ZONE_CLASS_ANY, FIELDS(ta_rdata_fields), // obsolete
               check_ds_rr, parse_ds_rdata),
-  /* Map 32769 in hash.c to 266 */
+  /* Map 32769 in hash.c to 271 */
   TYPE("DLV", ZONE_TYPE_DLV, ZONE_CLASS_ANY, FIELDS(dlv_rdata_fields), // obsolete
               check_ds_rr, parse_ds_rdata)
 };

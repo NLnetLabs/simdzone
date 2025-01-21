@@ -1018,6 +1018,24 @@ static const rdata_t amtrelay3_rdata =
        , 3, 'c', 'o', 'm'
        , 0);
 
+static const char ipn_text[] =
+  PAD("foo. IPN 100");
+static const rdata_t ipn_rdata =
+  RDATA( 0, 0, 0,   0
+       , 0, 0, 0, 100);
+
+static const char ipn2_text[] =
+  PAD("foo. IPN 429496729700");
+static const rdata_t ipn2_rdata =
+  RDATA( 0, 0, 0, 100 
+       , 0, 0, 0, 100);
+
+static const char ipn3_text[] =
+  PAD("foo. IPN 100.100");
+static const rdata_t ipn3_rdata =
+  RDATA( 0, 0, 0, 100 
+       , 0, 0, 0, 100);
+
 static const char dlv_text[] =
   PAD("foo. DLV 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
 static const char dlv_generic_text[] =
@@ -1167,6 +1185,9 @@ static const test_t tests[] = {
   { ZONE_TYPE_AMTRELAY, amtrelay2_generic_text, &amtrelay2_rdata },
   { ZONE_TYPE_AMTRELAY, amtrelay3_text, &amtrelay3_rdata },
   { ZONE_TYPE_AMTRELAY, amtrelay3_generic_text, &amtrelay3_rdata },
+  { ZONE_TYPE_IPN, ipn_text, &ipn_rdata },
+  { ZONE_TYPE_IPN, ipn2_text, &ipn2_rdata },
+  { ZONE_TYPE_IPN, ipn3_text, &ipn3_rdata },
   { ZONE_TYPE_DLV, dlv_text, &cds_rdata },
   { ZONE_TYPE_DLV, dlv_generic_text, &cds_rdata }
 };

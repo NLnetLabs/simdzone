@@ -217,6 +217,8 @@ extern "C" {
 #define ZONE_TYPE_WALLET (262u)
 /** BP Convergence Layer Adapter */
 #define ZONE_TYPE_CLA (263u)
+/** BP Node Number */
+#define ZONE_TYPE_IPN (264u)
 /** DNSSEC Trust Authorities */
 #define ZONE_TYPE_TA (32768u)
 /** DNSSEC Lookaside Validation @rfc{4431} @obsolete */

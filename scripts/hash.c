@@ -104,6 +104,7 @@ static const tuple_t types_and_classes[] = {
   { "RESINFO", 261, true },
   { "WALLET", 262, true },
   { "CLA", 263, true },
+  { "IPN", 264, true },
   { "TA", 32768, true },
   { "DLV", 32769, true }
 };
@@ -135,9 +136,9 @@ static void print_table(uint64_t magic)
     for (size_t j=i+8; i < j; i++) {
       uint16_t code;
       switch(keys[i].code) {
-      case 32768: code = 265; // index of  TA in types array in generic/types.h
+      case 32768: code = 270; // index of  TA in types array in generic/types.h
                   break;
-      case 32769: code = 266; // index of DLV in types array in generic/types.h
+      case 32769: code = 271; // index of DLV in types array in generic/types.h
                   break;
       default   : code = keys[i].code;
                   break;
