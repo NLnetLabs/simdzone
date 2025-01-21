@@ -209,6 +209,8 @@ extern "C" {
 #define ZONE_TYPE_AVC (258u)
 /** Digital Object Architecture @draft{durand, doa-over-dns} */
 #define ZONE_TYPE_DOA (259u)
+/** Automatic Multicast Tunneling Relay @rfc{8777} */
+#define ZONE_TYPE_AMTRELAY (260u)
 /** Resolver Information as Key/Value Pairs @rfc{9606} */
 #define ZONE_TYPE_RESINFO (261u)
 /** Public wallet address */

@@ -100,6 +100,7 @@ static const tuple_t types_and_classes[] = {
   { "CAA", 257, true },
   { "AVC", 258, true },
   { "DOA", 259, true },
+  { "AMTRELAY", 260, true },
   { "RESINFO", 261, true },
   { "WALLET", 262, true },
   { "CLA", 263, true },

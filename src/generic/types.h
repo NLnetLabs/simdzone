@@ -2637,6 +2637,150 @@ static int32_t parse_doa_rdata(
 }
 
 nonnull_all
+static int32_t check_amtrelay_rr(
+  parser_t *parser, const type_info_t *type, const rdata_t *rdata);
+
+nonnull_all
+static int32_t parse_amtrelay_rdata(
+  parser_t *parser, const type_info_t *type, rdata_t *rdata, token_t *token);
+
+diagnostic_push()
+gcc_diagnostic_ignored(missing-field-initializers)
+clang_diagnostic_ignored(missing-field-initializers)
+
+static const rdata_info_t amtrelay_ipv4_rdata_fields[] = {
+  FIELD("precedence"),
+  FIELD("discovery optional"),
+  FIELD("type"),
+  FIELD("relay")
+};
+
+static const type_info_t amtrelay_ipv4[] = {
+  TYPE("AMTRELAY", ZONE_TYPE_AMTRELAY, ZONE_CLASS_IN, FIELDS(amtrelay_ipv4_rdata_fields),
+                   check_amtrelay_rr, parse_amtrelay_rdata),
+};
+
+static const rdata_info_t amtrelay_ipv6_rdata_fields[] = {
+  FIELD("precedence"),
+  FIELD("discovery optional"),
+  FIELD("type"),
+  FIELD("relay")
+};
+
+static const type_info_t amtrelay_ipv6[] = {
+  TYPE("AMTRELAY", ZONE_TYPE_AMTRELAY, ZONE_CLASS_IN, FIELDS(amtrelay_ipv6_rdata_fields),
+                   check_amtrelay_rr, parse_amtrelay_rdata),
+};
+
+diagnostic_pop()
+
+nonnull_all
+static int32_t check_amtrelay_rr(
+  parser_t *parser, const type_info_t *type, const rdata_t *rdata)
+{
+  int32_t r;
+  size_t c = 0;
+  const size_t n = (uintptr_t)rdata->octets - (uintptr_t)parser->rdata->octets;
+  const uint8_t *o = parser->rdata->octets;
+  const type_info_t *t = type;
+  const rdata_info_t *f = type->rdata.fields;
+
+  if ((r = check(&c, check_int8(parser, type, &f[0], o, n))) ||
+      (r = check(&c, check_int8(parser, type, &f[2], o+c, n-c))))
+    return r;
+
+  switch (parser->rdata->octets[1] & 0x7f) {
+    case 1: /* IPv4 address */
+      t = (const type_info_t *)amtrelay_ipv4;
+      f = amtrelay_ipv4_rdata_fields;
+      if ((r = check(&c, check_ip4(parser, t, &f[3], o+c, n-c))) < 0)
+        return r;
+      break;
+    case 2: /* IPv6 address */
+      t = (const type_info_t *)amtrelay_ipv6;
+      f = amtrelay_ipv6_rdata_fields;
+      if ((r = check(&c, check_ip6(parser, t, &f[3], o+c, n-c))) < 0)
+        return r;
+      break;
+    case 0: /* no gateway */
+      break;
+    case 3: /* domain name */
+      if ((r = check(&c, check_name(parser, t, &f[3], o+c, n-c))) < 0)
+        return r;
+      break;
+    default:
+      SYNTAX_ERROR(parser, "Invalid %s", NAME(type));
+  }
+  if (c < n)
+    SYNTAX_ERROR(parser, "Trailing data in %s", NAME(t));
+  return accept_rr(parser, t, rdata);
+}
+
+nonnull_all
+static int32_t parse_amtrelay_rdata(
+  parser_t *parser, const type_info_t *type, rdata_t *rdata, token_t *token)
+{
+  int32_t code;
+  const rdata_info_t *fields = type->rdata.fields;
+  uint8_t *octets = rdata->octets;
+  uint8_t D;
+
+  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
+    return code;
+  if ((code = parse_int8(parser, type, &fields[0], rdata, token)) < 0)
+    return code;
+
+  if ((code = take_contiguous(parser, type, &fields[1], token)) < 0)
+    return code;
+  if (token->length != 1)
+    SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[1]), NAME(type));
+  switch((char)*token->data) {
+    case '0':
+      D = 0x00;
+      break;
+    case '1':
+      D = 0x80;
+      break;
+    default :
+      SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[1]), NAME(type));
+  }
+
+  if ((code = take_contiguous(parser, type, &fields[2], token)) < 0)
+    return code;
+  if ((code = parse_int8(parser, type, &fields[2], rdata, token)) < 0)
+    return code;
+
+  if (octets[1]) {
+    if ((code = take_contiguous(parser, type, &fields[3], token)) < 0)
+      return code;
+    switch (octets[1]) {
+      case 1: /* IPv4 address */
+        type = (const type_info_t *)amtrelay_ipv4;
+        fields = type->rdata.fields;
+        if ((code = parse_ip4(parser, type, &fields[3], rdata, token)) < 0)
+          return code;
+        break;
+      case 2: /* IPv6 address */
+        type = (const type_info_t *)amtrelay_ipv6;
+        fields = type->rdata.fields;
+        if ((code = parse_ip6(parser, type, &fields[3], rdata, token)) < 0)
+          return code;
+        break;
+      case 3: /* domain name */
+        if ((code = parse_name(parser, type, &fields[3], rdata, token)) < 0)
+          return code;
+        break;
+      default:
+        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[3]), NAME(type));
+    }
+  }
+  octets[1] |= D;
+  if ((code = take_delimiter(parser, type, token)) < 0)
+    return code;
+  return accept_rr(parser, type, rdata);
+}
+
+nonnull_all
 static int32_t check_generic_rr(
   parser_t *parser, const type_info_t *type, const rdata_t *rdata)
 {
@@ -3137,6 +3281,16 @@ static const rdata_info_t doa_rdata_fields[] = {
   FIELD("data")
 };
 
+// RFC 8777
+// AMTRELAY is different because the rdata depends on the type
+static const rdata_info_t amtrelay_rdata_fields[] = {
+  FIELD("precedence"),
+  FIELD("discovery optional"),
+  FIELD("type"),
+  FIELD("relay"),
+};
+
+
 // RFC 9606
 static const rdata_info_t resinfo_rdata_fields[] = {
   FIELD("text")
@@ -3514,9 +3668,8 @@ static const type_info_t types[] = {
               check_txt_rr, parse_txt_rdata),
   TYPE("DOA", ZONE_TYPE_DOA, ZONE_CLASS_ANY, FIELDS(doa_rdata_fields),
               check_doa_rr, parse_doa_rdata),
-
-  UNKNOWN_TYPE(260),
-
+  TYPE("AMTRELAY", ZONE_TYPE_AMTRELAY, ZONE_CLASS_ANY, FIELDS(amtrelay_rdata_fields),
+              check_amtrelay_rr, parse_amtrelay_rdata),
   TYPE("RESINFO", ZONE_TYPE_RESINFO, ZONE_CLASS_ANY, FIELDS(resinfo_rdata_fields),
               check_txt_rr, parse_txt_rdata),
   TYPE("WALLET", ZONE_TYPE_WALLET, ZONE_CLASS_ANY, FIELDS(wallet_rdata_fields),

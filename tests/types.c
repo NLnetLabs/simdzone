@@ -983,6 +983,41 @@ static const rdata_t doa2_rdata =
         /* data */
         );
 
+static const char amtrelay_text[] =
+  PAD("foo. AMTRELAY 200 0 0");
+static const char amtrelay_generic_text[] =
+  PAD("foo. AMTRELAY \\# 2 c8 00");
+static const rdata_t amtrelay_rdata =
+  RDATA(200, 0);
+
+static const char amtrelay1_text[] =
+  PAD("foo. AMTRELAY 10 0 1 203.0.113.15");
+static const char amtrelay1_generic_text[] =
+  PAD("foo. AMTRELAY \\# 6 0a 01 cb00710f");
+static const rdata_t amtrelay1_rdata =
+  RDATA(10, 1, 203, 0, 113, 15);
+
+static const char amtrelay2_text[] =
+  PAD("foo. AMTRELAY 10 0 2 2001:db8::15");
+static const char amtrelay2_generic_text[] =
+  PAD("foo. AMTRELAY \\# 18 0a 02 20010db8000000000000000000000015");
+static const rdata_t amtrelay2_rdata =
+  RDATA(10, 2, 0x20, 0x01, 0x0d, 0xb8
+             , 0x00, 0x00, 0x00, 0x00
+             , 0x00, 0x00, 0x00, 0x00
+             , 0x00, 0x00, 0x00, 0x15);
+
+static const char amtrelay3_text[] =
+  PAD("foo. AMTRELAY 128 1 3 amtrelays.example.com.");
+static const char amtrelay3_generic_text[] =
+  PAD("foo. AMTRELAY \\# 25 80 83 09616d7472656c617973076578616d706c6503636f6d00");
+static const rdata_t amtrelay3_rdata =
+  RDATA( 128, 0x83
+       , 9, 'a', 'm', 't', 'r', 'e', 'l', 'a', 'y', 's'
+       , 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e'
+       , 3, 'c', 'o', 'm'
+       , 0);
+
 static const char dlv_text[] =
   PAD("foo. DLV 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
 static const char dlv_generic_text[] =
@@ -1124,6 +1159,14 @@ static const test_t tests[] = {
   { ZONE_TYPE_DOA, doa_generic_text, &doa_rdata },
   { ZONE_TYPE_DOA, doa2_text, &doa2_rdata },
   { ZONE_TYPE_DOA, doa2_generic_text, &doa2_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay_text, &amtrelay_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay_generic_text, &amtrelay_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay1_text, &amtrelay1_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay1_generic_text, &amtrelay1_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay2_text, &amtrelay2_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay2_generic_text, &amtrelay2_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay3_text, &amtrelay3_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay3_generic_text, &amtrelay3_rdata },
   { ZONE_TYPE_DLV, dlv_text, &cds_rdata },
   { ZONE_TYPE_DLV, dlv_generic_text, &cds_rdata }
 };
