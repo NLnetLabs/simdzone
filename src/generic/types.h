@@ -2824,7 +2824,7 @@ static int32_t parse_ipn_rdata(
   }
   left.code = token->code;
   left.data = token->data;
-  left.length = right.data - token->data;
+  left.length = (size_t)(right.data - token->data);
   right.code = token->code;
   right.data += 1;
   right.length = token->length - left.length - 1;

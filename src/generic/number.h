@@ -139,7 +139,7 @@ static really_inline int32_t parse_int32(
 }
 
 nonnull_all
-static really_inline int64_t parse_int64(
+static really_inline int32_t parse_int64(
   parser_t *parser,
   const type_info_t *type,
   const rdata_info_t *field,
