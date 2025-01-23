@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support for EID, NIMLOC, SINK, TALINK, DSYNC, DOA, AMTRELAY and IPN RR types.
 
 ### Fixed
 
+- Empty base16 and base64 in CDS and CDNSKEY can be represented with a '0'.
+  As specified in Section 4 of RFC 8078.
 
 ## [0.2.1] - 2025-01-17
 

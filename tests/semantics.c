@@ -177,3 +177,62 @@ void zonemd_digest_lengths(void **state)
     assert_int_equal(code, tests[i].code);
   }
 }
+
+/*!cmocka */
+void dsync_scheme_types(void **state)
+{
+  static const char fmt[] =
+    "example.com. 86400 IN DSYNC %s %d 5359 ( type-scanner.example.net. )";
+  static const char hex_fmt[] =
+    "example.com. 86400 CLASS1 TYPE66 \\# 31 %.4x %.2x 14ef "
+    "( 0c747970652d7363616e6e6572076578616d706c65036e657400 )";
+
+  static const struct {
+    const char* dsync_type_str;
+    uint16_t    dsync_type;
+    uint8_t     dsync_scheme;
+    int32_t     code;
+  } tests[] = {
+    // Schema 0: Reserved
+    { "CDS"    , ZONE_TYPE_CDS    , 0, ZONE_SUCCESS },
+    { "TYPE59" , 59 /* CDS */     , 0, ZONE_SUCCESS },
+    { "CSYNC"  , ZONE_TYPE_CSYNC  , 0, ZONE_SUCCESS },
+    { "TYPE62" , 62 /* CSYNC */   , 0, ZONE_SUCCESS },
+    { "TXT"    , ZONE_TYPE_TXT    , 0, ZONE_SUCCESS },
+    { "TYPE16" , 16 /* TXT */     , 0, ZONE_SUCCESS },
+    // Scheme 1: only CDS and CSYNC
+    { "CDS"    , ZONE_TYPE_CDS    , 1, ZONE_SUCCESS },
+    { "TYPE59" , 59 /* CDS */     , 1, ZONE_SUCCESS },
+    { "CSYNC"  , ZONE_TYPE_CSYNC  , 1, ZONE_SUCCESS },
+    { "TYPE62" , 62 /* CSYNC */   , 1, ZONE_SUCCESS },
+    { "TXT"    , ZONE_TYPE_TXT    , 1, ZONE_SEMANTIC_ERROR },
+    { "TYPE16" , 16 /* TXT */     , 1, ZONE_SEMANTIC_ERROR },
+    // Other schemes, anything goes
+    { "CDS"    , ZONE_TYPE_CDS    , 2, ZONE_SUCCESS },
+    { "TYPE59" , 59 /* CDS */     , 2, ZONE_SUCCESS },
+    { "CSYNC"  , ZONE_TYPE_CSYNC  , 2, ZONE_SUCCESS },
+    { "TYPE62" , 62 /* CSYNC */   , 2, ZONE_SUCCESS },
+    { "TXT"    , ZONE_TYPE_TXT    , 2, ZONE_SUCCESS },
+    { "TYPE16" , 16 /* TXT */     , 2, ZONE_SUCCESS }
+  };
+
+  (void)state;
+
+  int32_t code;
+
+  for (size_t i=0, n = sizeof(tests)/sizeof(tests[0]); i < n; i++) {
+    char buf[512];
+    const char    *dsync_type_str = tests[i].dsync_type_str;
+    const uint16_t dsync_type   = tests[i].dsync_type;
+    const uint8_t  dsync_scheme = tests[i].dsync_scheme;
+
+    snprintf(buf, sizeof(buf), fmt, dsync_type_str, (int)dsync_scheme);
+    code = parse_digest(buf);
+    assert_int_equal(code, tests[i].code);
+
+    /* No need to htobe16(dsync_type), since %.4x is "written" big endian */
+    snprintf(buf, sizeof(buf), hex_fmt, (int)dsync_type, (int)dsync_scheme);
+    code = parse_digest(buf);
+    assert_int_equal(code, tests[i].code);
+  }
+}
