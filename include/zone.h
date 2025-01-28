@@ -185,9 +185,9 @@ extern "C" {
 #define ZONE_TYPE_SVCB (64u)
 /** Service binding @rfc{9460} */
 #define ZONE_TYPE_HTTPS (65u)
-/** Sender Policy Framework @rfc{7208} */
-#define ZONE_TYPE_DSYNC (66u)
 /** Endpoint discovery for delegation synchronization @draft{ietf, dnsop-generalized-notify} */
+#define ZONE_TYPE_DSYNC (66u)
+/** Sender Policy Framework @rfc{7208} */
 #define ZONE_TYPE_SPF (99u)
 /** Node Identifier @rfc{6742} */
 #define ZONE_TYPE_NID (104u)
