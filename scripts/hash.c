@@ -55,12 +55,16 @@ static const tuple_t types_and_classes[] = {
   { "AAAA", 28, true },
   { "LOC", 29, true },
   { "NXT", 30, true },
+  { "EID", 31, true },
+  { "NIMLOC", 32, true },
   { "SRV", 33, true },
+  { "ATMA", 34, true },
   { "NAPTR", 35, true },
   { "KX", 36, true },
   { "CERT", 37, true },
   { "A6", 38, true },
   { "DNAME", 39, true },
+  { "SINK", 40, true },
   { "APL", 42, true },
   { "DS", 43, true },
   { "SSHFP", 44, true },
@@ -76,6 +80,7 @@ static const tuple_t types_and_classes[] = {
   { "HIP", 55, true },
   { "NINFO", 56, true },
   { "RKEY", 57, true },
+  { "TALINK", 58, true },
   { "CDS", 59, true },
   { "CDNSKEY", 60, true },
   { "OPENPGPKEY", 61, true },
@@ -83,6 +88,7 @@ static const tuple_t types_and_classes[] = {
   { "ZONEMD", 63, true },
   { "SVCB", 64, true },
   { "HTTPS", 65, true },
+  { "DSYNC", 66, true },
   { "SPF", 99, true },
   { "NID", 104, true },
   { "L32", 105, true },
@@ -93,9 +99,12 @@ static const tuple_t types_and_classes[] = {
   { "URI", 256, true },
   { "CAA", 257, true },
   { "AVC", 258, true },
+  { "DOA", 259, true },
+  { "AMTRELAY", 260, true },
   { "RESINFO", 261, true },
   { "WALLET", 262, true },
   { "CLA", 263, true },
+  { "IPN", 264, true },
   { "TA", 32768, true },
   { "DLV", 32769, true },
   { "IDELEG", 65280, true }
@@ -128,9 +137,9 @@ static void print_table(uint64_t magic)
     for (size_t j=i+8; i < j; i++) {
       uint16_t code;
       switch(keys[i].code) {
-      case 32768: code = 265; // index of  TA in types array in generic/types.h
+      case 32768: code = 270; // index of  TA in types array in generic/types.h
                   break;
-      case 32769: code = 266; // index of DLV in types array in generic/types.h
+      case 32769: code = 271; // index of DLV in types array in generic/types.h
                   break;
       case 65280: code = 267; // index of IDELEG in types array in generic/types.h
                   break;

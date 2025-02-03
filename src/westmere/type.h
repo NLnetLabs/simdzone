@@ -140,7 +140,7 @@ static really_inline uint8_t hash(uint64_t prefix)
 {
   uint32_t value = (uint32_t)((prefix >> 32) ^ prefix);
   // magic value is generated using hash.c, rerun when adding types
-  return (uint8_t)((value * 3523548378ull) >> 32);
+  return (uint8_t)((value * 3537259401ull) >> 32);
 }
 
 nonnull_all

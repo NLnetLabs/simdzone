@@ -313,6 +313,29 @@ static const rdata_t nxt_rdata =
   RDATA(6, 'm', 'e', 'd', 'i', 'u', 'm', 3, 'f', 'o', 'o', 3, 't', 'l', 'd', 0,
         0x40, 0x01, 0x00, 0x82);
 
+static const char eid_text[] =
+  PAD("venera.invalid. EID 813F 4B7C DAB3 4217");
+static const rdata_t eid_rdata =
+  RDATA(0x81, 0x3f, 0x4b, 0x7c, 0xda, 0xb3, 0x42, 0x17);
+
+static const char nimloc_text[] =
+  PAD("venera.invalid. NIMLOC ( 3227 45\n"
+      "                         0A 01 00 34 )");
+static const rdata_t nimloc_rdata =
+  RDATA(0x32, 0x27, 0x45, 0x0a, 0x01, 0x00, 0x34);
+
+static const char atma_text[] =
+  PAD("foo. ATMA 39.246f.00.0e7c9c.0312.0001.0001.000012345678.00");
+static const rdata_t atma_rdata =
+  RDATA(0x00, 0x39, 0x24, 0x6f, 0x00, 0x0e, 0x7c, 0x9c,
+        0x03, 0x12, 0x00, 0x01, 0x00, 0x01,
+	0x00, 0x00, 0x12, 0x34, 0x56, 0x78, 0x00);
+
+static const char atma2_text[] =
+  PAD("foo. ATMA +1.908.555.1212");
+static const rdata_t atma2_rdata =
+  RDATA(0x01, 0x31, 0x39, 0x30, 0x38, 0x35, 0x35, 0x35, 0x31, 0x32, 0x31, 0x32);
+
 static const char naptr_text[] =
   PAD("foo. NAPTR 100 50 \"s\" \"http+I2L+I2C+I2R\" \"\"  _http._tcp.gatech.edu.");
 static const char naptr_generic_text[] =
@@ -363,6 +386,10 @@ static const char dname_text[] = PAD("foo. DNAME host.example.com.");
 static const char dname_generic_text[] =
   PAD("foo. DNAME \\# 18 04686f7374076578616d706c6503636f6d00");
 static const rdata_t dname_rdata = RDATA(HOST_EXAMPLE_COM);
+
+static const char sink_text[] = PAD("foo. SINK 64 1 TkxuZXRMYWJzLm5s");
+static const rdata_t sink_rdata =
+  RDATA(64, 1, 'N', 'L', 'n', 'e', 't', 'L', 'a', 'b', 's', '.', 'n', 'l');
 
 static const char apl_text[] =
   PAD("foo.example. IN APL 1:192.168.32.0/21 !1:192.168.38.0/28");
@@ -596,6 +623,12 @@ static const rdata_t hip_rdata =
         4, 'r', 'v', 's', '2', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0,
         );
 
+static const char talink_text[] =
+  PAD("example.com. TALINK h0.example.com. h2.example.com.");
+static const rdata_t talink_rdata =
+  RDATA(2, 'h', '0', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0,
+        2, 'h', '2', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0);
+
 static const char cds_text[] =
   PAD("foo. CDS 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
 static const char cds_generic_text[] =
@@ -607,6 +640,14 @@ static const rdata_t cds_rdata =
         0x30, 0x79, 0xf1, 0x59, 0x3e, 0xba, 0xd6, 0xdc,
         0x12, 0x1e, 0x20, 0x2a, 0x8b, 0x76, 0x6a, 0x6a,
         0x48, 0x37, 0x20, 0x6c);
+
+// RFC 8078 Section 4: "Empty keying material is represented by a single 0"
+static const char cds2_text[] =
+  PAD("foo. CDS 0 0 0 0");
+static const char cds2_generic_text[] =
+  PAD("foo. CDS \\# 4 00000000");
+static const rdata_t cds2_rdata =
+  RDATA(0, 0, 0, 0);
 
 static const char cdnskey_text[] =
   PAD("foo. CDNSKEY 256 3 5 ( AQPSKmynfzW4kyBv015MUG2DeIQ3"
@@ -661,6 +702,14 @@ static const rdata_t cdnskey_rdata =
         0x21, 0x03, 0x86, 0x6d, 0x92, 0x34, 0xa2, 0xe2,
         0x8d, 0xf5, 0x29, 0xa6, 0x7d, 0x54, 0x68, 0xdb,
         0xef, 0xe3);
+
+// RFC 8078 Section 4: "Empty keying material is represented by a single 0"
+static const char cdnskey2_text[] =
+  PAD("foo. CDNSKEY 0 3 0 0");
+static const char cdnskey2_generic_text[] =
+  PAD("foo. CDNSKEY \\# 4 00000300");
+static const rdata_t cdnskey2_rdata =
+  RDATA(0, 0, 3, 0);
 
 // generated using https://www.huque.com/bin/openpgpkey with
 // input from https://www.ietf.org/archive/id/draft-bre-openpgp-samples-01.html
@@ -790,6 +839,31 @@ static const rdata_t svcb_rdata =
         3, 'f', 'o', 'o', 0,
         0x00, 0x00, 0x00, 0x02, 0x00, 0x10, 0x00, 0x10, 0x00, 0x00);
 
+static const char dsync_text[] =
+  PAD("foo. DSYNC CDS 1 5359 cds-scanner.example.net.");
+static const char dsync_generic_text[] =
+  PAD("foo. DSYNC \\# 30 "
+      /* type */
+      "003b"
+      /* scheme */
+      "01"
+      /* port */
+      "14ef"
+      /* target */
+      "0b6364732d7363616e6e6572 076578616d706c65 036e6574 00");
+static const rdata_t dsync_rdata =
+  RDATA(/* type */
+        0x00, 0x3b,
+        /* scheme */
+        0x01,
+        /* port */
+        0x14, 0xef,
+        /* target */
+        11, 'c', 'd', 's', '-', 's', 'c', 'a', 'n', 'n', 'e', 'r',
+         7, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
+         3, 'n', 'e', 't',
+         0);
+
 static const char spf_text[] =
   PAD("foo. SPF \"v=spf1 +all\"");
 static const char spf_generic_text[] =
@@ -872,6 +946,96 @@ static const rdata_t avc_rdata =
             'G', '|', 'a', 'p', 'p', '-', 'c', 'l',
             'a', 's', 's', ':', 'O', 'A', 'M');
 
+static const char doa_text[] =
+  PAD("foo. DOA 0 1 2 \"\" bWFpbHRvOmxhYnNAbmxuZXRsYWJzLm5s");
+static const char doa_generic_text[] =
+  PAD("foo. DOA \\# 34 00000000 00000001 02 00 (\n"
+      "                6d61696c746f3a6c616273406e6c6e65746c6162732e6e6c )");
+static const rdata_t doa_rdata =
+  RDATA(/* enterprise */
+        0, 0, 0, 0,
+        /* type */
+        0, 0, 0, 1,
+        /* location */
+        2,
+        /* media type */
+        0,
+        /* data */
+        'm', 'a', 'i', 'l', 't', 'o', ':',
+        'l', 'a', 'b', 's', '@',
+        'n', 'l', 'n', 'e', 't', 'l', 'a', 'b', 's', '.', 'n', 'l'
+        );
+
+static const char doa2_text[] =
+  PAD("foo. DOA 0 100000 200 example/nothing -");
+static const char doa2_generic_text[] =
+  PAD("foo. DOA \\# 25 00000000 000186a0 c8 0f6578616d706c652f6e6f7468696e67");
+static const rdata_t doa2_rdata =
+  RDATA(/* enterprise */
+        0, 0, 0, 0,
+        /* type */
+        0, 1, 134, 160,
+        /* location */
+        200,
+        /* media type */
+        15, 'e', 'x', 'a', 'm', 'p', 'l', 'e', '/',
+            'n', 'o', 't', 'h', 'i', 'n', 'g'
+        /* data */
+        );
+
+static const char amtrelay_text[] =
+  PAD("foo. AMTRELAY 200 0 0");
+static const char amtrelay_generic_text[] =
+  PAD("foo. AMTRELAY \\# 2 c8 00");
+static const rdata_t amtrelay_rdata =
+  RDATA(200, 0);
+
+static const char amtrelay1_text[] =
+  PAD("foo. AMTRELAY 10 0 1 203.0.113.15");
+static const char amtrelay1_generic_text[] =
+  PAD("foo. AMTRELAY \\# 6 0a 01 cb00710f");
+static const rdata_t amtrelay1_rdata =
+  RDATA(10, 1, 203, 0, 113, 15);
+
+static const char amtrelay2_text[] =
+  PAD("foo. AMTRELAY 10 0 2 2001:db8::15");
+static const char amtrelay2_generic_text[] =
+  PAD("foo. AMTRELAY \\# 18 0a 02 20010db8000000000000000000000015");
+static const rdata_t amtrelay2_rdata =
+  RDATA(10, 2, 0x20, 0x01, 0x0d, 0xb8
+             , 0x00, 0x00, 0x00, 0x00
+             , 0x00, 0x00, 0x00, 0x00
+             , 0x00, 0x00, 0x00, 0x15);
+
+static const char amtrelay3_text[] =
+  PAD("foo. AMTRELAY 128 1 3 amtrelays.example.com.");
+static const char amtrelay3_generic_text[] =
+  PAD("foo. AMTRELAY \\# 25 80 83 09616d7472656c617973076578616d706c6503636f6d00");
+static const rdata_t amtrelay3_rdata =
+  RDATA( 128, 0x83
+       , 9, 'a', 'm', 't', 'r', 'e', 'l', 'a', 'y', 's'
+       , 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e'
+       , 3, 'c', 'o', 'm'
+       , 0);
+
+static const char ipn_text[] =
+  PAD("foo. IPN 100");
+static const rdata_t ipn_rdata =
+  RDATA( 0, 0, 0,   0
+       , 0, 0, 0, 100);
+
+static const char ipn2_text[] =
+  PAD("foo. IPN 429496729700");
+static const rdata_t ipn2_rdata =
+  RDATA( 0, 0, 0, 100 
+       , 0, 0, 0, 100);
+
+static const char ipn3_text[] =
+  PAD("foo. IPN 100.100");
+static const rdata_t ipn3_rdata =
+  RDATA( 0, 0, 0, 100 
+       , 0, 0, 0, 100);
+
 static const char dlv_text[] =
   PAD("foo. DLV 58470 5 1 ( 3079F1593EBAD6DC121E202A8B766A6A4837206C )");
 static const char dlv_generic_text[] =
@@ -943,6 +1107,10 @@ static const test_t tests[] = {
   { ZONE_TYPE_PX, px_generic_text, &px_rdata },
   { ZONE_TYPE_LOC, loc_text, &loc_rdata },
   { ZONE_TYPE_NXT, nxt_text, &nxt_rdata },
+  { ZONE_TYPE_EID, eid_text, &eid_rdata },
+  { ZONE_TYPE_NIMLOC, nimloc_text, &nimloc_rdata },
+  { ZONE_TYPE_ATMA, atma_text, &atma_rdata },
+  { ZONE_TYPE_ATMA, atma2_text, &atma2_rdata },
   { ZONE_TYPE_NAPTR, naptr_text, &naptr_rdata },
   { ZONE_TYPE_NAPTR, naptr_generic_text, &naptr_rdata },
   { ZONE_TYPE_KX, kx_text, &kx_rdata },
@@ -950,6 +1118,7 @@ static const test_t tests[] = {
   { ZONE_TYPE_CERT, cert_text, &cert_rdata },
   { ZONE_TYPE_DNAME, dname_text, &dname_rdata },
   { ZONE_TYPE_DNAME, dname_generic_text, &dname_rdata },
+  { ZONE_TYPE_SINK, sink_text, &sink_rdata },
   { ZONE_TYPE_APL, apl_text, &apl_rdata },
   { ZONE_TYPE_SSHFP, sshfp_text, &sshfp_rdata },
   { ZONE_TYPE_SSHFP, sshfp_generic_text, &sshfp_rdata },
@@ -967,16 +1136,23 @@ static const test_t tests[] = {
   { ZONE_TYPE_SMIMEA, smimea_text, &smimea_rdata },
   { ZONE_TYPE_SMIMEA, smimea_generic_text, &smimea_rdata },
   { ZONE_TYPE_HIP, hip_text, &hip_rdata },
+  { ZONE_TYPE_TALINK, talink_text, &talink_rdata },
   { ZONE_TYPE_CDS, cds_text, &cds_rdata },
   { ZONE_TYPE_CDS, cds_generic_text, &cds_rdata },
+  { ZONE_TYPE_CDS, cds2_text, &cds2_rdata },
+  { ZONE_TYPE_CDS, cds2_generic_text, &cds2_rdata },
   { ZONE_TYPE_CDNSKEY, cdnskey_text, &cdnskey_rdata },
   { ZONE_TYPE_CDNSKEY, cdnskey_generic_text, &cdnskey_rdata },
+  { ZONE_TYPE_CDNSKEY, cdnskey2_text, &cdnskey2_rdata },
+  { ZONE_TYPE_CDNSKEY, cdnskey2_generic_text, &cdnskey2_rdata },
   { ZONE_TYPE_OPENPGPKEY, openpgpkey_text, &openpgpkey_rdata },
   { ZONE_TYPE_OPENPGPKEY, openpgpkey_generic_text, &openpgpkey_rdata },
   { ZONE_TYPE_CSYNC, csync_text, &csync_rdata },
   { ZONE_TYPE_ZONEMD, zonemd_text, &zonemd_rdata },
   { ZONE_TYPE_ZONEMD, zonemd_generic_text, &zonemd_rdata },
   { ZONE_TYPE_SVCB, svcb_text, &svcb_rdata },
+  { ZONE_TYPE_DSYNC, dsync_text, &dsync_rdata },
+  { ZONE_TYPE_DSYNC, dsync_generic_text, &dsync_rdata },
   { ZONE_TYPE_SPF, spf_text, &spf_rdata },
   { ZONE_TYPE_SPF, spf_generic_text, &spf_rdata },
   { ZONE_TYPE_NID, nid_text, &nid_rdata },
@@ -997,6 +1173,21 @@ static const test_t tests[] = {
   { ZONE_TYPE_CAA, caa_generic_text, &caa_rdata },
   { ZONE_TYPE_AVC, avc_text, &avc_rdata },
   { ZONE_TYPE_AVC, avc_generic_text, &avc_rdata },
+  { ZONE_TYPE_DOA, doa_text, &doa_rdata },
+  { ZONE_TYPE_DOA, doa_generic_text, &doa_rdata },
+  { ZONE_TYPE_DOA, doa2_text, &doa2_rdata },
+  { ZONE_TYPE_DOA, doa2_generic_text, &doa2_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay_text, &amtrelay_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay_generic_text, &amtrelay_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay1_text, &amtrelay1_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay1_generic_text, &amtrelay1_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay2_text, &amtrelay2_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay2_generic_text, &amtrelay2_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay3_text, &amtrelay3_rdata },
+  { ZONE_TYPE_AMTRELAY, amtrelay3_generic_text, &amtrelay3_rdata },
+  { ZONE_TYPE_IPN, ipn_text, &ipn_rdata },
+  { ZONE_TYPE_IPN, ipn2_text, &ipn2_rdata },
+  { ZONE_TYPE_IPN, ipn3_text, &ipn3_rdata },
   { ZONE_TYPE_DLV, dlv_text, &cds_rdata },
   { ZONE_TYPE_DLV, dlv_generic_text, &cds_rdata }
 };

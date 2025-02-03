@@ -17,7 +17,7 @@ RECORDS=`xmlstarlet select --template --match "/_:registry/_:registry[@id='dns-p
 rm ${TEMPFILE}
 for RECORD in ${RECORDS}
 do
-	TYPE=`echo ${RECORD} | awk -F# '{ print $1 }'`
+	TYPE=`echo ${RECORD} | awk -F# '{ print $1 }'|sed 's/-/_/g'`
 	VALUE=`echo ${RECORD} | awk -F# '{ print $2 }'`
 	RECORD_TYPE=`echo ${RECORD} | awk -F# '{ print $3 }'`
 	RECORD_REF=`echo ${RECORD} | awk -F# '{ print $4 }'`
