@@ -3797,7 +3797,7 @@ static const type_info_t types[] = {
               check_ds_rr, parse_ds_rdata)
     #ifdef USE_DRAFTS
     ,
-  /* Map 32770 in hash.c to 267 */
+  /* Map 65280 in hash.c to 272 */
   TYPE("IDELEG", ZONE_TYPE_DELEG, ZONE_CLASS_IN, FIELDS(deleg_rdata_fields),
              check_deleg_rr, parse_deleg_rdata)
     #endif

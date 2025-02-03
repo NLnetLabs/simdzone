@@ -141,7 +141,7 @@ static void print_table(uint64_t magic)
                   break;
       case 32769: code = 271; // index of DLV in types array in generic/types.h
                   break;
-      case 65280: code = 267; // index of IDELEG in types array in generic/types.h
+      case 65280: code = 272; // index of IDELEG in types array in generic/types.h
                   break;
       default   : code = keys[i].code;
                   break;
