@@ -734,7 +734,7 @@ static int32_t check_nsap_ptr_rr(
     const uint8_t *o = parser->rdata->octets;
     const rdata_info_t *f = type->rdata.fields;
 
-    if ((r = check(&c, check_name(parser, type, &f[0], o, n))))
+    if ((r = check(&c, check_string(parser, type, &f[0], o, n))))
       return r;
 
     if (c != n)
@@ -776,9 +776,9 @@ static int32_t parse_nsap_ptr_rdata(
   int32_t code;
   const rdata_info_t *fields = type->rdata.fields;
 
-  if ((code = have_contiguous(parser, type, &fields[0], token)) < 0)
+  if ((code = have_contiguous_or_quoted(parser, type, &fields[0], token)) < 0)
     return code;
-  if ((code = parse_name(parser, type, &fields[0], rdata, token)) < 0)
+  if ((code = parse_string(parser, type, &fields[0], rdata, token)) < 0)
     return code;
   if ((code = take_delimiter(parser, type, token)) < 0)
     return code;

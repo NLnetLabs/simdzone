@@ -233,7 +233,7 @@ static const rdata_t nsap_rdata =
 static const char nsap_ptr_text[] =
   PAD("0.0.2.6.1.0.0.0.f.f.f.f.f.f.3.3.1.e.1.0.0.0.0.0.0.0.0.0.a.5.0.0.0.8.5.0.0.0.7.4.NSAP.INT. NSAP-PTR host.example.com.");
 static const rdata_t nsap_ptr_rdata =
-  RDATA(4, 'h', 'o', 's', 't', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0);
+  RDATA(17, 'h', 'o', 's', 't', '.', 'e', 'x', 'a', 'm', 'p', 'l', 'e', '.', 'c', 'o', 'm', '.');
 
 static const char sig_text[] =
   PAD("big.foo.tld. SIG NXT 1 3 (  ;type-cov=NXT, alg=1, labels=3\n"
