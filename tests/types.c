@@ -307,6 +307,17 @@ static const rdata_t loc_rdata =
         0x70, 0xbe, 0x15, 0xf0, // longitude
         0x00, 0x98, 0x8d, 0x20); // altitude
 
+static const char loc_text_2[] =
+  PAD("addie.example.com. IN LOC 90 S 180 E 42849672.91m 90000000m 90000000m 89999999m");
+static const rdata_t loc_rdata_2 =
+  RDATA(0x00, // version (always 0)
+        0x99, // size (default 1m)
+        0x99, // horizontal precision (default 10000m)
+        0x89, // vertical precision (default 10m)
+        0x6c, 0xb0, 0x27, 0x00, // latitude
+        0xa6, 0x9f, 0xb2, 0x00, // longitude
+        0xff, 0xff, 0xff, 0xfb); // altitude
+
 static const char nxt_text[] =
   PAD("big.foo.tld. NXT medium.foo.tld. A MX SIG NXT");
 static const rdata_t nxt_rdata =
@@ -1106,6 +1117,7 @@ static const test_t tests[] = {
   { ZONE_TYPE_PX, px_text, &px_rdata },
   { ZONE_TYPE_PX, px_generic_text, &px_rdata },
   { ZONE_TYPE_LOC, loc_text, &loc_rdata },
+  { ZONE_TYPE_LOC, loc_text_2, &loc_rdata_2 },
   { ZONE_TYPE_NXT, nxt_text, &nxt_rdata },
   { ZONE_TYPE_EID, eid_text, &eid_rdata },
   { ZONE_TYPE_NIMLOC, nimloc_text, &nimloc_rdata },
