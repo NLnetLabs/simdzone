@@ -623,7 +623,7 @@ static int32_t parse_as_include(const char *text, size_t *count)
   char dummy[16];
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"\n", path);
   assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
+  char *include = calloc((size_t)length + 1 + ZONE_BLOCK_SIZE, 1);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"\n", path);
   code = parse(include, count);
@@ -782,7 +782,7 @@ void bad_includes(void **state)
   char dummy[32];
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\" foo. bar\n", path);
   assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
+  char *include = calloc((size_t)length + 1 + ZONE_BLOCK_SIZE, 1);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\" foo. bar.\n", path);
   int result = fputs(include, handle);
@@ -834,7 +834,7 @@ void include_with_origin(void **state)
   char dummy[32];
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\" baz.", path);
   assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
+  char *include = calloc((size_t)length + 1 + ZONE_BLOCK_SIZE, 1);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\" baz.", path);
 
@@ -899,7 +899,7 @@ void include_without_origin(void **state)
 #define FMT "$INCLUDE \"%s\""
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"", path);
   assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
+  char *include = calloc((size_t)length + 1 + ZONE_BLOCK_SIZE, 1);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"", path);
 #undef FMT
@@ -983,7 +983,7 @@ void owner_is_reinstated(void **state)
   " TXT foobar"
   int length = snprintf(dummy, sizeof(dummy), FMT, path);
   assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
+  char *include = calloc((size_t)length + 1 + ZONE_BLOCK_SIZE, 1);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, FMT, path);
 #undef FMT
@@ -1026,7 +1026,7 @@ void origin_is_reinstated(void **state)
   "foo TXT foobar"
   int length = snprintf(dummy, sizeof(dummy), FMT, path);
   assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
+  char *include = calloc((size_t)length + 1 + ZONE_BLOCK_SIZE, 1);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, FMT, path);
 #undef FMT

@@ -117,10 +117,12 @@ void ds_digest_lengths(void **state)
     const int algo = tests[i].algorithm;
     const int len = tests[i].digest_length;
 
+    memset(buf, 0, sizeof(buf));
     snprintf(buf, sizeof(buf), fmt, algo + 0x30, len * 2, hex);
     code = parse_digest(buf);
     assert_int_equal(code, tests[i].code);
 
+    memset(buf, 0, sizeof(buf));
     snprintf(buf, sizeof(buf), hex_fmt, 4 + len, algo + 0x30, len * 2, hex);
     code = parse_digest(buf);
     assert_int_equal(code, tests[i].code);
