@@ -112,7 +112,7 @@ int setup(void **state)
 
 #define FMT "$INCLUDE %s\n"
   len = (strlen(FMT) - 2) + strlen(input->include.path);
-  if (!(input->includer.content = malloc(len+1 + ZONE_BLOCK_SIZE)))
+  if (!(input->includer.content = calloc(len+1 + ZONE_BLOCK_SIZE, 1)))
     goto err;
   (void)snprintf(input->includer.content, len+1, FMT, input->include.path);
   if (fputs(input->includer.content, input->includer.handle) == EOF)
@@ -122,7 +122,7 @@ int setup(void **state)
 #undef FMT
 #define FMT "host.example.com. 3600 IN TXT foobar\n"
   len = strlen(FMT);
-  if (!(input->include.content = malloc(len+1 + ZONE_BLOCK_SIZE)))
+  if (!(input->include.content = calloc(len+1 + ZONE_BLOCK_SIZE, 1)))
     goto err;
   (void)snprintf(input->include.content, len+1, FMT);
   if (fputs(input->include.content, input->include.handle) == EOF)
@@ -173,7 +173,7 @@ static int32_t parse(
 
   int32_t code;
   size_t length = strlen(text);
-  char *string = malloc(length + 1 + ZONE_BLOCK_SIZE);
+  char *string = calloc(length + 1 + ZONE_BLOCK_SIZE, 1);
   assert_non_null(string);
   memcpy(string, text, length);
   string[length] = '\0';
@@ -486,7 +486,7 @@ void been_there_done_that(void **state)
   char dummy[16];
   int length = snprintf(dummy, sizeof(dummy), "$INCLUDE \"%s\"\n", path);
   assert_true(length > 0 && length < INT_MAX - ZONE_BLOCK_SIZE);
-  char *include = malloc((size_t)length + 1 + ZONE_BLOCK_SIZE);
+  char *include = calloc((size_t)length + 1 + ZONE_BLOCK_SIZE, 1);
   assert_non_null(include);
   (void)snprintf(include, (size_t)length + 1, "$INCLUDE \"%s\"\n", path);
   int result = fputs(include, handle);
@@ -693,7 +693,7 @@ diagnostic_pop()
   int len = snprintf(buf, sizeof(buf), fmt, paths[0]);
   assert_true(len > 0);
 
-  char *str = malloc((size_t)len + ZONE_BLOCK_SIZE + 1);
+  char *str = calloc((size_t)len + ZONE_BLOCK_SIZE + 1, 1);
   assert_non_null(str);
   (void)snprintf(str, (size_t)len+1, fmt, paths[0]);
 
