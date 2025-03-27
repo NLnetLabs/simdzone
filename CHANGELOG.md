@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Empty base16 and base64 in CDS and CDNSKEY can be represented with a '0'.
   As specified in Section 4 of RFC 8078.
+- Initialise padding after the file buffer (#249).
+- Fix type NSAP-PTR (#250).
+- Fix LOC poweroften lookup (#251).
 
 ## [0.2.1] - 2025-01-17
 
