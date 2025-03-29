@@ -106,7 +106,8 @@ static const tuple_t types_and_classes[] = {
   { "CLA", 263, true },
   { "IPN", 264, true },
   { "TA", 32768, true },
-  { "DLV", 32769, true }
+  { "DLV", 32769, true },
+  { "IDELEG", 65280, true }
 };
 
 const uint64_t original_magic = 3523216699ull; // original hash from hash.cpp
@@ -139,6 +140,8 @@ static void print_table(uint64_t magic)
       case 32768: code = 270; // index of  TA in types array in generic/types.h
                   break;
       case 32769: code = 271; // index of DLV in types array in generic/types.h
+                  break;
+      case 65280: code = 272; // index of IDELEG in types array in generic/types.h
                   break;
       default   : code = keys[i].code;
                   break;

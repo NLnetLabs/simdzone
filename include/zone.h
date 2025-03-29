@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <config.h>
 
 #include "zone/attributes.h"
 #include "zone/export.h"
@@ -223,6 +224,10 @@ extern "C" {
 #define ZONE_TYPE_TA (32768u)
 /** DNSSEC Lookaside Validation @rfc{4431} @obsolete */
 #define ZONE_TYPE_DLV (32769u)
+#ifdef USE_DRAFTS
+/** DELEG IETF draft */
+#define ZONE_TYPE_DELEG (65280u)
+#endif
 /** @} */
 
 /**
