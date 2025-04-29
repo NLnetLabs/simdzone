@@ -89,6 +89,7 @@ void ipv4_syntax(void **state)
     zone_options_t options;
     int32_t result;
 
+    memset(rr, 0, sizeof(rr));
     (void)snprintf(rr, sizeof(rr), "foo. A %s", tests[i].address);
 
     fprintf(stderr, "INPUT: %s\n", rr);

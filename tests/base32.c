@@ -76,6 +76,7 @@ void base32_syntax(void **state)
     zone_options_t options;
     int32_t result;
 
+    memset(rr, 0, sizeof(rr));
     (void)snprintf(rr, sizeof(rr), rrfmt, tests[i].base32);
 
     fprintf(stderr, "INPUT: '%s'\n", rr);

@@ -160,7 +160,7 @@ void block_boundary(void **state)
 
   for (int i=0, n=sizeof(tests)/sizeof(tests[0]); i < n; i++) {
     // allocate memory instead of using a static buffer for asan
-    char *input = malloc(tests[i].length + 64);
+    char *input = calloc(tests[i].length + ZONE_BLOCK_SIZE, 1);
     assert_non_null(input);
     memcpy(input, tests[i].input, tests[i].length);
     memset(&parser, 0, sizeof(parser));
