@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix tests to initialize padding (#252).
+
 ## [0.2.2] - 2025-04-24
 
 ### Added
