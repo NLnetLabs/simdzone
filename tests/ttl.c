@@ -78,6 +78,7 @@ void correct_ttl_is_used(void **state)
     char *str = malloc(len + ZONE_BLOCK_SIZE + 1);
     assert_non_null(str);
     memcpy(str, tests[i].str, len + 1);
+    memset(str+len+1, 0, ZONE_BLOCK_SIZE);
 
     zone_parser_t parser;
     zone_name_buffer_t name;
@@ -141,6 +142,7 @@ void correct_ttl_is_used_in_include(void **state)
     char *str = malloc((size_t)len + ZONE_BLOCK_SIZE + 1);
     assert_non_null(str);
     (void)snprintf(str, (size_t)len + 1, tests[i].fmt, inc);
+    memset(str+len+1, 0, ZONE_BLOCK_SIZE);
 
     FILE *handle = fopen(inc, "wb");
     assert_non_null(handle);
