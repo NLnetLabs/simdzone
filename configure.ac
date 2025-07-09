@@ -15,12 +15,18 @@ AC_INIT([simdzone],[0.2.3],[https://github.com/NLnetLabs/simdzone/issues])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 
+sinclude(acx_nlnetlabs.m4)
 m4_include(m4/ax_check_compile_flag.m4)
+
+CFLAGS="$CFLAGS"
 m4_version_prereq([2.70], [AC_PROG_CC], [AC_PROG_CC_STDC])
 
-# Include PIE support from parent
-m4_include(../acx_nlnetlabs.m4)
+# allow user to override the -g -O2 flags.
+if test "x$CFLAGS" = "x" ; then
+ACX_CHECK_COMPILER_FLAG(g, [CFLAGS="$CFLAGS -g"])
+ACX_CHECK_COMPILER_FLAG(O2, [CFLAGS="$CFLAGS -O2"])
 ACX_CHECK_PIE
+fi
 
 AC_CHECK_HEADERS([endian.h sys/endian.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_DECLS([bswap16,bswap32,bswap64], [], [], [

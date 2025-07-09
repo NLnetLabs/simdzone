@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- check_pie: match nsd support (#253).
+
 ### Fixed
 
 - Fix tests to initialize padding (#252).
+- Fix for #253, add acx_nlnetlabs.m4 in the repo and allow CFLAGS passed to
+  configure to set the flags.
 
 ## [0.2.2] - 2025-04-24
 
