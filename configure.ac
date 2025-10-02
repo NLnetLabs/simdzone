@@ -15,6 +15,31 @@ AC_INIT([simdzone],[0.2.4],[https://github.com/NLnetLabs/simdzone/issues])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 
+version_info=0:1:0
+# This is current:revision:age
+# 0.2.4 had 0:1:0
+#
+#
+#   Current  -- the number of the binary API that we're implementing
+#   Revision -- which iteration of the implementation of the binary
+#               API are we supplying?
+#   Age      -- How many previous binary API versions do we also
+#               support?
+#
+# If we release a new version that does not change the binary API,
+# increment Revision.
+#
+# If we release a new version that changes the binary API, but does
+# not break programs compiled against the old binary API, increment
+# Current and Age.  Set Revision to 0, since this is the first
+# implementation of the new API.
+#
+# Otherwise, we're changing the binary API and breaking backward
+# compatibility with old binaries.  Increment Current.  Set Age to 0,
+# since we're backward compatible with no previous APIs.  Set Revision
+# to 0 too.
+AC_SUBST(version_info)
+
 sinclude(acx_nlnetlabs.m4)
 m4_include(m4/ax_check_compile_flag.m4)
 

@@ -20,6 +20,7 @@ prefix=@prefix@
 exec_prefix=@exec_prefix@
 libdir=@libdir@
 SOURCE = @srcdir@
+version_info=@version_info@
 
 SOURCES = src/zone.c src/fallback/parser.c
 OBJECTS = $(SOURCES:.c=.o)
@@ -61,17 +62,19 @@ maintainer-clean: realclean
 devclean: realclean
 	@rm -rf config.h.in configure
 
-libzone.a: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS) Makefile
-	$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
+#libzone.a: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS) Makefile
+	#$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 
 libzone.la: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS) Makefile
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -version-info 0:1:0 -no-undefined -o $@ $(OBJECTS:.o=.lo) $($(WESTMERE)_OBJECTS:.o=.lo) $($(HASWELL)_OBJECTS:.o=.lo) -rpath $(libdir)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -version-info $(version_info) -no-undefined -export-symbols $(srcdir)/lzonesyms.def -o $@ $(OBJECTS:.o=.lo) $($(WESTMERE)_OBJECTS:.o=.lo) $($(HASWELL)_OBJECTS:.o=.lo) -rpath $(libdir)
+
+libzone.a: libzone.la
+	cp .libs/libzone.a $@
 
 # The copy to the main directory is because that is where (NSD) picks up
 # the static library to link to.
 # The shared object files are listed to link with.
-lib: libzone.la
-	cp .libs/libzone.a .
+lib: libzone.a
 
 list_objs:
 	@echo $(OBJECTS:.o=.lo) $($(WESTMERE)_OBJECTS:.o=.lo) $($(HASWELL)_OBJECTS:.o=.lo)
