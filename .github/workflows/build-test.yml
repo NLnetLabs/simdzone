@@ -127,6 +127,6 @@ jobs:
         run: |
           set -e -x
           echo $PATH
-          autoreconf -i
+          autoreconf -fi
           ./configure
           make -j 2
