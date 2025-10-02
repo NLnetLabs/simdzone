@@ -13,7 +13,12 @@ CPPFLAGS = @CPPFLAGS@ -Iinclude -I$(SOURCE)/include -I$(SOURCE)/src -I.
 CFLAGS = @CFLAGS@
 DEPFLAGS = @DEPFLAGS@
 VPATH = @srcdir@
-
+libtool=@libtool@
+LIBTOOL=$(libtool)
+srcdir=@srcdir@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
 SOURCE = @srcdir@
 
 SOURCES = src/zone.c src/fallback/parser.c
@@ -36,9 +41,9 @@ DEPENDS = $(SOURCES:.c=.d) $(WESTMERE_SOURCES:.c=.d) $(HASWELL_SOURCES:.c=.d)
 # macros for compatibility.
 EXPORT_HEADER = include/zone/export.h
 
-.PHONY: all clean
+.PHONY: all clean lib
 
-all: libzone.a
+all: lib
 
 clean:
 	@rm -f .depend
@@ -59,21 +64,33 @@ devclean: realclean
 libzone.a: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS) Makefile
 	$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 
+libzone.la: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS) Makefile
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -version-info 0:1:0 -no-undefined -o $@ $(OBJECTS:.o=.lo) $($(WESTMERE)_OBJECTS:.o=.lo) $($(HASWELL)_OBJECTS:.o=.lo) -rpath $(libdir)
+
+# The copy to the main directory is because that is where (NSD) picks up
+# the static library to link to.
+# The shared object files are listed to link with.
+lib: libzone.la
+	cp .libs/libzone.a .
+
+list_objs:
+	@echo $(OBJECTS:.o=.lo) $($(WESTMERE)_OBJECTS:.o=.lo) $($(HASWELL)_OBJECTS:.o=.lo)
+
 $(EXPORT_HEADER):
 	@mkdir -p include/zone
 	@echo "#define ZONE_EXPORT" > $(EXPORT_HEADER)
 
 $(WESTMERE_OBJECTS): $(EXPORT_HEADER) .depend Makefile
 	@mkdir -p src/westmere
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $(SOURCE)/$(@:.o=.c)
+	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=westmere -o $@ -c $(SOURCE)/$(@:.o=.c)
 
 $(HASWELL_OBJECTS): $(EXPORT_HEADER) .depend Makefile
 	@mkdir -p src/haswell
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $(SOURCE)/$(@:.o=.c)
+	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -march=haswell -o $@ -c $(SOURCE)/$(@:.o=.c)
 
 $(OBJECTS): $(EXPORT_HEADER) .depend Makefile
 	@mkdir -p src/fallback
-	$(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(SOURCE)/$(@:.o=.c)
+	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEPFLAGS) $(CPPFLAGS) $(CFLAGS) -o $@ -c $(SOURCE)/$(@:.o=.c)
 	@touch $@
 
 .depend:
