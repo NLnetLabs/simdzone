@@ -218,8 +218,8 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
     unset(CMAKE_REQUIRED_FLAGS)
     if (HAVE_WESTMERE)
       set_source_files_properties(
-        src/westmere/parser.c PROPERTIES COMPILE_FLAGS "-march=westmere")
-      target_sources(zone PRIVATE src/westmere/parser.c)
+        src/westmere/wmparser.c PROPERTIES COMPILE_FLAGS "-march=westmere")
+      target_sources(zone PRIVATE src/westmere/wmparser.c)
       set_source_files_properties(
         src/westmere/bench.c PROPERTIES COMPILE_FLAGS "-march=westmere")
       target_sources(zone-bench PRIVATE src/westmere/bench.c)
@@ -233,8 +233,8 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
     unset(CMAKE_REQUIRED_FLAGS)
     if (HAVE_HASWELL)
       set_source_files_properties(
-        src/haswell/parser.c PROPERTIES COMPILE_FLAGS "-march=haswell")
-      target_sources(zone PRIVATE src/haswell/parser.c)
+        src/haswell/hwparser.c PROPERTIES COMPILE_FLAGS "-march=haswell")
+      target_sources(zone PRIVATE src/haswell/hwparser.c)
       set_source_files_properties(
         src/haswell/bench.c PROPERTIES COMPILE_FLAGS "-march=haswell")
       target_sources(zone-bench PRIVATE src/haswell/bench.c)

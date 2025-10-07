@@ -25,10 +25,10 @@ version_info=@version_info@
 SOURCES = src/zone.c src/fallback/parser.c
 OBJECTS = $(SOURCES:.c=.o)
 
-WESTMERE_SOURCES = src/westmere/parser.c
+WESTMERE_SOURCES = src/westmere/wmparser.c
 WESTMERE_OBJECTS = $(WESTMERE_SOURCES:.c=.o)
 
-HASWELL_SOURCES = src/haswell/parser.c
+HASWELL_SOURCES = src/haswell/hwparser.c
 HASWELL_OBJECTS = $(HASWELL_SOURCES:.c=.o)
 
 NO_OBJECTS =
