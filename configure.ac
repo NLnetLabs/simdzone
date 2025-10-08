@@ -167,7 +167,11 @@ int main(int argc, char *argv[])
   fi
 fi
 
-AC_CHECK_FUNCS([realpath],,[AC_MSG_ERROR([realpath is not available])])
+AC_CHECK_FUNCS([realpath],,[
+	AC_CHECK_FUNCS([_fullpath],,[
+		AC_MSG_ERROR([realpath and _fullpath are not available])
+	])
+])
 
 AC_SUBST([HAVE_ENDIAN_H])
 AC_SUBST([HAVE_WESTMERE])
