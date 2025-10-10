@@ -12,6 +12,8 @@ CC = @CC@
 CPPFLAGS = @CPPFLAGS@ -Iinclude -I$(SOURCE)/include -I$(SOURCE)/src -I.
 CFLAGS = @CFLAGS@
 DEPFLAGS = @DEPFLAGS@
+LDFLAGS=@LDFLAGS@
+LIBS=@LIBS@
 VPATH = @srcdir@
 libtool=@libtool@
 LIBTOOL=$(libtool)
@@ -66,7 +68,7 @@ devclean: realclean
 	#$(AR) rcs libzone.a $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 
 libzone.la: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS) Makefile
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -version-info $(version_info) -no-undefined -export-symbols $(srcdir)/lzonesyms.def -o $@ $(OBJECTS:.o=.lo) $($(WESTMERE)_OBJECTS:.o=.lo) $($(HASWELL)_OBJECTS:.o=.lo) -rpath $(libdir)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -version-info $(version_info) -no-undefined -export-symbols $(srcdir)/lzonesyms.def -o $@ $(OBJECTS:.o=.lo) $($(WESTMERE)_OBJECTS:.o=.lo) $($(HASWELL)_OBJECTS:.o=.lo) $(LIBS) -rpath $(libdir)
 
 libzone.a: libzone.la
 	cp .libs/libzone.a $@

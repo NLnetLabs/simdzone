@@ -46,6 +46,19 @@ m4_include(m4/ax_check_compile_flag.m4)
 CFLAGS="$CFLAGS"
 m4_version_prereq([2.70], [AC_PROG_CC], [AC_PROG_CC_STDC])
 
+# are we on MinGW?
+if uname -s 2>&1 | grep MINGW >/dev/null; then on_mingw="yes"
+else
+	if echo $host | grep mingw >/dev/null; then on_mingw="yes"
+	else on_mingw="no"; fi
+fi
+if test "$on_mingw" = "yes"; then
+	# link with libssp for the stack protector functions on the windows
+	# compile, for the static compile -l:libssp.a could be used.
+	# But there is no static option right now for simdzone.
+	if test -z "$LIBS"; then LIBS="-lssp"; else LIBS="$LIBS -lssp"; fi
+fi
+
 # allow user to override the -g -O2 flags.
 if test "x$CFLAGS" = "x" ; then
 ACX_CHECK_COMPILER_FLAG(g, [CFLAGS="$CFLAGS -g"])
