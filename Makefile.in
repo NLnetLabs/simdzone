@@ -50,7 +50,7 @@ all: lib
 
 clean:
 	@rm -f .depend
-	@rm -f libzone.a $(OBJECTS) $(EXPORT_HEADER)
+	@rm -f libzone.a libzone.la $(OBJECTS) $(EXPORT_HEADER)
 	@rm -f $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS)
 
 distclean: clean
@@ -69,14 +69,14 @@ devclean: realclean
 
 libzone.la: $(OBJECTS) $($(WESTMERE)_OBJECTS) $($(HASWELL)_OBJECTS) Makefile
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -version-info $(version_info) -no-undefined -export-symbols $(srcdir)/lzonesyms.def -o $@ $(OBJECTS:.o=.lo) $($(WESTMERE)_OBJECTS:.o=.lo) $($(HASWELL)_OBJECTS:.o=.lo) $(LIBS) -rpath $(libdir)
+	if test -f .libs/libzone.a; then cp .libs/libzone.a .; fi
 
 libzone.a: libzone.la
-	cp .libs/libzone.a $@
 
 # The copy to the main directory is because that is where (NSD) picks up
 # the static library to link to.
 # The shared object files are listed to link with.
-lib: libzone.a
+lib: libzone.la
 
 list_objs:
 	@echo $(OBJECTS:.o=.lo) $($(WESTMERE)_OBJECTS:.o=.lo) $($(HASWELL)_OBJECTS:.o=.lo)
