@@ -53,10 +53,12 @@ else
 	else on_mingw="no"; fi
 fi
 if test "$on_mingw" = "yes"; then
+    if echo "$host" | $GREP -i -e linux >/dev/null; then
 	# link with libssp for the stack protector functions on the windows
 	# compile, for the static compile -l:libssp.a could be used.
 	# But there is no static option right now for simdzone.
 	if test -z "$LIBS"; then LIBS="-lssp"; else LIBS="$LIBS -lssp"; fi
+    fi
 fi
 
 # allow user to override the -g -O2 flags.
