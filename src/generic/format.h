@@ -389,8 +389,10 @@ static inline int32_t parse(parser_t *parser)
 
         if ((code = parse_owner(parser, &rr, &fields[0], &token)) < 0)
           return code;
-        if ((code = take_contiguous(parser, &rr, &fields[0], &token)) < 0)
-          return code;
+        if ((code = take_contiguous(parser, &rr, &fields[0], &token)) < 0) {
+          if(code == ZONE_SYNTAX_ERROR && !parser->options.skip_syntax_errors)
+            return code;
+        }
       } else if (unlikely(!parser->owner->length)) {
         SYNTAX_ERROR(parser, "No last stated owner");
       }
