@@ -437,6 +437,10 @@ typedef struct {
       a secondary as data may have been transferred over AXFR/IXFR that
       would have triggered an error otherwise. */
   bool secondary;
+  /** Programs that process zones that do not need the zone to be in perfect
+      order (for example programs that count the number of delegations),
+      may be even more lenient and allow syntax errors. */
+  bool skip_syntax_errors;
   /** Disable $INCLUDE directive. */
   /** Useful in setups where untrusted input may be offered. */
   bool no_includes;
