@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Correct lengths for GOST R 34.10-2012 and SM3 delegation signer (DS) digest
+  algorithms
+
 ## [0.2.3] - 2025-09-03
 
 ### Added
