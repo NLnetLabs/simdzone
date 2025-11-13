@@ -995,7 +995,7 @@ static const rdata_t doa2_rdata =
         );
 
 static const char amtrelay_text[] =
-  PAD("foo. AMTRELAY 200 0 0");
+  PAD("foo. AMTRELAY 200 0 0 .");
 static const char amtrelay_generic_text[] =
   PAD("foo. AMTRELAY \\# 2 c8 00");
 static const rdata_t amtrelay_rdata =
