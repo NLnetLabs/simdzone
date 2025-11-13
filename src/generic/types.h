@@ -2759,7 +2759,7 @@ static int32_t parse_amtrelay_rdata(
       /* no gateway requires a '.' as the relay in presentation format
        * without parsing it into wireformat rdata */
       if (!(token->length == 1 && *token->data == '.'))
-        SYNTAX_ERROR(parser, "Invalid %s in %s", NAME(&fields[3]), NAME(type));
+        SYNTAX_ERROR(parser, "Invalid %s in %s, the no gateway type (type 0) of AMTRELAY requires the relay field to have '.' in it", NAME(&fields[3]), NAME(type));
       break;
     case 1: /* IPv4 address */
       type = (const type_info_t *)amtrelay_ipv4;
