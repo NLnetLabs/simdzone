@@ -305,9 +305,9 @@ static int32_t refill(parser_t *parser)
     parser->file->fields.head[0] = data;
   }
 
-  char* readpos; // where to read the data.
-  size_t count;  // number of  bytes to read, and read in.
-  int is_eof;    // if it is at eof.
+  char* readpos;  // where to read the data.
+  size_t count;   // number of  bytes to read, and read in.
+  uint8_t is_eof; // if it is at eof.
   readpos = parser->file->buffer.data + parser->file->buffer.length;
   count = parser->file->buffer.size - parser->file->buffer.length;
   is_eof = 0;
