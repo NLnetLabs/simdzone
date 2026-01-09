@@ -372,6 +372,7 @@ static int32_t initialize_parser(
   const size_t size = offsetof(parser_t, file);
   memset(parser, 0, size);
   parser->options = *options;
+  parser->read_data_callback = NULL;
   parser->user_data = user_data;
   parser->file = &parser->first;
   parser->buffers.size = buffers->size;
@@ -454,6 +455,39 @@ int32_t zone_parse_string(
   parser->file->fields.tape[0] = &string[length];
   parser->file->fields.tape[1] = &string[length];
   assert(parser->file->end_of_file == 1);
+
+  code = parse(parser, user_data);
+  zone_close(parser);
+  return code;
+}
+
+int32_t zone_parse_from_callback(
+  zone_parser_t *parser,
+  const zone_options_t *options,
+  zone_buffers_t *buffers,
+  zone_read_data_t callback,
+  void *user_data)
+{
+  int32_t code;
+  const size_t size = ZONE_WINDOW_SIZE + 1 + ZONE_BLOCK_SIZE;
+  zone_file_t *file;
+
+  if ((code = initialize_parser(parser, options, buffers, user_data)) < 0)
+    return code;
+  parser->read_data_callback = callback;
+
+  file = parser->file;
+  initialize_file(parser, file);
+  file->handle = NULL;
+  file->path = NULL;
+  file->name = NULL;
+  if (!(file->buffer.data = malloc(size)))
+    return (void)close_file(parser, file), ZONE_OUT_OF_MEMORY;
+  file->buffer.data[0] = '\0';
+  file->buffer.size = ZONE_WINDOW_SIZE;
+  file->end_of_file = 0;
+  file->fields.tape[0] = &file->buffer.data[0];
+  file->fields.tape[1] = &file->buffer.data[0];
 
   code = parse(parser, user_data);
   zone_close(parser);
