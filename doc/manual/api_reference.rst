@@ -17,6 +17,9 @@ Parse functions
 .. doxygenfunction:: zone_parse_string
    :project: doxygen
 
+.. doxygenfunction:: zone_parse_from_callback
+   :project: doxygen
+
 Log priorities
 --------------
 
