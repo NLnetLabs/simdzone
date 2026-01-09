@@ -1,3 +1,4 @@
 zone_log
 zone_parse
+zone_parse_from_callback
 zone_parse_string
