@@ -270,7 +270,7 @@ static int32_t refill(parser_t *parser)
   if (parser->file->end_of_file)
     return 0;
 
-  assert(parser->file->handle);
+  assert(parser->file->handle || parser->read_data_callback);
 
   // move unread data to start of buffer
   char *data = parser->file->buffer.data + parser->file->buffer.index;
@@ -320,6 +320,7 @@ static int32_t refill(parser_t *parser)
     is_eof = ((retcount == 0) | (retcount < count));
     if(ret < 0)
       RAISE_ERROR(parser, ret, "Cannot read data");
+    count = retcount;
   } else {
     /* Read from file. */
     count = fread(readpos, sizeof(parser->file->buffer.data[0]), count,

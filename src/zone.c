@@ -152,7 +152,8 @@ static void close_file(
 {
   assert((file->name == not_a_file) == (file->path == not_a_file));
 
-  const bool is_string = file->name == not_a_file || file->path == not_a_file;
+  const bool is_string = (file->name == not_a_file ||
+    file->path == not_a_file) && !parser->read_data_callback;
 
   assert(!is_string || file == &parser->first);
   assert(!is_string || file->handle == NULL);
@@ -485,6 +486,8 @@ int32_t zone_parse_from_callback(
     return (void)close_file(parser, file), ZONE_OUT_OF_MEMORY;
   file->buffer.data[0] = '\0';
   file->buffer.size = ZONE_WINDOW_SIZE;
+  file->buffer.length = 0;
+  file->buffer.index = 0;
   file->end_of_file = 0;
   file->fields.tape[0] = &file->buffer.data[0];
   file->fields.tape[1] = &file->buffer.data[0];
