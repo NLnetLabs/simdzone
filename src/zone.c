@@ -480,8 +480,6 @@ int32_t zone_parse_from_callback(
   file = parser->file;
   initialize_file(parser, file);
   file->handle = NULL;
-  file->path = NULL;
-  file->name = NULL;
   if (!(file->buffer.data = malloc(size)))
     return (void)close_file(parser, file), ZONE_OUT_OF_MEMORY;
   file->buffer.data[0] = '\0';
