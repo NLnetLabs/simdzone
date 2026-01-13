@@ -75,12 +75,12 @@ static int32_t read_data_func(
 
   chunk_size = chunk->size;
   if(chunk_size == CHUNK_SIZE_STRLEN) {
-    chunk_size = strlen(chunk->str);
+    chunk_size = (int)strlen(chunk->str);
     if(chunk_size != 0)
       memmove(data, chunk->str, chunk_size);
   } else if(chunk_size == CHUNK_SIZE_STRLENPAD) {
     size_t padendlen = 0;
-    chunk_size = strlen(chunk->str);
+    chunk_size = (int)strlen(chunk->str);
     if(chunk_size != 0)
       memmove(data, chunk->str, chunk_size);
     /* Pad it */
@@ -90,13 +90,13 @@ static int32_t read_data_func(
       size_t i, padlen = len - (size_t)chunk_size - padendlen;
       char padchar = ' ';
       for(i=0; i<padlen; i++) {
-	      data[chunk_size+i] = padchar;
+	      data[(size_t)chunk_size+i] = padchar;
       }
     }
     if(chunk->padend) {
       memmove(data+len-padendlen, chunk->padend, padendlen);
     }
-    chunk_size = len;
+    chunk_size = (int)len;
   } else {
     if(chunk_size != 0)
       memmove(data, chunk->str, chunk_size);
