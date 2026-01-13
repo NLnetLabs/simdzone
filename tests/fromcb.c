@@ -220,6 +220,16 @@ void test_fromcb(void **state)
       {NULL, 0, NULL, 0}
       },
       0, 0, 5 // num rrs
+    },
+    /* fromcb test 8: four chunks, syntax error in string. */
+    { ZONE_SYNTAX_ERROR, {
+      {"www.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www2.example.com. syntax-error-here 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www3.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www4.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLEN, NULL, 0},
+      {NULL, 0, NULL, 0}
+      },
+      0, 0, 1 // num rrs
     }
   };
 
