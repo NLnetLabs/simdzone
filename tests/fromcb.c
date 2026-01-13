@@ -16,7 +16,7 @@
 /* max number of chunks used in the test */
 #define MAX_CHUNKS 16
 /* if test should print verbosely */
-static int verb = 1;
+static int verb = 0;
 
 /* The size of the chunk, if set to this value, makes it use strlen. */
 #define CHUNK_SIZE_STRLEN -3
@@ -151,6 +151,75 @@ void test_fromcb(void **state)
       {NULL, 0, NULL, 0}
       },
       0, 0, 2 // num rrs
+    },
+    /* fromcb test 1: one chunk */
+    { 0, {
+      {"www.example.com. IN A 1.2.3.4\n"
+       "www2.example.com. IN A 1.2.3.4\n"
+      , CHUNK_SIZE_STRLEN, NULL, 0},
+      {NULL, 0, NULL, 0}
+      },
+      0, 0, 2 // num rrs
+    },
+    /* fromcb test 2: four chunks */
+    { 0, {
+      {"www.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www2.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www3.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www4.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLEN, NULL, 0},
+      {NULL, 0, NULL, 0}
+      },
+      0, 0, 4 // num rrs
+    },
+    /* fromcb test 3: three chunks, it ends with a full chunk, not partial. */
+    { 0, {
+      {"www.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www2.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www3.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {NULL, 0, NULL, 0}
+      },
+      0, 0, 3 // num rrs
+    },
+    /* fromcb test 4: three chunks, last has error. */
+    { ZONE_READ_ERROR, {
+      {"www.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www2.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www3.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLEN, NULL,
+        ZONE_READ_ERROR},
+      {NULL, 0, NULL, 0}
+      },
+      0, 0, 2 // num rrs
+    },
+    /* fromcb test 5: three chunks, last has error, it is memory error. */
+    { ZONE_OUT_OF_MEMORY, {
+      {"www.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www2.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www3.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLEN, NULL,
+        ZONE_OUT_OF_MEMORY},
+      {NULL, 0, NULL, 0}
+      },
+      0, 0, 2 // num rrs
+    },
+    /* fromcb test 6: first chunk has error. */
+    { ZONE_READ_ERROR, {
+      {"www.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n",
+	ZONE_READ_ERROR},
+      {"www2.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLEN, NULL, 0},
+      {NULL, 0, NULL, 0}
+      },
+      0, 0, 0 // num rrs
+    },
+    /* fromcb test 7: four chunks, one RR is spread over two chunks. */
+    { 0, {
+      {"www.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www2.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n"
+       "www-part.example", 0},
+      {".com. IN A 1.2.3.4\n"
+       "www3.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLENPAD, "\n", 0},
+      {"www4.example.com. IN A 1.2.3.4\n", CHUNK_SIZE_STRLEN, NULL, 0},
+      {NULL, 0, NULL, 0}
+      },
+      0, 0, 5 // num rrs
     }
   };
 
@@ -165,6 +234,7 @@ void test_fromcb(void **state)
     int32_t code;
     struct fromcb_testinfo *test = &tests[i];
 
+    if(verb) fprintf(stderr, "\n");
     fprintf(stderr, "fromcb test %d\n", (int)i);
 
     memset(&options, 0, sizeof(options));
