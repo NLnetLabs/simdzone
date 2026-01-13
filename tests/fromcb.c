@@ -61,7 +61,7 @@ static int32_t read_data_func(
   struct fromcb_testinfo *test = (void *)user_data;
   struct fromcb_chunkinfo* chunk;
   int32_t retvalue;
-  int chunk_size = 0;
+  size_t chunk_size = 0;
   (void)parser;
   chunk = &test->chunk[test->chunknum];
   if(chunk->str == NULL) {
@@ -73,36 +73,36 @@ static int32_t read_data_func(
 	  return 0;
   }
 
-  chunk_size = chunk->size;
-  if(chunk_size == CHUNK_SIZE_STRLEN) {
-    chunk_size = (int)strlen(chunk->str);
+  if(chunk->size == CHUNK_SIZE_STRLEN) {
+    chunk_size = strlen(chunk->str);
     if(chunk_size != 0)
       memmove(data, chunk->str, chunk_size);
-  } else if(chunk_size == CHUNK_SIZE_STRLENPAD) {
+  } else if(chunk->size == CHUNK_SIZE_STRLENPAD) {
     size_t padendlen = 0;
-    chunk_size = (int)strlen(chunk->str);
+    chunk_size = strlen(chunk->str);
     if(chunk_size != 0)
       memmove(data, chunk->str, chunk_size);
     /* Pad it */
     if(chunk->padend)
 	    padendlen = strlen(chunk->padend);
-    if((size_t)chunk_size + padendlen < len) {
-      size_t i, padlen = len - (size_t)chunk_size - padendlen;
+    if(chunk_size + padendlen < len) {
+      size_t i, padlen = len - chunk_size - padendlen;
       char padchar = ' ';
       for(i=0; i<padlen; i++) {
-	      data[(size_t)chunk_size+i] = padchar;
+	      data[chunk_size+i] = padchar;
       }
     }
     if(chunk->padend) {
       memmove(data+len-padendlen, chunk->padend, padendlen);
     }
-    chunk_size = (int)len;
+    chunk_size = len;
   } else {
+    chunk_size = (size_t)chunk->size;
     if(chunk_size != 0)
       memmove(data, chunk->str, chunk_size);
   }
 
-  *outlen = (size_t)chunk_size;
+  *outlen = chunk_size;
   retvalue = chunk->retvalue;
   test->chunknum++;
   if(verb)
