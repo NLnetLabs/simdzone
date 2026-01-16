@@ -459,6 +459,12 @@ typedef struct {
   bool no_includes;
   /** Maximum $INCLUDE depth. 0 for default. */
   uint32_t include_limit;
+  /** The chroot path. If not NULL, and the $INCLUDE pathname has it as prefix,
+   * then it is elided from the beginning of the pathname string. Setting it
+   * to the chroot directory, when chrooted, makes that absolute path names
+   * continue to work, both before the chroot and after the chroot with
+   * adjustment. */
+  const char* chrootdir;
   /** Enable 1h2m3s notations for TTLS. */
   bool pretty_ttls;
   /** Origin in wire format. */

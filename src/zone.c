@@ -240,7 +240,8 @@ static int32_t open_file(
   file->path = NULL;
   if (!(file->name = malloc(length + 1)))
     return ZONE_OUT_OF_MEMORY;
-  memcpy(file->name, include, length);
+  if(length > 0)
+    memcpy(file->name, include, length);
   file->name[length] = '\0';
   if (!(file->buffer.data = malloc(size)))
     return (void)close_file(parser, file), ZONE_OUT_OF_MEMORY;
