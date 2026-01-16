@@ -721,3 +721,76 @@ diagnostic_pop()
   free(paths[0]);
   free(paths[1]);
 }
+
+/*!cmocka */
+void include_with_chroot(void **state)
+{
+  // test parse of $INCLUDE with chrootdir option.
+  // the chrootdir is set to a prefix, that is then included
+  // at the frong of the $INCLUDE path, without actually chrooting,
+  // to test it.
+  const char* chrootdir = "/var/simdtest/";
+  // an actual chrootdir may be more "/var/simdtest" and thus leave
+  // a string starting with '/', which is fine for the chrootdir case.
+  // for the test it is convenient to remove that beginning '/'.
+  char *paths[2] = { NULL, NULL };
+  FILE *handles[2] = { NULL, NULL };
+  struct file_list list = { 0, 2, paths };
+  (void)state;
+
+  static const char fmt[] =
+    "$INCLUDE \"%s%s\"\n"
+    "example A 192.0.2.1\n";
+
+diagnostic_push()
+msvc_diagnostic_ignored(4996)
+  paths[0] = get_tempnam(NULL, "zone");
+  assert_non_null(paths[0]);
+  handles[0] = fopen(paths[0], "wb");
+  assert_non_null(handles[0]);
+  paths[1] = get_tempnam(NULL, "zone");
+  assert_non_null(paths[1]);
+  handles[1] = fopen(paths[1], "wb");
+  assert_non_null(handles[1]);
+diagnostic_pop()
+
+  fprintf(handles[0], fmt, chrootdir, paths[1]);
+  (void)fflush(handles[0]);
+  (void)fclose(handles[0]);
+  fputs("example A 192.0.2.1\n", handles[1]);
+  (void)fflush(handles[1]);
+  (void)fclose(handles[1]);
+
+  char buf[128];
+  int len = snprintf(buf, sizeof(buf), fmt, chrootdir, paths[0]);
+  assert_true(len > 0);
+
+  char *str = calloc((size_t)len + ZONE_BLOCK_SIZE + 1, 1);
+  assert_non_null(str);
+  (void)snprintf(str, (size_t)len+1, fmt, chrootdir, paths[0]);
+
+  zone_parser_t parser;
+  zone_options_t options;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+
+  memset(&options, 0, sizeof(options));
+  options.include.callback = &track_include_cb;
+  options.accept.callback = &track_accept_cb;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = 1;
+  options.chrootdir = chrootdir;
+
+  int32_t code = zone_parse_string(&parser, &options, &buffers, str, (size_t)len, &list);
+  remove(paths[0]);
+  remove(paths[1]);
+  assert_int_equal(code, ZONE_SUCCESS);
+  assert_int_equal(list.index, 2);
+
+  free(str);
+  free(paths[0]);
+  free(paths[1]);
+}
