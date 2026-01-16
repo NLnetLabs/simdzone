@@ -429,6 +429,23 @@ typedef int32_t(*zone_include_t)(
   void *); // user data
 
 /**
+ * @brief Signature of callback function invoked to read data pieces.
+ *
+ * Called to read another piece of the data. Read up the number of bytes,
+ * or less bytes up to the end, and signal end of file, or error.
+ */
+typedef int32_t(*zone_read_data_t)(
+  zone_parser_t *,
+  char *, // The data buffer to read in to.
+  size_t, // The number of bytes to read that is requested.
+  size_t *, // The number of bytes successfully read, less than the requested
+	    // amount means end-of-file after that. Also 0 means end-of-file
+	    // without data read. Reading bytes or less or 0 at end-of-file
+	    // return with ZONE_SUCCESS. For errors, can pass 0, and return
+	    // with ZONE_READ_ERROR.
+  void *); // user data
+
+/**
  * @brief Available configuration options.
  */
 typedef struct {
@@ -442,6 +459,12 @@ typedef struct {
   bool no_includes;
   /** Maximum $INCLUDE depth. 0 for default. */
   uint32_t include_limit;
+  /** The chroot path. If not NULL, and the $INCLUDE pathname has it as prefix,
+   * then it is elided from the beginning of the pathname string. Setting it
+   * to the chroot directory, when chrooted, makes that absolute path names
+   * continue to work, both before the chroot and after the chroot with
+   * adjustment. */
+  const char* chrootdir;
   /** Enable 1h2m3s notations for TTLS. */
   bool pretty_ttls;
   /** Origin in wire format. */
@@ -489,6 +512,8 @@ struct zone_buffers {
 struct zone_parser {
   /** @private */
   zone_options_t options;
+  /** @private */
+  zone_read_data_t read_data_callback;
   /** @private */
   void *user_data;
   struct {
@@ -581,6 +606,32 @@ zone_parse_string(
   zone_buffers_t *buffers,
   const char *string,
   size_t length,
+  void *user_data)
+zone_nonnull((1,2,3,4));
+
+/**
+ * @brief Parse zone using a callback to retrieve data.
+ *
+ * Parse using a callback to retrieve data pieces, containing resource
+ * records in presentation format. The callback is called to return eg.
+ * the next up-to-N bytes, or up to the end, and signals end of file.
+ * It is called to read chunks of a couple Kb, until the last (possibly
+ * partial) chunk, and then end-of-file is returned.
+ *
+ * @param[in]  parser     Zone parser
+ * @param[in]  options    Settings used for parsing.
+ * @param[in]  buffers    Scratch buffers used by parsing.
+ * @param[in]  callback   Callback function that is called to read the data.
+ * @param[in]  user_data  Pointer passed verbatim to callbacks.
+ *
+ * @returns @ref ZONE_SUCCESS on success or a negative number on error.
+ */
+ZONE_EXPORT int32_t
+zone_parse_from_callback(
+  zone_parser_t *parser,
+  const zone_options_t *options,
+  zone_buffers_t *buffers,
+  zone_read_data_t callback,
   void *user_data)
 zone_nonnull((1,2,3,4));
 
