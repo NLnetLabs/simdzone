@@ -15,11 +15,51 @@ AC_INIT([simdzone],[0.2.5],[https://github.com/NLnetLabs/simdzone/issues])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 
+version_info=0:1:0
+# This is current:revision:age
+# 0.2.4 had 0:1:0
+#
+#
+#   Current  -- the number of the binary API that we're implementing
+#   Revision -- which iteration of the implementation of the binary
+#               API are we supplying?
+#   Age      -- How many previous binary API versions do we also
+#               support?
+#
+# If we release a new version that does not change the binary API,
+# increment Revision.
+#
+# If we release a new version that changes the binary API, but does
+# not break programs compiled against the old binary API, increment
+# Current and Age.  Set Revision to 0, since this is the first
+# implementation of the new API.
+#
+# Otherwise, we're changing the binary API and breaking backward
+# compatibility with old binaries.  Increment Current.  Set Age to 0,
+# since we're backward compatible with no previous APIs.  Set Revision
+# to 0 too.
+AC_SUBST(version_info)
+
 sinclude(acx_nlnetlabs.m4)
 m4_include(m4/ax_check_compile_flag.m4)
 
 CFLAGS="$CFLAGS"
 m4_version_prereq([2.70], [AC_PROG_CC], [AC_PROG_CC_STDC])
+
+# are we on MinGW?
+if uname -s 2>&1 | grep MINGW >/dev/null; then on_mingw="yes"
+else
+	if echo $host | grep mingw >/dev/null; then on_mingw="yes"
+	else on_mingw="no"; fi
+fi
+if test "$on_mingw" = "yes"; then
+    if echo "$host" | $GREP -i -e linux >/dev/null; then
+	# link with libssp for the stack protector functions on the windows
+	# compile, for the static compile -l:libssp.a could be used.
+	# But there is no static option right now for simdzone.
+	if test -z "$LIBS"; then LIBS="-lssp"; else LIBS="$LIBS -lssp"; fi
+    fi
+fi
 
 # allow user to override the -g -O2 flags.
 if test "x$CFLAGS" = "x" ; then
@@ -27,6 +67,8 @@ ACX_CHECK_COMPILER_FLAG(g, [CFLAGS="$CFLAGS -g"])
 ACX_CHECK_COMPILER_FLAG(O2, [CFLAGS="$CFLAGS -O2"])
 ACX_CHECK_PIE
 fi
+
+ACX_LIBTOOL_C_ONLY
 
 AC_CHECK_HEADERS([endian.h sys/endian.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_DECLS([bswap16,bswap32,bswap64], [], [], [
@@ -140,7 +182,11 @@ int main(int argc, char *argv[])
   fi
 fi
 
-AC_CHECK_FUNCS([realpath],,[AC_MSG_ERROR([realpath is not available])])
+AC_CHECK_FUNCS([realpath],,[
+	AC_CHECK_FUNCS([_fullpath],,[
+		AC_MSG_ERROR([realpath and _fullpath are not available])
+	])
+])
 
 AC_SUBST([HAVE_ENDIAN_H])
 AC_SUBST([HAVE_WESTMERE])
