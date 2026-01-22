@@ -230,6 +230,13 @@ void test_fromcb(void **state)
       {NULL, 0, NULL, 0}
       },
       0, 0, 1 // num rrs
+    },
+    /* fromcb test 9: eof straight away, much like an empty file. */
+    { 0, {
+      {"", CHUNK_SIZE_STRLEN, NULL, 0},
+      {NULL, 0, NULL, 0}
+      },
+      0, 0, 0 // num rrs
     }
   };
 
