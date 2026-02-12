@@ -431,7 +431,7 @@ typedef int32_t(*zone_include_t)(
 /**
  * @brief Signature of callback function invoked to read data pieces.
  *
- * Called to read another piece of the data. Read up the number of bytes,
+ * Called to read another piece of the data. Read up to the number of bytes,
  * or less bytes up to the end, and signal end of file, or error.
  */
 typedef int32_t(*zone_read_data_t)(

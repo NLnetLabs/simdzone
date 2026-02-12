@@ -727,7 +727,7 @@ void include_with_chroot(void **state)
 {
   // test parse of $INCLUDE with chrootdir option.
   // the chrootdir is set to a prefix, that is then included
-  // at the frong of the $INCLUDE path, without actually chrooting,
+  // at the front of the $INCLUDE path, without actually chrooting,
   // to test it.
   const char* chrootdir = "/var/simdtest/";
   // an actual chrootdir may be more "/var/simdtest" and thus leave
