@@ -34,7 +34,7 @@ instructions for parsing structured text can significantly boost performance.
 simdzone, whose name is a play on [simdjson][simdjson], aims to achieve a
 similar performance boost for parsing zone data.
 
-> Currently SSE4.2 and AVX2 are supported, a fallback is used otherwise.
+> Currently SSE4.2 and AVX2 are supported. RISC-V and other non-x86_64 targets use the fallback kernel until a dedicated SIMD backend is added.
 
 > simdzone copies some code from the [simdjson][simdjson] project, with
 > permission to use and distribute it under the terms of
