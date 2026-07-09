@@ -148,7 +148,7 @@ static inline void cpuid(
   __get_cpuid(level, eax, ebx, ecx, edx);
 #else
   uint32_t a = *eax, b, c = *ecx, d;
-  asm volatile("cpuid\n\t" : "+a"(a), "=b"(b), "+c"(c), "=d"(d));
+  __asm__ volatile("cpuid\n\t" : "+a"(a), "=b"(b), "+c"(c), "=d"(d));
   *eax = a;
   *ebx = b;
   *ecx = c;
@@ -162,7 +162,7 @@ static inline uint64_t xgetbv(uint32_t ecx)
   return _xgetbv(ecx);
 #else
   uint32_t a, c = ecx, d;
-  asm volatile("xgetbv\n\t" : "=d"(d), "=a"(a) : "c"(c));
+  __asm__ volatile("xgetbv\n\t" : "=d"(d), "=a"(a) : "c"(c));
   uint64_t xcr0 = ((uint64_t)d << 32) | (uint64_t)a;
   return xcr0;
 #endif
