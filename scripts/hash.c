@@ -89,6 +89,8 @@ static const tuple_t types_and_classes[] = {
   { "SVCB", 64, true },
   { "HTTPS", 65, true },
   { "DSYNC", 66, true },
+  { "HHIT", 67, true },
+  { "BRID", 68, true },
   { "SPF", 99, true },
   { "NID", 104, true },
   { "L32", 105, true },
