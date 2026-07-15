@@ -495,7 +495,7 @@ static const svc_param_info_t svc_params[] = {
   SVC_PARAM("tls-supported-groups", 9u, MANDATORY_VALUE,
             parse_tls_supported_groups, parse_tls_supported_groups),
   // RFC 9953 section 5:
-  SVC_PARAM("docpath", 1u, OPTIONAL_VALUE, parse_docpath, parse_docpath),
+  SVC_PARAM("docpath", 10u, OPTIONAL_VALUE, parse_docpath, parse_docpath),
 };
 
 static const svc_param_info_t unknown_svc_param =
