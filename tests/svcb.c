@@ -764,6 +764,52 @@ static const char tsg_f2_text[] =
   PAD("tsg-f2 7200  IN SVCB 3 server.example.net. (\n"
       "port=\"8004\" tls-supported-groups=29,23,29 )");
 
+// From RFC 9953 Section 3.2.1. Examples: 
+static const char docpath_s1_text[] =
+  PAD("docpath-s1  1576  IN SVCB 1 dns.example.org. (\n"
+      "  alpn=co docpath )");
+static const rdata_t docpath_s1_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    3, 'd', 'n', 's', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'o', 'r', 'g', 0, // target
+    0x00, 0x01, 0x00, 0x03, 0x02, 'c', 'o', // alpn=co
+    0x00, 0x0a, 0x00, 0x00 // docpath
+    );
+
+static const char docpath_s2_text[] =
+  PAD("docpath-s2  85  IN SVCB 1 dns.example.org. (\n"
+      "  alpn=co docpath=dns )");
+static const rdata_t docpath_s2_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    3, 'd', 'n', 's', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'o', 'r', 'g', 0, // target
+    0x00, 0x01, 0x00, 0x03, 0x02, 'c', 'o', // alpn=co
+    0x00, 0x0a, 0x00, 0x04, 0x03, 'd', 'n', 's' // docpath=dns
+    );
+
+static const char docpath_s3_text[] =
+  PAD("docpath-s3  1643  IN SVCB 1 dns.example.org. (\n"
+      "  alpn=co docpath=n,s )");
+static const rdata_t docpath_s3_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    3, 'd', 'n', 's', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'o', 'r', 'g', 0, // target
+    0x00, 0x01, 0x00, 0x03, 0x02, 'c', 'o', // alpn=co
+    0x00, 0x0a, 0x00, 0x04, 0x01, 'n', 0x01, 's' // docpath=n,s
+    );
+
+static const char docpath_s4_text[] =
+  PAD("docpath-s4  429  IN SVCB 1 dns.example.org. (\n"
+      "  alpn=h3,co dohpath=/{?dns} docpath )");
+static const rdata_t docpath_s4_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    3, 'd', 'n', 's', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'o', 'r', 'g', 0, // target
+    0x00, 0x01, 0x00, 0x06, 0x02, 'h', '3', 0x02, 'c', 'o', // alpn=h3,co
+    0x00, 0x07, 0x00, 0x07, '/', '{', '?', 'd', 'n', 's', '}',
+    0x00, 0x0a, 0x00, 0x00 // docpath
+    );
+
 // FIXME: make a test that verifies correct behavior for no-default-alpn="some value"
 
 typedef struct test test_t;
@@ -858,7 +904,11 @@ static const test_t tests[] = {
   { false, ZONE_TYPE_HTTPS, ZONE_SEMANTIC_ERROR, ohttp_f1_text, NULL },
   { false, ZONE_TYPE_SVCB, 0, tsg_s1_text, &tsg_s1_rdata },
   { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, tsg_f1_text, NULL },
-  { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, tsg_f2_text, NULL }
+  { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, tsg_f2_text, NULL },
+  { false, ZONE_TYPE_SVCB, 0, docpath_s1_text, &docpath_s1_rdata },
+  { false, ZONE_TYPE_SVCB, 0, docpath_s2_text, &docpath_s2_rdata },
+  { false, ZONE_TYPE_SVCB, 0, docpath_s3_text, &docpath_s3_rdata },
+  { false, ZONE_TYPE_SVCB, 0, docpath_s4_text, &docpath_s4_rdata }
 };
 
 static int32_t add_rr(

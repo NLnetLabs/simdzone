@@ -420,6 +420,19 @@ static int32_t parse_tls_supported_groups(
 }
 
 nonnull_all
+static int32_t parse_docpath(
+  parser_t *parser,
+  const type_info_t *type,
+  const rdata_info_t *field,
+  uint16_t key,
+  const svc_param_info_t *param,
+  rdata_t *rdata,
+  const token_t *token)
+{
+  return parse_alpn(parser, type, field, key, param, rdata, token);
+}
+
+nonnull_all
 static int32_t parse_mandatory_lax(
   parser_t *parser,
   const type_info_t *type,
@@ -481,6 +494,8 @@ static const svc_param_info_t svc_params[] = {
   // draft-ietf-tls-key-share-prediction-01 section 3.1
   SVC_PARAM("tls-supported-groups", 9u, MANDATORY_VALUE,
             parse_tls_supported_groups, parse_tls_supported_groups),
+  // RFC 9953 section 5:
+  SVC_PARAM("docpath", 1u, OPTIONAL_VALUE, parse_docpath, parse_docpath),
 };
 
 static const svc_param_info_t unknown_svc_param =
@@ -542,6 +557,8 @@ static really_inline size_t scan_svc_param(
     return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_IPV6HINT)]), 8;
   else if (memcmp(data, "dohpath", 7) == 0)
     return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_DOHPATH)]), 7;
+  else if (memcmp(data, "docpath", 7) == 0)
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_DOCPATH)]), 7;
   else if (memcmp(data, "ohttp", 5) == 0)
     return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_OHTTP)]), 5;
   else if (memcmp(data, "tls-supported-groups", 20) == 0)
