@@ -810,6 +810,20 @@ static const rdata_t docpath_s4_rdata =
     0x00, 0x0a, 0x00, 0x00 // docpath
     );
 
+// From the draft-ietf-intarea-proxy-config-13 Section-2.1 Discovery via HTTPS/SVCB Records:
+static const char pvd_s1_text[] =
+  PAD("pvd-s1. 3600 IN HTTPS 1 . alpn=\"h3,h2\" pvd");
+static const rdata_t pvd_s1_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    0x00, // target
+    0x00, 0x01, 0x00, 0x06, 0x02, 'h', '3', 0x02, 'h', '2', // alpn=h3,h2
+    0x00, 0x0b, 0x00, 0x00 // pvd
+    );
+
+static const char pvd_f1_text[] =
+  PAD("pvd-f1. 3600 IN HTTPS 1 . alpn=\"h3,h2\" pvd=\"something\"");
+
 // FIXME: make a test that verifies correct behavior for no-default-alpn="some value"
 
 typedef struct test test_t;
@@ -908,7 +922,9 @@ static const test_t tests[] = {
   { false, ZONE_TYPE_SVCB, 0, docpath_s1_text, &docpath_s1_rdata },
   { false, ZONE_TYPE_SVCB, 0, docpath_s2_text, &docpath_s2_rdata },
   { false, ZONE_TYPE_SVCB, 0, docpath_s3_text, &docpath_s3_rdata },
-  { false, ZONE_TYPE_SVCB, 0, docpath_s4_text, &docpath_s4_rdata }
+  { false, ZONE_TYPE_SVCB, 0, docpath_s4_text, &docpath_s4_rdata },
+  { false, ZONE_TYPE_HTTPS, 0, pvd_s1_text, &pvd_s1_rdata },
+  { false, ZONE_TYPE_HTTPS, ZONE_SEMANTIC_ERROR, pvd_f1_text, NULL }
 };
 
 static int32_t add_rr(

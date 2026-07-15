@@ -496,6 +496,8 @@ static const svc_param_info_t svc_params[] = {
             parse_tls_supported_groups, parse_tls_supported_groups),
   // RFC 9953 section 5:
   SVC_PARAM("docpath", 10u, OPTIONAL_VALUE, parse_docpath, parse_docpath),
+  // draft-ietf-intarea-proxy-config-13 section 2.1:
+  SVC_PARAM("pvd", 11u, NO_VALUE, parse_unknown, parse_unknown),
 };
 
 static const svc_param_info_t unknown_svc_param =
@@ -563,6 +565,8 @@ static really_inline size_t scan_svc_param(
     return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_OHTTP)]), 5;
   else if (memcmp(data, "tls-supported-groups", 20) == 0)
     return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_TLS_SUPPORTED_GROUPS)]), 20;
+  else if (memcmp(data, "pvd", 3) == 0)
+    return (void)(*param = &svc_params[(*key = ZONE_SVC_PARAM_KEY_PVD)]), 3;
   else if (memcmp(data, "key", 3) == 0)
     return scan_unknown_svc_param_key(data, key, param);
   else
