@@ -452,7 +452,7 @@ static int32_t parse_oots(
   while (t < te) {
     const char *transport = t;
     const uint8_t *transport_out = rdata->octets;
-    const char *colon = memchr(t, ':', te - t);
+    const char *colon = memchr(t, ':', (size_t)(te - t));
 
     if (!colon)
       SYNTAX_ERROR(parser, "No colon found in oots DNS transport in %s", NAME(type));
@@ -463,8 +463,11 @@ static int32_t parse_oots(
     if (rdata->octets + (colon - t) + 2 > rdata->limit)
       SYNTAX_ERROR(parser, "No space for oots DNS transport in %s", NAME(type));
 
-    *rdata->octets++ = (colon - t);
-    memcpy(rdata->octets, transport, colon - t);
+    if (colon - t > 255)
+      SYNTAX_ERROR(parser, "DNS transport name too large in %s", NAME(type));
+
+    *rdata->octets++ = (uint8_t)(colon - t);
+    memcpy(rdata->octets, transport, (size_t)(colon - t));
     rdata->octets += (colon - t);
 
     t = colon + 1;

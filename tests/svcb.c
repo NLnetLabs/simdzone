@@ -854,29 +854,25 @@ static const rdata_t oots_s3_rdata =
     0x00, 0x0c, 0x00, 0x15, 0x04, 'd', 'o', '5', '3', 100, 0x03, 'd', 'o', 't', 25, 0x03, 'd', 'o', 'h', 10, 0x03, 'd', 'o', 'q', 10// outs="do53:100,dot:25,doh:10,doq:10"
     );
 
-// Missing values
-static const char oots_f1_text[] =
-  PAD("oots-s1 300 IN SVCB 1 . oots=\"\"");
-
 // Missing percentage
-static const char oots_f2_text[] =
-  PAD("oots-s2 300 IN SVCB 1 . oots=\"do53:100,dot\"");
+static const char oots_f1_text[] =
+  PAD("oots-f1 300 IN SVCB 1 . oots=\"do53:100,dot\"");
 
 // Missing transport
+static const char oots_f2_text[] =
+  PAD("oots-f2 300 IN SVCB 1 . oots=\"do53:100,:25\"");
+
+// Invalid percentage
 static const char oots_f3_text[] =
-  PAD("oots-s3 300 IN SVCB 1 . oots=\"do53:100,:25\"");
+  PAD("oots-f3 300 IN SVCB 1 . oots=\"do53:100,dot:101\"");
 
 // Invalid percentage
 static const char oots_f4_text[] =
-  PAD("oots-s4 300 IN SVCB 1 . oots=\"do53:100,dot:101\"");
-
-// Invalid percentage
-static const char oots_f5_text[] =
-  PAD("oots-s5 300 IN SVCB 1 . oots=\"do53:100,dot:25%\"");
+  PAD("oots-f4 300 IN SVCB 1 . oots=\"do53:100,dot:25%\"");
 
 // Duplicate transport
-static const char oots_f6_text[] =
-  PAD("oots-s6 300 IN SVCB 1 . oots=\"do53:100,dot:25,dot:10\"");
+static const char oots_f5_text[] =
+  PAD("oots-f5 300 IN SVCB 1 . oots=\"do53:100,dot:25,dot:10\"");
 
 
 // FIXME: make a test that verifies correct behavior for no-default-alpn="some value"
@@ -983,11 +979,11 @@ static const test_t tests[] = {
   { false, ZONE_TYPE_SVCB, 0, oots_s1_text, &oots_s1_rdata },
   { false, ZONE_TYPE_SVCB, 0, oots_s2_text, &oots_s2_rdata },
   { false, ZONE_TYPE_SVCB, 0, oots_s3_text, &oots_s3_rdata },
+  { false, ZONE_TYPE_SVCB, ZONE_SYNTAX_ERROR, oots_f1_text, NULL },
   { false, ZONE_TYPE_SVCB, ZONE_SYNTAX_ERROR, oots_f2_text, NULL },
   { false, ZONE_TYPE_SVCB, ZONE_SYNTAX_ERROR, oots_f3_text, NULL },
   { false, ZONE_TYPE_SVCB, ZONE_SYNTAX_ERROR, oots_f4_text, NULL },
-  { false, ZONE_TYPE_SVCB, ZONE_SYNTAX_ERROR, oots_f5_text, NULL },
-  { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, oots_f6_text, NULL }
+  { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, oots_f5_text, NULL }
 };
 
 static int32_t add_rr(
@@ -1012,8 +1008,8 @@ static int32_t add_rr(
   if (test->code != ZONE_SUCCESS)
     return ZONE_SUCCESS;
   if (rdlength != test->rdata->length || !test->rdata->octets)
-    fprintf( stderr, "rdata length did not match %hu != %hu"
-           , rdlength, test->rdata->length);
+    fprintf( stderr, "rdata length did not match %d != %d"
+           , (int)rdlength, (int)test->rdata->length);
   else if (memcmp(rdata, test->rdata->octets, rdlength) != 0)
     fprintf(stderr, "rdata bytes did not match");
   else
