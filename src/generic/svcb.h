@@ -486,8 +486,8 @@ static int32_t parse_oots(
     *rdata->octets++ = (uint8_t)number;
 
     const uint8_t *g;
-    for (g = rdata_start; g < transport_out; g += *g + 2) {
-      if (memcmp(g, transport_out, *transport_out + 1) == 0)
+    for (g = rdata_start; g < transport_out; g += ((size_t)(*g)) + 2) {
+      if (memcmp(g, transport_out, ((size_t)(*transport_out)) + 1) == 0)
         SEMANTIC_ERROR(parser, "Duplicate DNS transport in oots in %s", NAME(type));
     }
     if (*t != ',')
