@@ -270,7 +270,7 @@ static int32_t refill(parser_t *parser)
   if (parser->file->end_of_file)
     return 0;
 
-  assert(parser->file->handle);
+  assert(parser->file->handle || parser->read_data_callback);
 
   // move unread data to start of buffer
   char *data = parser->file->buffer.data + parser->file->buffer.index;
@@ -305,19 +305,35 @@ static int32_t refill(parser_t *parser)
     parser->file->fields.head[0] = data;
   }
 
-  size_t count = fread(
-    parser->file->buffer.data + parser->file->buffer.length,
-    sizeof(parser->file->buffer.data[0]),
-    parser->file->buffer.size - parser->file->buffer.length,
-    parser->file->handle);
+  char* readpos;  // where to read the data.
+  size_t count;   // number of  bytes to read, and read in.
+  uint8_t is_eof; // if it is at eof.
+  readpos = parser->file->buffer.data + parser->file->buffer.length;
+  count = parser->file->buffer.size - parser->file->buffer.length;
+  is_eof = 0;
 
-  if (!count && ferror(parser->file->handle))
-    READ_ERROR(parser, "Cannot refill buffer");
+  if(parser->read_data_callback) {
+    /* Read using callback. */
+    size_t retcount = 0;
+    int32_t ret = parser->read_data_callback(parser, readpos, count,
+      &retcount, parser->user_data);
+    is_eof = ((retcount == 0) | (retcount < count));
+    if(ret < 0)
+      RAISE_ERROR(parser, ret, "Cannot read data");
+    count = retcount;
+  } else {
+    /* Read from file. */
+    count = fread(readpos, sizeof(parser->file->buffer.data[0]), count,
+      parser->file->handle);
+    if (!count && ferror(parser->file->handle))
+      READ_ERROR(parser, "Cannot refill buffer");
+    is_eof = feof(parser->file->handle) != 0;
+  }
 
   // always null-terminate for terminating token
   parser->file->buffer.length += (size_t)count;
   parser->file->buffer.data[parser->file->buffer.length] = '\0';
-  parser->file->end_of_file = feof(parser->file->handle) != 0;
+  parser->file->end_of_file = is_eof;
 
   /* After the file, there is padding, that is used by vector instructions,
    * initialise those bytes. */
