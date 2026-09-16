@@ -1,5 +1,8 @@
 *.o
+*.lo
 *.d
+/.libs/
+/aclocal.m4
 /autom4te.cache
 /build
 /config.guess
@@ -11,7 +14,11 @@
 /config.sub
 /configure
 /configure~
+/install-sh
+/libtool
 /libzone.a
+/libzone.la
+/ltmain.sh
 /make.dep
 /.depend
 /Makefile

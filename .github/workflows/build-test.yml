@@ -20,7 +20,7 @@ jobs:
             analyzer: off
             sanitizer: address,undefined
           - os: macos-14
-            packages: automake
+            packages: autoconf automake libtool
             build_type: Debug
             build_tool_options: -j 4
             analyzer: off
@@ -127,6 +127,6 @@ jobs:
         run: |
           set -e -x
           echo $PATH
-          autoreconf -i
+          autoreconf -fi
           ./configure
           make -j 2

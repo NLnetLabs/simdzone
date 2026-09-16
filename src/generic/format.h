@@ -254,6 +254,15 @@ static really_inline int32_t parse_dollar_include(
   file_t *file;
   if ((code = take_quoted_or_contiguous(parser, &include, &fields[0], token)) < 0)
     return code;
+  if (parser->options.chrootdir) {
+    size_t chrootlen = strlen(parser->options.chrootdir);
+    if (token->length >= chrootlen &&
+        strncmp(token->data, parser->options.chrootdir, chrootlen) == 0) {
+      /* Adjust for chroot on include file. */
+      token->data += chrootlen;
+      token->length -= chrootlen;
+    }
+  }
   if ((code = zone_open_file(parser, token->data, token->length, &file)) < 0)
     return code;
 
