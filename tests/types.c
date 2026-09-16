@@ -1043,6 +1043,276 @@ static const rdata_t brid_rdata =
         0x7b, 0xad, 0x6f, 0x77, 0x98, 0xba, 0x60, 0x9a,
         0xa7, 0x01);
 
+static const char unece_text[] =
+  PAD("@ UNECE 16 - JPTYO \"place of inspection\"");
+static const char unece_generic_text[] =
+  PAD("@ UNECE \\# 29 02313600054a5054594f706c616365206f6620696e7370656374696f6e");
+static const rdata_t unece_rdata =
+  RDATA( 0x02, '1', '6'
+       , 0x00
+       , 0x05, 'J', 'P', 'T', 'Y', 'O'
+       , 'p', 'l', 'a', 'c', 'e', ' ', 'o', 'f', ' ', 'i', 'n', 's', 'p', 'e', 'c', 't', 'i', 'o', 'n');
+
+static const char unece2_text[] =
+  PAD("@ UNECE 16 - KENBO \"distribution hub\"");
+static const char unece2_generic_text[] =
+  PAD("@ UNECE \\# 26 02313600054b454e424f646973747269627574696f6e20687562");
+static const rdata_t unece2_rdata =
+  RDATA( 0x02, '1', '6'
+       , 0x00
+       , 0x05, 'K', 'E', 'N', 'B', 'O'
+       , 'd', 'i', 's', 't', 'r', 'i', 'b', 'u', 't', 'i', 'o', 'n', ' ', 'h', 'u', 'b');
+
+static const char unece3_text[] =
+  PAD("@ UNECE 19 - 1 \"mode: maritime\"");
+static const char unece3_generic_text[] =
+  PAD("@ UNECE \\# 20 0231390001316d6f64653a206d61726974696d65");
+static const rdata_t unece3_rdata =
+  RDATA( 0x02, '1', '9'
+       , 0x00
+       , 0x01, '1'
+       , 'm', 'o', 'd', 'e', ':', ' ', 'm', 'a', 'r', 'i', 't', 'i', 'm', 'e');
+
+static const char unece4_text[] =
+  PAD("@ UNECE 19 - 4 \"mode: air\"");
+static const char unece4_generic_text[] =
+  PAD("@ UNECE \\# 15 0231390001346d6f64653a20616972");
+static const rdata_t unece4_rdata =
+  RDATA( 0x02, '1', '9'
+       , 0x00
+       , 0x01, '4'
+       , 'm', 'o', 'd', 'e', ':', ' ', 'a', 'i', 'r');
+
+static const char unece5_text[] =
+  PAD("@ UNECE 20 640 H18 \"protected wetland area\"");
+static const char unece5_generic_text[] =
+  PAD("@ UNECE \\# 33 023230033634300348313870726f746563746564207765746c616e642061726561");
+static const rdata_t unece5_rdata =
+  RDATA( 0x02, '2', '0'
+       , 0x03, '6', '4', '0'
+       , 0x03, 'H', '1', '8'
+       , 'p', 'r', 'o', 't', 'e', 'c', 't', 'e', 'd', ' ', 'w', 'e', 't', 'l', 'a', 'n', 'd', ' ', 'a', 'r', 'e', 'a');
+
+static const char unece6_text[] =
+  PAD("@ UNECE 20 12500 MTQ \"reservoir volume\"");
+static const char unece6_generic_text[] =
+  PAD("@ UNECE \\# 29 023230053132353030034d54517265736572766f697220766f6c756d65");
+static const rdata_t unece6_rdata =
+  RDATA( 0x02, '2', '0'
+       , 0x05, '1', '2', '5', '0', '0'
+       , 0x03, 'M', 'T', 'Q'
+       , 'r', 'e', 's', 'e', 'r', 'v', 'o', 'i', 'r', ' ', 'v', 'o', 'l', 'u', 'm', 'e');
+
+static const char unece7_text[] =
+  PAD("@ UNECE 20 5 MGM \"active ingredient per dose\"");
+static const char unece7_generic_text[] =
+  PAD("@ UNECE \\# 35 0232300135034d474d61637469766520696e6772656469656e742070657220646f7365");
+static const rdata_t unece7_rdata =
+  RDATA( 0x02, '2', '0'
+       , 0x01, '5'
+       , 0x03, 'M', 'G', 'M'
+       , 'a', 'c', 't', 'i', 'v', 'e', ' ', 'i', 'n', 'g', 'r', 'e', 'd', 'i', 'e', 'n', 't', ' ', 'p', 'e', 'r', ' ', 'd', 'o', 's', 'e');
+
+static const char unece8_text[] =
+  PAD("@ UNECE 20 8500 E22 \"container capacity, TEU\"");
+static const char unece8_generic_text[] =
+  PAD("@ UNECE \\# 35 023230043835303003453232636f6e7461696e65722063617061636974792c20544555");
+static const rdata_t unece8_rdata =
+  RDATA( 0x02, '2', '0'
+       , 0x04, '8', '5', '0', '0'
+       , 0x03, 'E', '2', '2'
+       , 'c', 'o', 'n', 't', 'a', 'i', 'n', 'e', 'r', ' ', 'c', 'a', 'p', 'a', 'c', 'i', 't', 'y', ',', ' ', 'T', 'E', 'U');
+
+static const char unece9_text[] =
+  PAD("@ UNECE 20 -18 CEL \"cold-chain storage temperature\"");
+static const char unece9_generic_text[] =
+  PAD("@ UNECE \\# 41 023230032d31380343454c636f6c642d636861696e2073746f726167652074656d7065726174757265");
+static const rdata_t unece9_rdata =
+  RDATA( 0x02, '2', '0'
+       , 0x03, '-', '1', '8'
+       , 0x03, 'C', 'E', 'L'
+       , 'c', 'o', 'l', 'd', '-', 'c', 'h', 'a', 'i', 'n', ' ', 's', 't', 'o', 'r', 'a', 'g', 'e', ' ', 't', 'e', 'm', 'p', 'e', 'r', 'a', 't', 'u', 'r', 'e');
+
+static const char unece10_text[] =
+  PAD("@ UNECE 20 90 DAY \"shelf life\"");
+static const char unece10_generic_text[] =
+  PAD("@ UNECE \\# 20 023230023930034441597368656c66206c696665");
+static const rdata_t unece10_rdata =
+  RDATA( 0x02, '2', '0'
+       , 0x02, '9', '0'
+       , 0x03, 'D', 'A', 'Y'
+       , 's', 'h', 'e', 'l', 'f', ' ', 'l', 'i', 'f', 'e');
+
+static const char unece11_text[] =
+  PAD("@ UNECE 20 24 MON \"warranty period\"");
+static const char unece11_generic_text[] =
+  PAD("@ UNECE \\# 25 023230023234034d4f4e77617272616e747920706572696f64");
+static const rdata_t unece11_rdata =
+  RDATA( 0x02, '2', '0'
+       , 0x02, '2', '4'
+       , 0x03, 'M', 'O', 'N'
+       , 'w', 'a', 'r', 'r', 'a', 'n', 't', 'y', ' ', 'p', 'e', 'r', 'i', 'o', 'd');
+
+static const char unece12_text[] =
+  PAD("@ UNECE 20 230 VLT \"supply voltage\"");
+static const char unece12_generic_text[] =
+  PAD("@ UNECE \\# 25 0232300332333003564c54737570706c7920766f6c74616765");
+static const rdata_t unece12_rdata =
+  RDATA( 0x02, '2', '0'
+       , 0x03, '2', '3', '0'
+       , 0x03, 'V', 'L', 'T'
+       , 's', 'u', 'p', 'p', 'l', 'y', ' ', 'v', 'o', 'l', 't', 'a', 'g', 'e');
+
+static const char unece13_text[] =
+  PAD("@ UNECE 20 11 KWT \"charger output\"");
+static const char unece13_generic_text[] =
+  PAD("@ UNECE \\# 24 023230023131034b575463686172676572206f7574707574");
+static const rdata_t unece13_rdata =
+  RDATA( 0x02, '2', '0'
+       , 0x02, '1', '1'
+       , 0x03, 'K', 'W', 'T'
+       , 'c', 'h', 'a', 'r', 'g', 'e', 'r', ' ', 'o', 'u', 't', 'p', 'u', 't');
+
+static const char unece14_text[] =
+  PAD("@ UNECE 20 ? P1 \"moisture content, assay pending\"");
+static const char unece14_generic_text[] =
+  PAD("@ UNECE \\# 39 023230013f0250316d6f69737475726520636f6e74656e742c2061737361792070656e64696e67");
+static const rdata_t unece14_rdata =
+  RDATA( 0x02, '2', '0'
+       , 0x01, '?'
+       , 0x02, 'P', '1'
+       , 'm', 'o', 'i', 's', 't', 'u', 'r', 'e', ' ', 'c', 'o', 'n', 't', 'e', 'n', 't', ',', ' ', 'a', 's', 's', 'a', 'y', ' ', 'p', 'e', 'n', 'd', 'i', 'n', 'g');
+
+static const char unece15_text[] =
+  PAD("@ UNECE 21 12 PX \"pallets\"");
+static const char unece15_generic_text[] =
+  PAD("@ UNECE \\# 16 02323102313202505870616c6c657473");
+static const rdata_t unece15_rdata =
+  RDATA( 0x02, '2', '1'
+       , 0x02, '1', '2'
+       , 0x02, 'P', 'X'
+       , 'p', 'a', 'l', 'l', 'e', 't', 's');
+
+static const char unece16_text[] =
+  PAD("@ UNECE 21 2 CR \"crates, artworks on loan\"");
+static const char unece16_generic_text[] =
+  PAD("@ UNECE \\# 32 02323101320243526372617465732c20617274776f726b73206f6e206c6f616e");
+static const rdata_t unece16_rdata =
+  RDATA( 0x02, '2', '1'
+       , 0x01, '2'
+       , 0x02, 'C', 'R'
+       , 'c', 'r', 'a', 't', 'e', 's', ',', ' ', 'a', 'r', 't', 'w', 'o', 'r', 'k', 's', ' ', 'o', 'n', ' ', 'l', 'o', 'a', 'n');
+
+static const char unece17_text[] =
+  PAD("@ UNECE 21 3 RL \"reels, fibre-optic cable\"");
+static const char unece17_generic_text[] =
+  PAD("@ UNECE \\# 32 023231013302524c7265656c732c2066696272652d6f70746963206361626c65");
+static const rdata_t unece17_rdata =
+  RDATA( 0x02, '2', '1'
+       , 0x01, '3'
+       , 0x02, 'R', 'L'
+       , 'r', 'e', 'e', 'l', 's', ',', ' ', 'f', 'i', 'b', 'r', 'e', '-', 'o', 'p', 't', 'i', 'c', ' ', 'c', 'a', 'b', 'l', 'e');
+
+static const char unece18_text[] =
+  PAD("@ UNECE 21 2 PO \"diplomatic pouches\"");
+static const char unece18_generic_text[] =
+  PAD("@ UNECE \\# 26 023231013202504f6469706c6f6d6174696320706f7563686573");
+static const rdata_t unece18_rdata =
+  RDATA( 0x02, '2', '1'
+       , 0x01, '2'
+       , 0x02, 'P', 'O'
+       , 'd', 'i', 'p', 'l', 'o', 'm', 'a', 't', 'i', 'c', ' ', 'p', 'o', 'u', 'c', 'h', 'e', 's');
+
+static const char unece19_text[] =
+  PAD("@ UNECE 24 - 219 \"status: delivery pending\"");
+static const char unece19_generic_text[] =
+  PAD("@ UNECE \\# 32 02323400033231397374617475733a2064656c69766572792070656e64696e67");
+static const rdata_t unece19_rdata =
+  RDATA( 0x02, '2', '4'
+       , 0x00
+       , 0x03, '2', '1', '9'
+       , 's', 't', 'a', 't', 'u', 's', ':', ' ', 'd', 'e', 'l', 'i', 'v', 'e', 'r', 'y', ' ', 'p', 'e', 'n', 'd', 'i', 'n', 'g');
+
+static const char iso_text[] =
+  PAD("@ ISO 639 - ar \"working language\"");
+static const char iso_generic_text[] =
+  PAD("@ ISO \\# 24 0336333900026172776f726b696e67206c616e6775616765");
+static const rdata_t iso_rdata =
+  RDATA( 0x03, '6', '3', '9'
+       , 0x00
+       , 0x02, 'a', 'r'
+       , 'w', 'o', 'r', 'k', 'i', 'n', 'g', ' ', 'l', 'a', 'n', 'g', 'u', 'a', 'g', 'e');
+
+static const char iso2_text[] =
+  PAD("@ ISO 639 - yue \"crew lingua franca\"");
+static const char iso2_generic_text[] =
+  PAD("@ ISO \\# 27 03363339000379756563726577206c696e677561206672616e6361");
+static const rdata_t iso2_rdata =
+  RDATA( 0x03, '6', '3', '9'
+       , 0x00
+       , 0x03, 'y', 'u', 'e'
+       , 'c', 'r', 'e', 'w', ' ', 'l', 'i', 'n', 'g', 'u', 'a', ' ', 'f', 'r', 'a', 'n', 'c', 'a');
+
+static const char iso3_text[] =
+  PAD("@ ISO 3166-1 - QA \"flag state\"");
+static const char iso3_generic_text[] =
+  PAD("@ ISO \\# 21 06333136362d3100025141666c6167207374617465");
+static const rdata_t iso3_rdata =
+  RDATA( 0x06, '3', '1', '6', '6', '-', '1'
+       , 0x00
+       , 0x02, 'Q', 'A'
+       , 'f', 'l', 'a', 'g', ' ', 's', 't', 'a', 't', 'e');
+
+static const char iso4_text[] =
+  PAD("@ ISO 3166-2 - US-CA \"state of incorporation\"");
+static const char iso4_generic_text[] =
+  PAD("@ ISO \\# 36 06333136362d32000555532d43417374617465206f6620696e636f72706f726174696f6e");
+static const rdata_t iso4_rdata =
+  RDATA( 0x06, '3', '1', '6', '6', '-', '2'
+       , 0x00
+       , 0x05, 'U', 'S', '-', 'C', 'A'
+       , 's', 't', 'a', 't', 'e', ' ', 'o', 'f', ' ', 'i', 'n', 'c', 'o', 'r', 'p', 'o', 'r', 'a', 't', 'i', 'o', 'n');
+
+static const char iso5_text[] =
+  PAD("@ ISO 4217 125000 USD \"declared cargo value\"");
+static const char iso5_generic_text[] =
+  PAD("@ ISO \\# 36 043432313706313235303030035553446465636c6172656420636172676f2076616c7565");
+static const rdata_t iso5_rdata =
+  RDATA( 0x04, '4', '2', '1', '7'
+       , 0x06, '1', '2', '5', '0', '0', '0'
+       , 0x03, 'U', 'S', 'D'
+       , 'd', 'e', 'c', 'l', 'a', 'r', 'e', 'd', ' ', 'c', 'a', 'r', 'g', 'o', ' ', 'v', 'a', 'l', 'u', 'e');
+
+static const char iso6_text[] =
+  PAD("@ ISO 4217 2400000+-50000 EUR \"insured value, hull and machinery\"");
+static const char iso6_generic_text[] =
+  PAD("@ ISO \\# 57 04343231370e323430303030302b2d353030303003455552696e73757265642076616c75652c2068756c6c20616e64206d616368696e657279");
+static const rdata_t iso6_rdata =
+  RDATA( 0x04, '4', '2', '1', '7'
+       , 0x0e, '2', '4', '0', '0', '0', '0', '0', '+', '-', '5', '0', '0', '0', '0'
+       , 0x03, 'E', 'U', 'R'
+       , 'i', 'n', 's', 'u', 'r', 'e', 'd', ' ', 'v', 'a', 'l', 'u', 'e', ',', ' ', 'h', 'u', 'l', 'l', ' ', 'a', 'n', 'd', ' ', 'm', 'a', 'c', 'h', 'i', 'n', 'e', 'r', 'y');
+
+static const char iso7_text[] =
+  PAD("@ ISO 4217 780000+-? CHF \"salvage award, assessment ongoing\"");
+static const char iso7_generic_text[] =
+  PAD("@ ISO \\# 52 0434323137093738303030302b2d3f0343484673616c766167652061776172642c206173736573736d656e74206f6e676f696e67");
+static const rdata_t iso7_rdata =
+  RDATA( 0x04, '4', '2', '1', '7'
+       , 0x09, '7', '8', '0', '0', '0', '0', '+', '-', '?'
+       , 0x03, 'C', 'H', 'F'
+       , 's', 'a', 'l', 'v', 'a', 'g', 'e', ' ', 'a', 'w', 'a', 'r', 'd', ',', ' ', 'a', 's', 's', 'e', 's', 's', 'm', 'e', 'n', 't', ' ', 'o', 'n', 'g', 'o', 'i', 'n', 'g');
+
+static const char iso8_text[] =
+  PAD("@ ISO 4217 ? ZAR \"customs value pending appraisal\"");
+static const char iso8_generic_text[] =
+  PAD("@ ISO \\# 42 0434323137013f035a4152637573746f6d732076616c75652070656e64696e672061707072616973616c");
+static const rdata_t iso8_rdata =
+  RDATA( 0x04, '4', '2', '1', '7'
+       , 0x01, '?'
+       , 0x03, 'Z', 'A', 'R'
+       , 'c', 'u', 's', 't', 'o', 'm', 's', ' ', 'v', 'a', 'l', 'u', 'e', ' ', 'p', 'e', 'n', 'd', 'i', 'n', 'g', ' ', 'a', 'p', 'p', 'r', 'a', 'i', 's', 'a', 'l');
+
 static const char spf_text[] =
   PAD("foo. SPF \"v=spf1 +all\"");
 static const char spf_generic_text[] =
@@ -1337,6 +1607,60 @@ static const test_t tests[] = {
   { ZONE_TYPE_HHIT, hhit_generic_text, &hhit_rdata },
   { ZONE_TYPE_BRID, brid_text, &brid_rdata },
   { ZONE_TYPE_BRID, brid_generic_text, &brid_rdata },
+  { ZONE_TYPE_UNECE, unece_text, &unece_rdata },
+  { ZONE_TYPE_UNECE, unece_generic_text, &unece_rdata },
+  { ZONE_TYPE_UNECE, unece2_text, &unece2_rdata },
+  { ZONE_TYPE_UNECE, unece2_generic_text, &unece2_rdata },
+  { ZONE_TYPE_UNECE, unece3_text, &unece3_rdata },
+  { ZONE_TYPE_UNECE, unece3_generic_text, &unece3_rdata },
+  { ZONE_TYPE_UNECE, unece4_text, &unece4_rdata },
+  { ZONE_TYPE_UNECE, unece4_generic_text, &unece4_rdata },
+  { ZONE_TYPE_UNECE, unece5_text, &unece5_rdata },
+  { ZONE_TYPE_UNECE, unece5_generic_text, &unece5_rdata },
+  { ZONE_TYPE_UNECE, unece6_text, &unece6_rdata },
+  { ZONE_TYPE_UNECE, unece6_generic_text, &unece6_rdata },
+  { ZONE_TYPE_UNECE, unece7_text, &unece7_rdata },
+  { ZONE_TYPE_UNECE, unece7_generic_text, &unece7_rdata },
+  { ZONE_TYPE_UNECE, unece8_text, &unece8_rdata },
+  { ZONE_TYPE_UNECE, unece8_generic_text, &unece8_rdata },
+  { ZONE_TYPE_UNECE, unece9_text, &unece9_rdata },
+  { ZONE_TYPE_UNECE, unece9_generic_text, &unece9_rdata },
+  { ZONE_TYPE_UNECE, unece10_text, &unece10_rdata },
+  { ZONE_TYPE_UNECE, unece10_generic_text, &unece10_rdata },
+  { ZONE_TYPE_UNECE, unece11_text, &unece11_rdata },
+  { ZONE_TYPE_UNECE, unece11_generic_text, &unece11_rdata },
+  { ZONE_TYPE_UNECE, unece12_text, &unece12_rdata },
+  { ZONE_TYPE_UNECE, unece12_generic_text, &unece12_rdata },
+  { ZONE_TYPE_UNECE, unece13_text, &unece13_rdata },
+  { ZONE_TYPE_UNECE, unece13_generic_text, &unece13_rdata },
+  { ZONE_TYPE_UNECE, unece14_text, &unece14_rdata },
+  { ZONE_TYPE_UNECE, unece14_generic_text, &unece14_rdata },
+  { ZONE_TYPE_UNECE, unece15_text, &unece15_rdata },
+  { ZONE_TYPE_UNECE, unece15_generic_text, &unece15_rdata },
+  { ZONE_TYPE_UNECE, unece16_text, &unece16_rdata },
+  { ZONE_TYPE_UNECE, unece16_generic_text, &unece16_rdata },
+  { ZONE_TYPE_UNECE, unece17_text, &unece17_rdata },
+  { ZONE_TYPE_UNECE, unece17_generic_text, &unece17_rdata },
+  { ZONE_TYPE_UNECE, unece18_text, &unece18_rdata },
+  { ZONE_TYPE_UNECE, unece18_generic_text, &unece18_rdata },
+  { ZONE_TYPE_UNECE, unece19_text, &unece19_rdata },
+  { ZONE_TYPE_UNECE, unece19_generic_text, &unece19_rdata },
+  { ZONE_TYPE_ISO, iso_text, &iso_rdata },
+  { ZONE_TYPE_ISO, iso_generic_text, &iso_rdata },
+  { ZONE_TYPE_ISO, iso2_text, &iso2_rdata },
+  { ZONE_TYPE_ISO, iso2_generic_text, &iso2_rdata },
+  { ZONE_TYPE_ISO, iso3_text, &iso3_rdata },
+  { ZONE_TYPE_ISO, iso3_generic_text, &iso3_rdata },
+  { ZONE_TYPE_ISO, iso4_text, &iso4_rdata },
+  { ZONE_TYPE_ISO, iso4_generic_text, &iso4_rdata },
+  { ZONE_TYPE_ISO, iso5_text, &iso5_rdata },
+  { ZONE_TYPE_ISO, iso5_generic_text, &iso5_rdata },
+  { ZONE_TYPE_ISO, iso6_text, &iso6_rdata },
+  { ZONE_TYPE_ISO, iso6_generic_text, &iso6_rdata },
+  { ZONE_TYPE_ISO, iso7_text, &iso7_rdata },
+  { ZONE_TYPE_ISO, iso7_generic_text, &iso7_rdata },
+  { ZONE_TYPE_ISO, iso8_text, &iso8_rdata },
+  { ZONE_TYPE_ISO, iso8_generic_text, &iso8_rdata },
   { ZONE_TYPE_SPF, spf_text, &spf_rdata },
   { ZONE_TYPE_SPF, spf_generic_text, &spf_rdata },
   { ZONE_TYPE_NID, nid_text, &nid_rdata },
