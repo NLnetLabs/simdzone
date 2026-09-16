@@ -2574,7 +2574,7 @@ static really_inline int32_t parse_unece_iso_value(
   int r = parse_string(parser, type, field, rdata, token);
   if (r)
     return r;
-  assert(data->octets == o + 1 + o[0]);
+  assert(rdata->octets == o + 1 + o[0]);
   if (o[0] == 0) /* No value is allowed */
     return 0;
   o += 1;
