@@ -1146,7 +1146,7 @@ static const rdata_t unece10_rdata =
 static const char unece11_text[] =
   PAD("@ UNECE 20 24 MON \"warranty period\"");
 static const char unece11_generic_text[] =
-  PAD("@ UNECE \\# 25 023230023234034d4f4e77617272616e747920706572696f64");
+  PAD("@ UNECE \\# 25  023230023234034d4f4e77617272616e747920706572696f64");
 static const rdata_t unece11_rdata =
   RDATA( 0x02, '2', '0'
        , 0x02, '2', '4'
@@ -1156,7 +1156,7 @@ static const rdata_t unece11_rdata =
 static const char unece12_text[] =
   PAD("@ UNECE 20 230 VLT \"supply voltage\"");
 static const char unece12_generic_text[] =
-  PAD("@ UNECE \\# 25 0232300332333003564c54737570706c7920766f6c74616765");
+  PAD("@ UNECE \\# 25  0232300332333003564c54737570706c7920766f6c74616765");
 static const rdata_t unece12_rdata =
   RDATA( 0x02, '2', '0'
        , 0x03, '2', '3', '0'
