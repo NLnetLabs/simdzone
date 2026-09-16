@@ -41,70 +41,117 @@ static const algorithm_t algorithms[32] = {
   ALGORITHM("ECC-GOST", 12),
   ALGORITHM("ECDSAP256SHA256", 13),
   ALGORITHM("ECDSAP384SHA384", 14),
-  BAD_ALGORITHM(15),
+  ALGORITHM("ED25519", 15),
+  ALGORITHM("ED448", 16),
+  ALGORITHM("SM2SM3", 17),
+  BAD_ALGORITHM(18),
+  BAD_ALGORITHM(19),
+  BAD_ALGORITHM(20),
+  BAD_ALGORITHM(21),
+  BAD_ALGORITHM(22),
+  ALGORITHM("ECC-GOST12", 23),
   ALGORITHM("INDIRECT", 252),
   ALGORITHM("PRIVATEDNS", 253),
   ALGORITHM("PRIVATEOID", 254),
+  BAD_ALGORITHM(27),
+  BAD_ALGORITHM(28),
+  BAD_ALGORITHM(29),
+  BAD_ALGORITHM(30),
+  BAD_ALGORITHM(31),
 };
 
 static const struct {
   const algorithm_t *algorithm;
   uint8_t mask[24];
-} algorithm_hash_map[16] = {
-  { &algorithms[2],  // DH (0)
-    { 0xdf, 0xdf, 0 } },
-  { &algorithms[10], // RSASHA512 (1)
-    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff,
-      0xff, 0 } },
-  { &algorithms[7],  // RSASHA1-NSEC3-SHA1 (2)
-    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff, 
-      0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff, 0xdf, 0xdf,
-      0xdf, 0xff, 0 } },
-  { &algorithms[8],  // RSASHA256 (3)
-    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff,
-      0xff, 0 } },
-  { &algorithms[13], // ECDSAP256SHA256 (4)
-    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff,
-      0xff, 0xdf, 0xdf, 0xdf, 0xff, 0xff, 0xff, 0 } },
-  { &algorithms[0],  // unknown
+} algorithm_hash_map[32] = {
+  { &algorithms[0],  // unknown (0)
     { 0 } },
-  { &algorithms[6],  // DSA-NSEC-SHA1 (6)
-    { 0xdf, 0xdf, 0xdf, 0xff, 0xdf, 0xdf, 0xdf, 0xdf,
-      0xff, 0xdf, 0xdf, 0xdf, 0xff, 0 } },
-  { &algorithms[1],  // RSAMD5 (7)
+  { &algorithms[15], // ED25519 (1)
+    { 0xdf, 0xdf, 0xff, 0xff, 0xff, 0xff, 0xff, 0 } },
+  { &algorithms[0],  // unknown (2)
+    { 0 } },
+  { &algorithms[0],  // unknown (3)
+    { 0 } },
+  { &algorithms[8],  // RSASHA256 (4)
+    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff,
+      0xff, 0 } },
+  { &algorithms[1],  // RSAMD5 (5)
     { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0 } },
-  { &algorithms[5],  // RSASHA1 (8)
+  { &algorithms[0],  // unknown (6)
+    { 0 } },
+  { &algorithms[5],  // RSASHA1 (7)
     { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0 } },
-  { &algorithms[17], // PRIVATEDNS (9)
-    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf,
-      0xdf, 0xdf, 0 } },
-  { &algorithms[18], // PRIVATEOID (10)
-    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf,
-      0xdf, 0xdf, 0 } },
-  { &algorithms[16], // INDIRECT (11)
+  { &algorithms[24], // INDIRECT (8)
     { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf,
       0 } },
-  { &algorithms[14], // ECDSAP384SHA384 (12)
+  { &algorithms[14], // ECDSAP384SHA384 (9)
     { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff,
       0xff, 0xdf, 0xdf, 0xdf, 0xff, 0xff, 0xff, 0 } },
+  { &algorithms[0],  // unknown (10)
+    { 0 } },
+  { &algorithms[10], // RSASHA512 (11)
+    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff,
+      0xff, 0 } },
+  { &algorithms[26], // PRIVATEOID (12)
+    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf,
+      0xdf, 0xdf, 0 } },
   { &algorithms[3],  // DSA (13)
     { 0xdf, 0xdf, 0xdf, 0 } },
   { &algorithms[4],  // ECC (14)
     { 0xdf, 0xdf, 0xdf, 0 } },
-  { &algorithms[12], // ECC-GHOST (15)
+  { &algorithms[13], // ECDSAP256SHA256 (15)
+    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff,
+      0xff, 0xdf, 0xdf, 0xdf, 0xff, 0xff, 0xff, 0 } },
+  { &algorithms[0],  // unknown (16)
+    { 0 } },
+  { &algorithms[17], // SM2SM3 (17)
+    { 0xdf, 0xdf, 0xff, 0xdf, 0xdf, 0xff, 0 } },
+  { &algorithms[0],  // unknown (18)
+    { 0 } },
+  { &algorithms[25], // PRIVATEDNS (19)
+    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf,
+      0xdf, 0xdf, 0 } },
+  { &algorithms[6],  // DSA-NSEC-SHA1 (20)
     { 0xdf, 0xdf, 0xdf, 0xff, 0xdf, 0xdf, 0xdf, 0xdf,
-      0 } }
+      0xff, 0xdf, 0xdf, 0xdf, 0xff, 0 } },
+  { &algorithms[0],  // unknown (21)
+    { 0 } },
+  { &algorithms[16], // ED448 (22)
+    { 0xdf, 0xdf, 0xff, 0xff, 0xff, 0 } },
+  { &algorithms[23], // ECC-GOST12 (23)
+    { 0xdf, 0xdf, 0xdf, 0xff, 0xdf, 0xdf, 0xdf, 0xdf,
+      0xff, 0xff, 0 } },
+  { &algorithms[0],  // unknown (24)
+    { 0 } },
+  { &algorithms[7],  // RSASHA1-NSEC3-SHA1 (25)
+    { 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff,
+      0xdf, 0xdf, 0xdf, 0xdf, 0xff, 0xff, 0xdf, 0xdf,
+      0xdf, 0xff, 0 } },
+  { &algorithms[12], // ECC-GOST (26)
+    { 0xdf, 0xdf, 0xdf, 0xff, 0xdf, 0xdf, 0xdf, 0xdf,
+      0 } },
+  { &algorithms[0],  // unknown (27)
+    { 0 } },
+  { &algorithms[2],  // DH (28)
+    { 0xdf, 0xdf, 0 } },
+  { &algorithms[0],  // unknown (29)
+    { 0 } },
+  { &algorithms[0],  // unknown (30)
+    { 0 } },
+  { &algorithms[0],  // unknown (31)
+    { 0 } }
 };
 
 #undef UNKNOWN_ALGORITHM
 #undef ALGORITHM
 
-// magic value generated using algorithm-hash.c
+// magic value generated using algorithm-hash.c (includes name length so
+// ECC-GOST and ECC-GOST12 do not collide on the first eight bytes)
 static uint8_t algorithm_hash(uint64_t value)
 {
   value = le64toh(value);
   uint32_t value32 = (uint32_t)((value >> 32) ^ value);
-  return (uint8_t)((value32 * 29874llu) >> 32) & 0xf;
+  return (uint8_t)((value32 * 3611llu) >> 32) & 0x1f;
 }
 
 nonnull_all
@@ -131,8 +178,9 @@ static really_inline int32_t scan_algorithm(
     uint64_t zero_mask;
     memcpy(&zero_mask, &zero_masks[32 - (length & 0x1f)], 8);
     input &= zero_mask;
-    const uint8_t index = algorithm_hash(input);
-    assert(index < 16);
+    // include length so ECC-GOST and ECC-GOST12 hash differently
+    const uint8_t index = algorithm_hash(input ^ ((uint64_t)length << 56));
+    assert(index < 32);
     const algorithm_t *algorithm = algorithm_hash_map[index].algorithm;
     uint64_t matches, mask, name;
     // compare bytes 0-7

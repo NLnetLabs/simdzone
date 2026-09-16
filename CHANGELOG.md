@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support for the HHIT and BRID RR types.
 - Support for the "docpath", "pvd" and "oots" SVCB Service Parameters
+- Recognize DNSSEC algorithms ED25519, ED448, SM2SM3 (RFC 9563) and
+  ECC-GOST12 (RFC 9558) by mnemonic. Based on a patch by Igor V. Ruzanov.
+
+### Fixed
+
+- Clarify DS digest algorithm 5 comment as GOST R 34.11-2012 (RFC 9558).
 
 ### Fixed
 
