@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix unit test implicit conversion change of signedness warning.
 - Fix unit test delimiters_overflow_txt to add block size padding for simd
   operations.
+- Fix the calculation of the rdata needed for rdata in RFC 3597 Unknown Type
+  format. Thanks to Zanya <tea915656@gmail.com> for the report.
 
 ## [0.2.5] - 2026-07-07
 

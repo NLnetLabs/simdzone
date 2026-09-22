@@ -2919,7 +2919,7 @@ static int32_t parse_generic_rdata(
     struct base16_state state = { .eof = 0, .bytes = 0, .carry = 0 };
 
     do {
-      size_t length = token->length + 1 / 2;
+      size_t length = (token->length + 1) / 2;
       if (length > (uintptr_t)rdata->limit - (uintptr_t)rdata->octets)
         SYNTAX_ERROR(parser, "Invalid RDATA in %s", NAME(type));
       if (!base16_stream_decode(&state, token->data, token->length, rdata->octets, &length))
