@@ -5,6 +5,19 @@ All notable changes to simdzone will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-10-??
+
+### Added
+
+### Fixed
+
+- Fix the calculation of the rdata needed for rdata in RFC 3597 Unknown Type
+  format.
+  Thanks to Zanya <tea915656@gmail.com> for the report.
+- Fix preventing size\_t length to wrap below 0 when scanning an end-of-string
+  backslash character, resulting in out-of-bounds read.
+  Thanks to Zanya <tea915656@gmail.com> for the report.
+
 ## [0.2.6] - 2026-09-02
 
 ### Added
@@ -19,8 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix unit test implicit conversion change of signedness warning.
 - Fix unit test delimiters_overflow_txt to add block size padding for simd
   operations.
-- Fix the calculation of the rdata needed for rdata in RFC 3597 Unknown Type
-  format. Thanks to Zanya <tea915656@gmail.com> for the report.
 
 ## [0.2.5] - 2026-07-07
 
