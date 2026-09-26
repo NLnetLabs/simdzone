@@ -51,6 +51,12 @@ case "$enable_haswell" in
   yes|*) enable_haswell=yes ;;
 esac
 
+AC_ARG_ENABLE(checking, AS_HELP_STRING([--enable-checking],[Enable internal runtime checks]))
+case "$enable_checking" in
+  yes)  ;;
+  no|*) AC_DEFINE([NDEBUG], [], [Undefine this to enable internal runtime checks.]) ;;
+esac
+
 # GCC and Clang
 AX_CHECK_COMPILE_FLAG([-MMD],DEPFLAGS="-MMD -MP")
 # Oracle Developer Studio (no -MP)
