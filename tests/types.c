@@ -132,6 +132,18 @@ static const rdata_t wks_rdata =
         /* bitmap */
         0xc0);
 
+static const char wks2_text[] =
+  PAD("foo. WKS 192.0.2.1 tcp");
+static const char wks2_generic_text[] =
+  PAD("foo. TYPE11 \\# 5 c0000201 06");
+static const rdata_t wks2_rdata =
+  RDATA(/* address */
+        0xc0, 0x00, 0x02, 0x01,
+        /* protocol */
+        0x06,
+        /* bitmap */
+        );
+
 static const char hinfo_text[] =
   PAD("foo. HINFO amd64 linux");
 static const char hinfo_generic_text[] =
@@ -1257,6 +1269,8 @@ static const test_t tests[] = {
   { ZONE_TYPE_PTR, ptr_generic_text, &ns_rdata },
   { ZONE_TYPE_WKS, wks_text, &wks_rdata },
   { ZONE_TYPE_WKS, wks_generic_text, &wks_rdata },
+  { ZONE_TYPE_WKS, wks2_text, &wks2_rdata },
+  { ZONE_TYPE_WKS, wks2_generic_text, &wks2_rdata },
   { ZONE_TYPE_HINFO, hinfo_text, &hinfo_rdata },
   { ZONE_TYPE_HINFO, hinfo_generic_text, &hinfo_rdata },
   { ZONE_TYPE_MINFO, minfo_text, &minfo_rdata },
