@@ -415,7 +415,7 @@ static int32_t parse_wks_rdata(
     take(parser, token);
   }
 
-  rdata->octets += (size_t)highest_port / 8 + 1;
+  rdata->octets += highest_port < 0 ? 0 : (size_t)highest_port / 8 + 1;
 
   if (have_delimiter(parser, type, token) < 0)
     return token->code;
