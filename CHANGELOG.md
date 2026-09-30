@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix preventing size\_t length to wrap below 0 when scanning an end-of-string
   backslash character, resulting in out-of-bounds read.
   Thanks to Zanya <tea915656@gmail.com> for the report.
+- Fix to determine the correct rdata length for WKS RRs without bitmap.
+  Thanks to Alwaleed Ashi (LXR) <waleed.9998@hotmail.com> for the report.
+- Fix to build simdzone also with NDEBUG by default, like NSD and only disable
+  it when `--enable-check ing` is given to configure.
+  Thanks to Alwaleed Ashi (LXR) <waleed.9998@hotmail.com> for the report.
 
 ## [0.2.6] - 2026-09-02
 
