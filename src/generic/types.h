@@ -1385,7 +1385,7 @@ static int32_t check_ds_rr(
       32, // 2: SHA-256
       32, // 3: GOST R 34.11-94
       48, // 4: SHA-384
-      32, // 5: GOST R 34.10-2012
+      32, // 5: GOST R 34.11-2012
       32, // 6: SM3
       0   // 7: Unassigned
     };
@@ -1435,7 +1435,7 @@ static int32_t parse_ds_rdata(
       32, // 2: SHA-256
       32, // 3: GOST R 34.11-94
       48, // 4: SHA-384
-      32, // 5: GOST R 34.10-2012
+      32, // 5: GOST R 34.11-2012
       32, // 6: SM3
       0   // 7: Unassigned
     };
