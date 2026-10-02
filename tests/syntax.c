@@ -1349,3 +1349,59 @@ void base64_token_reserve_underestimate(void** state)
 
   free(zone);
 }
+
+/*!cmocka */
+void svcb_alpn_exact_fill_to_rdata_lim(void** state)
+{
+  /* Check for overflow token reservations for base64 strings. */
+  const char* zone_start_part =
+"$ORIGIN example.\n"
+";$TTL 3600\n"
+"@	IN	SOA	ns postmaster.mail 2147483647 3600 900 1814400 900\n"
+"@ 300 IN SVCB 1 . ( alpn="
+	;
+  const char* zone_end_part =
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n   ech=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA )\n"
+	;
+  char* zone, *zone_at;
+  size_t zone_str_len, zone_left;
+  size_t num_items = 255, i;
+  static uint8_t origin[] = { 0 };
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options;
+  int32_t result;
+  (void) state;
+
+  memset(&options, 0, sizeof(options));
+  options.accept.callback = contiguous_escaped_start_cb;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = ZONE_CLASS_IN;
+
+  /* Build the zone string */
+  zone_str_len = strlen(zone_start_part) + num_items * 256 +
+    strlen(zone_end_part) + 1 /* zero */;
+  zone = malloc(zone_str_len);
+  assert_non_null(zone);
+
+  zone_at = zone;
+  zone_left = zone_str_len;
+  memmove(zone_at, zone_start_part, strlen(zone_start_part));
+  zone_at += strlen(zone_start_part);
+  zone_left -= strlen(zone_start_part);
+  for(i=0; i<num_items; i++) {
+    snprintf(zone_at, zone_left, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,");
+    zone_at += 256;
+    zone_left -= 256;
+  }
+  snprintf(zone_at, zone_left, "%s", zone_end_part);
+  result = zone_parse_string(&parser, &options, &buffers, zone, strlen(zone),
+    NULL);
+  assert_int_equal(result, ZONE_SYNTAX_ERROR);
+
+  free(zone);
+}
