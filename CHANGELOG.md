@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.7] - 2026-10-14
 
-### Added
-
 ### Fixed
+
+- Fix for CVE-2026-101337: Reserve correct number of bytes for base64 sequence
+  tokens, regardless of stream decoder phase.
+  Thanks to Qifan Zhang, Palo Alto Networks, and Gaurang Maheta for the report.
+- Fix for CVE-2026-101338: No SVCB and/or HTTPS parameters are parsed when the
+  RDATA is already filled to the brim.
+  Thanks to Qifan Zhang, Palo Alto Networks, for the report.
+- Fix for CVE-2026-101338: No SVCB and/or HTTPS parameters are parsed when the
+  RDATA is already filled to the brim.
+  Thanks to Qifan Zhang, Palo Alto Networks, for the report.
+- Fix CVE-2026-101339: Fix for dname possibility to overwrite the stack when
+  near the RDATA limit.
+  Thanks to Qifan Zhang, Palo Alto Networks, and Alwaleed Ashi (LXR)
+  <waleed.9998@hotmail.com> for the report.
 
 ## [0.2.6] - 2026-09-02
 
@@ -37,8 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix to parse SVCB and HTTPS svcparam ech=0.
 
 ## [0.2.4] - 2025-12-04
-
-### Added
 
 ### Fixed
 
