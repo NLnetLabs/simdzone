@@ -2566,7 +2566,7 @@ static really_inline int32_t parse_unece_iso_value(
   const token_t *token)
 {
 
-  if (token->length == 1 && token->data[0] == '-') {
+  if (token->length == 1 && token->data[0] == '-' && rdata->octets < rdata->limit) {
     *rdata->octets++ = 0;
     return 0;
   }
@@ -3570,7 +3570,7 @@ static const rdata_info_t unece_rdata_fields[] = {
 };
 
 static const rdata_info_t iso_rdata_fields[] = {
-  FIELD("recommendation"),
+  FIELD("standard"),
   FIELD("value"),
   FIELD("code"),
   FIELD("description"),
