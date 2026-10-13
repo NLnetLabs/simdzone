@@ -21,6 +21,8 @@ m4_include(m4/ax_check_compile_flag.m4)
 CFLAGS="$CFLAGS"
 m4_version_prereq([2.70], [AC_PROG_CC], [AC_PROG_CC_STDC])
 
+AC_PROG_AR
+
 # allow user to override the -g -O2 flags.
 if test "x$CFLAGS" = "x" ; then
 ACX_CHECK_COMPILER_FLAG(g, [CFLAGS="$CFLAGS -g"])
