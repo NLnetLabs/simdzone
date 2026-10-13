@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix to build simdzone also with NDEBUG by default, like NSD and only disable
   it when `--enable-check ing` is given to configure.
   Thanks to Alwaleed Ashi (LXR) <waleed.9998@hotmail.com> for the report.
+- Fix to let configure detect ar as it needs to match the --host arch
+  Thanks Haelwenn (lanodan) Monnier
+- Fix asm usage in strict ISO C builds
+  Thanks Jared Mauch
 
 ## [0.2.6] - 2026-09-02
 
