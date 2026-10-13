@@ -8,12 +8,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-22.04
+          - os: ubuntu-26.04
             cc: gcc
             build_type: Debug
             build_tool_options: -j 4
             analyzer: off
-          - os: ubuntu-22.04
+          - os: ubuntu-26.04
             cc: clang
             build_type: Debug
             build_tool_options: -j 4
