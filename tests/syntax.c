@@ -1289,3 +1289,240 @@ void delimiters_overflow_txt(void** state)
 
   free(zone);
 }
+
+/*!cmocka */
+void base64_token_reserve_underestimate(void** state)
+{
+  /* Check for overflow token reservations for base64 strings. */
+  const char* zone_start_part =
+"$ORIGIN example.\n"
+";$TTL 3600\n"
+"@	IN	SOA	ns postmaster.mail 2147483647 3600 900 1814400 900\n"
+"@ 300 IN DNSKEY 257 3 13 (\n"
+	;
+  const char* zone_end_part =
+")\n"
+	;
+  char* zone, *zone_at;
+  size_t zone_str_len, zone_left;
+  size_t num_items = 40000 /* 29124 still fits */, i;
+  static uint8_t origin[] = { 0 };
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options;
+  int32_t result;
+  (void) state;
+
+  memset(&options, 0, sizeof(options));
+  options.accept.callback = contiguous_escaped_start_cb;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = ZONE_CLASS_IN;
+
+  /* Build the zone string */
+  zone_str_len = strlen(zone_start_part) + num_items * 4 + 1 /* newline */ +
+    strlen(zone_end_part) + 1 /* zero */;
+  zone = malloc(zone_str_len);
+  assert_non_null(zone);
+
+  zone_at = zone;
+  zone_left = zone_str_len;
+  memmove(zone_at, zone_start_part, strlen(zone_start_part));
+  zone_at += strlen(zone_start_part);
+  zone_left -= strlen(zone_start_part);
+  for(i=0; i<num_items; i++) {
+    snprintf(zone_at, zone_left, " AQI");
+    zone_at += 4;
+    zone_left -= 4;
+  }
+  snprintf(zone_at, zone_left, "\n");
+  zone_at += 1;
+  zone_left -= 1;
+  snprintf(zone_at, zone_left, "%s", zone_end_part);
+
+  result = zone_parse_string(&parser, &options, &buffers, zone, strlen(zone),
+    NULL);
+  assert_int_equal(result, ZONE_SYNTAX_ERROR);
+
+  free(zone);
+}
+
+/*!cmocka */
+void svcb_alpn_exact_fill_to_rdata_lim(void** state)
+{
+  /* Check for overflow token reservations for base64 strings. */
+  const char* zone_start_part =
+"$ORIGIN example.\n"
+";$TTL 3600\n"
+"@	IN	SOA	ns postmaster.mail 2147483647 3600 900 1814400 900\n"
+"@ 300 IN SVCB 1 . ( alpn="
+	;
+  const char* zone_end_part =
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n   ech=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA )\n"
+	;
+  char* zone, *zone_at;
+  size_t zone_str_len, zone_left;
+  size_t num_items = 255, i;
+  static uint8_t origin[] = { 0 };
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options;
+  int32_t result;
+  (void) state;
+
+  memset(&options, 0, sizeof(options));
+  options.accept.callback = contiguous_escaped_start_cb;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = ZONE_CLASS_IN;
+
+  /* Build the zone string */
+  zone_str_len = strlen(zone_start_part) + num_items * 256 +
+    strlen(zone_end_part) + 1 /* zero */;
+  zone = malloc(zone_str_len);
+  assert_non_null(zone);
+
+  zone_at = zone;
+  zone_left = zone_str_len;
+  memmove(zone_at, zone_start_part, strlen(zone_start_part));
+  zone_at += strlen(zone_start_part);
+  zone_left -= strlen(zone_start_part);
+  for(i=0; i<num_items; i++) {
+    snprintf(zone_at, zone_left, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,");
+    zone_at += 256;
+    zone_left -= 256;
+  }
+  snprintf(zone_at, zone_left, "%s", zone_end_part);
+  result = zone_parse_string(&parser, &options, &buffers, zone, strlen(zone),
+    NULL);
+  assert_int_equal(result, ZONE_SYNTAX_ERROR);
+
+  free(zone);
+}
+
+/*!cmocka */
+void dname_after_exact_fill_to_rdata_lim(void** state)
+{
+  /* Check for overflow token reservations for base64 strings. */
+  const char* zone_start_part =
+"$ORIGIN example.\n"
+";$TTL 3600\n"
+"@	IN	SOA	ns postmaster.mail 2147483647 3600 900 1814400 900\n"
+"@ 300 IN HIP ( 2\n    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n    "
+	;
+  const char* zone_end_part =
+"\n    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa. )\n"
+	;
+  char* zone, *zone_at;
+  size_t zone_str_len, zone_left;
+  size_t num_items = 87036, i;
+  static uint8_t origin[] = { 0 };
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options;
+  int32_t result;
+  (void) state;
+
+  memset(&options, 0, sizeof(options));
+  options.accept.callback = contiguous_escaped_start_cb;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = ZONE_CLASS_IN;
+
+  /* Build the zone string */
+  zone_str_len = strlen(zone_start_part) + num_items * 1 +
+    strlen(zone_end_part) + 1 /* zero */;
+  zone = malloc(zone_str_len);
+  assert_non_null(zone);
+
+  zone_at = zone;
+  zone_left = zone_str_len;
+  memmove(zone_at, zone_start_part, strlen(zone_start_part));
+  zone_at += strlen(zone_start_part);
+  zone_left -= strlen(zone_start_part);
+  for(i=0; i<num_items; i++) {
+    *zone_at++ = 'A';
+    zone_left -= 1;
+  }
+  snprintf(zone_at, zone_left, "%s", zone_end_part);
+  result = zone_parse_string(&parser, &options, &buffers, zone, strlen(zone),
+    NULL);
+  assert_int_equal(result, ZONE_SYNTAX_ERROR);
+
+  free(zone);
+}
+
+/*!cmocka */
+void small_text_blocks_overflow(void** state)
+{
+  /* Check for overflow from strings smaller than 32 octets. */
+  const char* zone_start_part =
+"$ORIGIN example.\n"
+";$TTL 3600\n"
+"@	IN	SOA	ns postmaster.mail 2147483647 3600 900 1814400 900\n"
+"\n"
+"big IN TXT";
+  const char* zone_end_part =
+"\nfoo	IN	A	203.0.113.54\n"
+	;
+  char* zone, *zone_at;
+  size_t zone_str_len, zone_left;
+  int num_items = 302, i, num_32_items = 100;
+  static uint8_t origin[] = { 0 };
+  zone_parser_t parser;
+  zone_name_buffer_t name;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &name, &rdata };
+  zone_options_t options;
+  int32_t result;
+  (void) state;
+
+  memset(&options, 0, sizeof(options));
+  options.accept.callback = contiguous_escaped_start_cb;
+  options.origin.octets = origin;
+  options.origin.length = sizeof(origin);
+  options.default_ttl = 3600;
+  options.default_class = ZONE_CLASS_IN;
+
+  /* Build the zone string */
+  zone_str_len = strlen(zone_start_part)
+    + ((size_t)num_items) * 217   /* space + 216 */
+    + ((size_t)num_32_items) * 32 /* space + 31 */
+    + strlen(zone_end_part) + 1 /* zero */
+    + ZONE_BLOCK_SIZE /* padding for simd operations */;
+  zone = calloc(1, zone_str_len);
+  assert_non_null(zone);
+
+  zone_at = zone;
+  zone_left = zone_str_len;
+  memmove(zone_at, zone_start_part, strlen(zone_start_part));
+  zone_at += strlen(zone_start_part);
+  zone_left -= strlen(zone_start_part);
+  for(i=0; i<num_items; i++) {
+    snprintf(zone_at, zone_left, " AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    zone_at += 217;
+    zone_left -= 217;
+  }
+  for(i=0; i<num_32_items; i++) {
+    snprintf(zone_at, zone_left, " BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+    zone_at += 32;
+    zone_left -= 32;
+  }
+  snprintf(zone_at, zone_left, "%s", zone_end_part);
+  fprintf(stderr, "%s", zone);
+
+  result = zone_parse_string(&parser, &options, &buffers, zone, strlen(zone),
+    NULL);
+  assert_int_equal(result, ZONE_SYNTAX_ERROR);
+
+  free(zone);
+}
