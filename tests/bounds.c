@@ -244,3 +244,38 @@ void contiguous_on_buffer_boundary(void **state)
   assert_int_equal(count, 3);
   free(path);
 }
+
+#define END_OF_STRING_BACKSLASH ". IN CAA 0 s \\"
+
+/*!cmocka */
+void end_of_string_backslash(void **state)
+{
+  (void)state;
+
+  // This test needs an ASAN build (SANTIZER=address)
+
+  static const size_t length = sizeof(END_OF_STRING_BACKSLASH);
+  static const uint8_t root[1] = { 0 };
+  static char input[sizeof(END_OF_STRING_BACKSLASH) + ZONE_BLOCK_SIZE]
+	  = END_OF_STRING_BACKSLASH;
+  zone_parser_t parser;
+  zone_options_t options;
+  zone_name_buffer_t owner;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &owner, &rdata };
+
+  memset(input + length, 0, ZONE_BLOCK_SIZE);
+  memset(&parser, 0, sizeof(parser));
+  memset(&options, 0, sizeof(options));
+  options.origin.octets = root;
+  options.origin.length = 1;
+  options.accept.callback = &accept_bar_baz;
+  options.default_ttl = 3600;
+  options.default_class = 1;
+
+  fprintf(stderr, "INPUT:\n%s\n", input);
+
+  int32_t code = zone_parse_string(
+      &parser, &options, &buffers, input, length - 1, NULL);
+  assert_int_equal(code, ZONE_SYNTAX_ERROR);
+}

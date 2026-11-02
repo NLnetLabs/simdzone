@@ -240,6 +240,8 @@ if(architecture STREQUAL "x86_64" OR architecture STREQUAL "amd64")
       target_sources(zone-bench PRIVATE src/haswell/bench.c)
     endif()
   endif()
+elseif(architecture MATCHES "^riscv")
+  message(STATUS "RISC-V target detected; building fallback kernel only")
 endif()
 
 

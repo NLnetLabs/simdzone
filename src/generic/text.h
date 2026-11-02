@@ -66,7 +66,7 @@ static really_inline int32_t scan_string(
     goto escaped;
 
   if (length < 32)
-    return (int32_t)count;
+    return octets + count <= limit ? (int32_t)count : -1;
 
   text += count;
   wire += count;
@@ -86,7 +86,7 @@ escaped:
       mask = block.backslashes - 1;
       count = count_ones(mask);
       const uint32_t octet = unescape(text+count, wire+count);
-      if (!octet)
+      if (!octet || length < count + octet)
         return -1;
       text += count + octet;
       wire += count + 1;

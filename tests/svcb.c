@@ -764,6 +764,117 @@ static const char tsg_f2_text[] =
   PAD("tsg-f2 7200  IN SVCB 3 server.example.net. (\n"
       "port=\"8004\" tls-supported-groups=29,23,29 )");
 
+// From RFC 9953 Section 3.2.1. Examples: 
+static const char docpath_s1_text[] =
+  PAD("docpath-s1  1576  IN SVCB 1 dns.example.org. (\n"
+      "  alpn=co docpath )");
+static const rdata_t docpath_s1_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    3, 'd', 'n', 's', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'o', 'r', 'g', 0, // target
+    0x00, 0x01, 0x00, 0x03, 0x02, 'c', 'o', // alpn=co
+    0x00, 0x0a, 0x00, 0x00 // docpath
+    );
+
+static const char docpath_s2_text[] =
+  PAD("docpath-s2  85  IN SVCB 1 dns.example.org. (\n"
+      "  alpn=co docpath=dns )");
+static const rdata_t docpath_s2_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    3, 'd', 'n', 's', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'o', 'r', 'g', 0, // target
+    0x00, 0x01, 0x00, 0x03, 0x02, 'c', 'o', // alpn=co
+    0x00, 0x0a, 0x00, 0x04, 0x03, 'd', 'n', 's' // docpath=dns
+    );
+
+static const char docpath_s3_text[] =
+  PAD("docpath-s3  1643  IN SVCB 1 dns.example.org. (\n"
+      "  alpn=co docpath=n,s )");
+static const rdata_t docpath_s3_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    3, 'd', 'n', 's', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'o', 'r', 'g', 0, // target
+    0x00, 0x01, 0x00, 0x03, 0x02, 'c', 'o', // alpn=co
+    0x00, 0x0a, 0x00, 0x04, 0x01, 'n', 0x01, 's' // docpath=n,s
+    );
+
+static const char docpath_s4_text[] =
+  PAD("docpath-s4  429  IN SVCB 1 dns.example.org. (\n"
+      "  alpn=h3,co dohpath=/{?dns} docpath )");
+static const rdata_t docpath_s4_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    3, 'd', 'n', 's', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'o', 'r', 'g', 0, // target
+    0x00, 0x01, 0x00, 0x06, 0x02, 'h', '3', 0x02, 'c', 'o', // alpn=h3,co
+    0x00, 0x07, 0x00, 0x07, '/', '{', '?', 'd', 'n', 's', '}',
+    0x00, 0x0a, 0x00, 0x00 // docpath
+    );
+
+// From the draft-ietf-intarea-proxy-config-13 Section-2.1 Discovery via HTTPS/SVCB Records:
+static const char pvd_s1_text[] =
+  PAD("pvd-s1 3600 IN HTTPS 1 . alpn=\"h3,h2\" pvd");
+static const rdata_t pvd_s1_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    0x00, // target
+    0x00, 0x01, 0x00, 0x06, 0x02, 'h', '3', 0x02, 'h', '2', // alpn=h3,h2
+    0x00, 0x0b, 0x00, 0x00 // pvd
+    );
+
+static const char pvd_f1_text[] =
+  PAD("pvd-f1 3600 IN HTTPS 1 . alpn=\"h3,h2\" pvd=\"something\"");
+
+static const char oots_s1_text[] =
+  PAD("oots-s1 300 IN SVCB 1 . oots=\"do53:100,dot:10\"");
+
+static const rdata_t oots_s1_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    0x00, // target
+    0x00, 0x0c, 0x00, 0x0b, 0x04, 'd', 'o', '5', '3', 100, 0x03, 'd', 'o', 't', 10 // outs="do53:100,dot:10"
+    );
+
+static const char oots_s2_text[] =
+  PAD("oots-s2 300 IN SVCB 1 . oots=\"do53:100,dot:5,doq:5\"");
+
+static const rdata_t oots_s2_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    0x00, // target
+    0x00, 0x0c, 0x00, 0x10, 0x04, 'd', 'o', '5', '3', 100, 0x03, 'd', 'o', 't', 5, 0x03, 'd', 'o', 'q', 5 // outs="do53:100,dot:5,doq:5"
+    );
+
+static const char oots_s3_text[] =
+  PAD("oots-s3 300 IN SVCB 1 . oots=\"do53:100,dot:25,doh:10,doq:10\"");
+
+static const rdata_t oots_s3_rdata =
+  RDATA(
+    0x00, 0x01, // priority
+    0x00, // target
+    0x00, 0x0c, 0x00, 0x15, 0x04, 'd', 'o', '5', '3', 100, 0x03, 'd', 'o', 't', 25, 0x03, 'd', 'o', 'h', 10, 0x03, 'd', 'o', 'q', 10// outs="do53:100,dot:25,doh:10,doq:10"
+    );
+
+// Missing percentage
+static const char oots_f1_text[] =
+  PAD("oots-f1 300 IN SVCB 1 . oots=\"do53:100,dot\"");
+
+// Missing transport
+static const char oots_f2_text[] =
+  PAD("oots-f2 300 IN SVCB 1 . oots=\"do53:100,:25\"");
+
+// Invalid percentage
+static const char oots_f3_text[] =
+  PAD("oots-f3 300 IN SVCB 1 . oots=\"do53:100,dot:101\"");
+
+// Invalid percentage
+static const char oots_f4_text[] =
+  PAD("oots-f4 300 IN SVCB 1 . oots=\"do53:100,dot:25%\"");
+
+// Duplicate transport
+static const char oots_f5_text[] =
+  PAD("oots-f5 300 IN SVCB 1 . oots=\"do53:100,dot:25,dot:10\"");
+
+
 // FIXME: make a test that verifies correct behavior for no-default-alpn="some value"
 
 typedef struct test test_t;
@@ -858,7 +969,21 @@ static const test_t tests[] = {
   { false, ZONE_TYPE_HTTPS, ZONE_SEMANTIC_ERROR, ohttp_f1_text, NULL },
   { false, ZONE_TYPE_SVCB, 0, tsg_s1_text, &tsg_s1_rdata },
   { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, tsg_f1_text, NULL },
-  { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, tsg_f2_text, NULL }
+  { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, tsg_f2_text, NULL },
+  { false, ZONE_TYPE_SVCB, 0, docpath_s1_text, &docpath_s1_rdata },
+  { false, ZONE_TYPE_SVCB, 0, docpath_s2_text, &docpath_s2_rdata },
+  { false, ZONE_TYPE_SVCB, 0, docpath_s3_text, &docpath_s3_rdata },
+  { false, ZONE_TYPE_SVCB, 0, docpath_s4_text, &docpath_s4_rdata },
+  { false, ZONE_TYPE_HTTPS, 0, pvd_s1_text, &pvd_s1_rdata },
+  { false, ZONE_TYPE_HTTPS, ZONE_SEMANTIC_ERROR, pvd_f1_text, NULL },
+  { false, ZONE_TYPE_SVCB, 0, oots_s1_text, &oots_s1_rdata },
+  { false, ZONE_TYPE_SVCB, 0, oots_s2_text, &oots_s2_rdata },
+  { false, ZONE_TYPE_SVCB, 0, oots_s3_text, &oots_s3_rdata },
+  { false, ZONE_TYPE_SVCB, ZONE_SYNTAX_ERROR, oots_f1_text, NULL },
+  { false, ZONE_TYPE_SVCB, ZONE_SYNTAX_ERROR, oots_f2_text, NULL },
+  { false, ZONE_TYPE_SVCB, ZONE_SYNTAX_ERROR, oots_f3_text, NULL },
+  { false, ZONE_TYPE_SVCB, ZONE_SYNTAX_ERROR, oots_f4_text, NULL },
+  { false, ZONE_TYPE_SVCB, ZONE_SEMANTIC_ERROR, oots_f5_text, NULL }
 };
 
 static int32_t add_rr(
@@ -876,15 +1001,30 @@ static int32_t add_rr(
   (void)owner;
   (void)class;
   (void)ttl;
-  if (type != test->type)
+  if (type != test->type) {
+    fprintf(stderr, "type mismatch\n");
     return ZONE_SYNTAX_ERROR;
+  }
   if (test->code != ZONE_SUCCESS)
     return ZONE_SUCCESS;
   if (rdlength != test->rdata->length || !test->rdata->octets)
-    return ZONE_SYNTAX_ERROR;
-  if (memcmp(rdata, test->rdata->octets, rdlength) != 0)
-    return ZONE_SYNTAX_ERROR;
-  return ZONE_SUCCESS;
+    fprintf( stderr, "rdata length did not match %d != %d"
+           , (int)rdlength, (int)test->rdata->length);
+  else if (memcmp(rdata, test->rdata->octets, rdlength) != 0)
+    fprintf(stderr, "rdata bytes did not match");
+  else
+    return ZONE_SUCCESS;
+
+  size_t i;
+  for (i = 0; i < rdlength; i++) {
+    if (i % 16 == 0)
+      fprintf(stderr, "\n");
+    else if (i % 8 == 0)
+      fprintf(stderr, " ");
+    fprintf(stderr, " %.2x", rdata[i]);
+  }
+  fprintf(stderr, "\n");
+  return ZONE_SYNTAX_ERROR;
 }
 
 static uint8_t origin[] =
