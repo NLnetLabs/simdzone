@@ -33,7 +33,7 @@ language = 'en'
 # -- Options for HTML output -------------------------------------------------
 
 html_theme = 'furo'
-html_title = f'{project} {version} documentation'
+html_title = f'Documentation for simdzone by NLnet Labs'
 html_css_files = ['css/nlnetlabs.css']
 
 # Theme options are theme-specific and customize the look and feel of a theme
