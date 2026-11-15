@@ -99,7 +99,7 @@ void ds_digest_lengths(void **state)
     { 4, 48, ZONE_SUCCESS },
     { 4, 47, ZONE_SEMANTIC_ERROR },
     { 4, 49, ZONE_SEMANTIC_ERROR },
-    // 5: GOST R 34.10-2012
+    // 5: GOST R 34.11-2012
     { 5, 32, ZONE_SUCCESS },
     { 5, 31, ZONE_SEMANTIC_ERROR },
     { 5, 33, ZONE_SEMANTIC_ERROR },
