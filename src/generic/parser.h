@@ -209,7 +209,8 @@ static never_inline int32_t raise_error(
 {
   va_list arguments;
   uint32_t category = ZONE_ERROR;
-  if (code == ZONE_SEMANTIC_ERROR && parser->options.secondary)
+  if ((code == ZONE_SEMANTIC_ERROR && parser->options.secondary)
+  ||  (code == ZONE_SYNTAX_ERROR   && parser->options.skip_syntax_errors))
     category = ZONE_WARNING;
   va_start(arguments, format);
   zone_vlog(parser, category, format, arguments);

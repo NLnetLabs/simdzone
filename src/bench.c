@@ -157,6 +157,8 @@ static void help(const char *program)
     "\n"
     "Options:\n"
     "  -h         Display available options.\n"
+    "  -s         Continue parsing after a semantic error\n"
+    "  -S         Continue parsing after a semantic or syntax error\n"
     "  -t target  Select target (default:%s)\n"
     "\n"
     "Kernels:\n";
@@ -183,13 +185,29 @@ int main(int argc, char *argv[])
     if (*slash == '/' || *slash == '\\')
       program = slash + 1;
 
-  for (int option; (option = getopt(argc, argv, "ht:")) != -1;) {
+  zone_options_t options;
+  memset(&options, 0, sizeof(options));
+  options.pretty_ttls = true;
+  options.origin.octets = root;
+  options.origin.length = 1;
+  options.accept.callback = &bench_accept;
+  options.default_ttl = 3600;
+  options.default_class = 1;
+
+  for (int option; (option = getopt(argc, argv, "ht:sS")) != -1;) {
     switch (option) {
       case 'h':
         help(program);
         exit(EXIT_SUCCESS);
       case 't':
         name = optarg;
+        break;
+      case 's':
+        options.secondary = true;
+        break;
+      case 'S':
+        options.secondary = true;
+        options.skip_syntax_errors = true;
         break;
       default:
         usage(program);
@@ -213,14 +231,6 @@ int main(int argc, char *argv[])
 
   zone_parser_t parser;
   memset(&parser, 0, sizeof(parser));
-  zone_options_t options;
-  memset(&options, 0, sizeof(options));
-  options.pretty_ttls = true;
-  options.origin.octets = root;
-  options.origin.length = 1;
-  options.accept.callback = &bench_accept;
-  options.default_ttl = 3600;
-  options.default_class = 1;
 
   zone_name_buffer_t owner;
   zone_rdata_buffer_t rdata;
