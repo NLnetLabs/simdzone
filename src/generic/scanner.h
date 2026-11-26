@@ -317,6 +317,8 @@ static really_inline int32_t reindex(parser_t *parser)
   if(parser->file->end_of_file && left < ZONE_BLOCK_SIZE) {
     if (!left) {
       parser->file->end_of_file = NO_MORE_DATA;
+      // EOF terminates an unquoted field even at the end of a full block.
+      block.contiguous = 0;
     } else if (tape+left <= tape_limit) {
       // input is required to be padded, but may contain garbage
       uint8_t buffer[ZONE_BLOCK_SIZE] = { 0 };
