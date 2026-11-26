@@ -182,6 +182,107 @@ void block_boundary(void **state)
   }
 }
 
+static void check_end_of_input(
+  size_t length, const char *suffix, bool from_file, int32_t expected)
+{
+  static const uint8_t root[1] = { 0 };
+  static const char prefix[] = "foo. TXT ";
+  const size_t prefix_length = sizeof(prefix) - 1;
+  const size_t suffix_length = strlen(suffix);
+
+  assert_true(length >= prefix_length + suffix_length);
+  char *input = calloc(length + 1 + ZONE_BLOCK_SIZE, 1);
+  assert_non_null(input);
+  memcpy(input, prefix, prefix_length);
+  memset(input + prefix_length, ' ', length - prefix_length - suffix_length);
+  memcpy(input + length - suffix_length, suffix, suffix_length);
+  // Padding is readable but must not be interpreted as part of the input.
+  memset(input + length + 1, 'x', ZONE_BLOCK_SIZE);
+
+  zone_parser_t parser;
+  zone_options_t options = { 0 };
+  zone_name_buffer_t owner;
+  zone_rdata_buffer_t rdata;
+  zone_buffers_t buffers = { 1, &owner, &rdata };
+  options.origin.octets = root;
+  options.origin.length = sizeof(root);
+  options.accept.callback = &accept_bar_baz;
+  options.default_ttl = 3600;
+  options.default_class = ZONE_CLASS_IN;
+
+  fprintf(stderr, "length=%zu suffix='%s' file=%d\n", length, suffix, from_file);
+  size_t count = 0;
+  int32_t code;
+  if (from_file) {
+    char *path = get_tempnam(NULL, "eof-boundary");
+    assert_non_null(path);
+    FILE *handle = fopen(path, "wb");
+    assert_non_null(handle);
+    assert_int_equal(fwrite(input, 1, length, handle), length);
+    assert_int_equal(fclose(handle), 0);
+    code = zone_parse(&parser, &options, &buffers, path, &count);
+    remove(path);
+    free(path);
+  } else {
+    code = zone_parse_string(&parser, &options, &buffers, input, length, &count);
+  }
+  free(input);
+
+  assert_int_equal(code, expected);
+  assert_int_equal(count, expected == ZONE_SUCCESS ? 1 : 0);
+}
+
+/*!cmocka */
+void string_ends_at_block_boundary(void **state)
+{
+  (void)state;
+  check_end_of_input(ZONE_BLOCK_SIZE, "bar", false, ZONE_SUCCESS);
+}
+
+/*!cmocka */
+void string_ends_at_two_block_boundary(void **state)
+{
+  (void)state;
+  check_end_of_input(2 * ZONE_BLOCK_SIZE, "bar", false, ZONE_SUCCESS);
+}
+
+/*!cmocka */
+void string_end_controls(void **state)
+{
+  (void)state;
+  check_end_of_input(ZONE_BLOCK_SIZE - 1, "bar", false, ZONE_SUCCESS);
+  check_end_of_input(ZONE_BLOCK_SIZE + 1, "bar", false, ZONE_SUCCESS);
+  check_end_of_input(ZONE_BLOCK_SIZE, "bar ", false, ZONE_SUCCESS);
+  check_end_of_input(ZONE_BLOCK_SIZE, "\"bar\"", false, ZONE_SUCCESS);
+}
+
+/*!cmocka */
+void unclosed_quote_at_end_of_string(void **state)
+{
+  (void)state;
+  check_end_of_input(ZONE_BLOCK_SIZE - 1, "\"bar", false, ZONE_SYNTAX_ERROR);
+  check_end_of_input(ZONE_BLOCK_SIZE, "\"bar", false, ZONE_SYNTAX_ERROR);
+  check_end_of_input(ZONE_BLOCK_SIZE + 1, "\"bar", false, ZONE_SYNTAX_ERROR);
+}
+
+/*!cmocka */
+void unfinished_escape_at_end_of_string(void **state)
+{
+  (void)state;
+  check_end_of_input(ZONE_BLOCK_SIZE - 1, "bar\\", false, ZONE_SYNTAX_ERROR);
+  check_end_of_input(ZONE_BLOCK_SIZE, "bar\\", false, ZONE_SYNTAX_ERROR);
+  check_end_of_input(ZONE_BLOCK_SIZE + 1, "bar\\", false, ZONE_SYNTAX_ERROR);
+}
+
+/*!cmocka */
+void file_ends_at_block_boundary(void **state)
+{
+  (void)state;
+  check_end_of_input(ZONE_BLOCK_SIZE, "bar", true, ZONE_SUCCESS);
+  check_end_of_input(2 * ZONE_BLOCK_SIZE, "bar", true, ZONE_SUCCESS);
+  check_end_of_input(ZONE_WINDOW_SIZE, "bar", true, ZONE_SUCCESS);
+}
+
 static int32_t count_openpgp(
   zone_parser_t *parser,
   const zone_name_t *owner,

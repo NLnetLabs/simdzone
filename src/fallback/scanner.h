@@ -159,6 +159,8 @@ static really_inline int32_t reindex(parser_t *parser)
   if (parser->file->end_of_file && left < ZONE_BLOCK_SIZE) {
     if (!left) {
       parser->file->end_of_file = NO_MORE_DATA;
+      // EOF terminates an unquoted field even at the end of a full block.
+      parser->file->state.follows_contiguous = 0;
     } else if(tape+left <= tape_limit) {
       scan(parser, data, data + left);
       parser->file->end_of_file = NO_MORE_DATA;
